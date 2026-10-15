@@ -1,0 +1,3572 @@
+package com.example.ui.player
+
+import android.app.Activity
+import android.app.PictureInPictureParams
+import android.content.Context
+import android.content.pm.ActivityInfo
+import android.content.res.Configuration
+import android.net.Uri
+import android.os.Build
+import android.util.Log
+import android.util.Rational
+import android.util.TypedValue
+import android.view.ViewGroup
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.material3.ripple
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.displayCutoutPadding
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.AspectRatio
+import androidx.compose.material.icons.filled.Audiotrack
+import androidx.compose.material.icons.filled.Brightness6
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Dns
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.FastRewind
+import androidx.compose.material.icons.filled.Forward10
+import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.FullscreenExit
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.NightlightRound
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PictureInPictureAlt
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Replay10
+import androidx.compose.material.icons.filled.ScreenRotation
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.Subtitles
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
+import androidx.media3.common.Tracks
+import androidx.media3.common.TrackSelectionOverride
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DataSpec
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.ResolvingDataSource
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.session.MediaSession
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.CaptionStyleCompat
+import androidx.media3.ui.PlayerView
+import coil.compose.AsyncImage
+import com.example.data.model.Anime
+import com.example.data.model.Episode
+import com.example.data.provider.ProviderManager
+import com.example.data.repository.AnimeRepository
+import com.example.data.repository.DownloadStart
+import com.example.data.resolver.AudioTrackOption
+import com.example.data.resolver.ResolveResult
+import com.example.data.resolver.StreamResolverRegistry
+import com.example.data.resolver.StreamSource
+import com.example.ui.theme.DarkBackground
+import com.example.ui.theme.DarkBorder
+import com.example.ui.theme.DarkSurface
+import com.example.ui.theme.DarkSurfaceVariant
+import com.example.ui.theme.LocalThemeAccent
+import com.example.ui.theme.TextPrimary
+import com.example.ui.theme.TextSecondary
+import com.example.ui.theme.getThemeAccentColor
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlin.math.abs
+
+@OptIn(UnstableApi::class)
+@Composable
+fun PlayerScreen(
+    animeId: String,
+    initialEpisodeNumber: Int,
+    initialLanguage: String,
+    repository: AnimeRepository,
+    onBackClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val activity = context as? Activity
+    val haptic = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val themeAccent = LocalThemeAccent.current
+    val view = LocalView.current
+
+    val savedSettings by repository.settings.collectAsState(initial = repository.settingsManager.getSettings())
+    val anime by repository.getAnimeById(animeId).collectAsState(initial = null)
+    val episodes by repository.getEpisodes(animeId).collectAsState(initial = emptyList())
+    val allProgress by repository.allHistory.collectAsState(initial = emptyList())
+    val allDownloads by repository.allDownloads.collectAsState(initial = emptyList())
+
+    var currentEpNumber by remember { mutableIntStateOf(initialEpisodeNumber) }
+    var currentLanguage by remember { mutableStateOf(initialLanguage.ifEmpty { savedSettings.defaultLanguage }) }
+    var currentServer by remember { mutableStateOf(savedSettings.defaultServer) }
+
+    val providerManager = remember { ProviderManager() }
+    // Shared with the repository so downloads and playback reuse one resolver set.
+    val registry = repository.resolverRegistry
+
+    // ---- playback state ----
+    var resolveResult by remember { mutableStateOf<ResolveResult?>(null) }
+    var sources by remember { mutableStateOf<List<StreamSource>>(emptyList()) }
+    var sourceIndex by remember { mutableIntStateOf(0) }
+    var isResolving by remember { mutableStateOf(false) }
+    var usingEmbedFallback by remember { mutableStateOf(false) }
+    var playbackError by remember { mutableStateOf<String?>(null) }
+    var exoAudioTracks by remember { mutableStateOf<List<AudioTrackOption>>(emptyList()) }
+    var activeExoAudioTrackId by remember { mutableStateOf<String?>(null) }
+    var dubStatusBanner by remember { mutableStateOf<String?>(null) }
+
+    var isPlaying by remember { mutableStateOf(false) }
+    var isBuffering by remember { mutableStateOf(true) }
+    var isReady by remember { mutableStateOf(false) }
+    var currentTimeSec by remember { mutableLongStateOf(0L) }
+    var durationSec by remember { mutableLongStateOf(0L) }
+    var isMuted by remember { mutableStateOf(false) }
+    var videoVolume by remember { mutableFloatStateOf(1f) }
+    var playbackSpeed by remember { mutableFloatStateOf(savedSettings.defaultPlaybackSpeed) }
+    var brightness by remember { mutableFloatStateOf(1f) }
+
+    // ---- ui state ----
+    var showControls by remember { mutableStateOf(true) }
+    var isLocked by remember { mutableStateOf(false) }
+    var isScrubbing by remember { mutableStateOf(false) }
+    var scrubPosition by remember { mutableLongStateOf(0L) }
+    var isHoldingSpeed by remember { mutableStateOf(false) }
+    // The multiplier the active hold is applying, so the badge can label fast and slow holds.
+    var holdSpeedTarget by remember { mutableFloatStateOf(1f) }
+    var seekFeedbackText by remember { mutableStateOf<String?>(null) }
+    var gestureFeedback by remember { mutableStateOf<String?>(null) }
+    var showServerSheet by remember { mutableStateOf(false) }
+    var showSourceSheet by remember { mutableStateOf(false) }
+    var showEpisodeSheet by remember { mutableStateOf(false) }
+    var showSubtitleDialog by remember { mutableStateOf(false) }
+    var showSpeedDialog by remember { mutableStateOf(false) }
+    var showAudioDialog by remember { mutableStateOf(false) }
+    var showFitDialog by remember { mutableStateOf(false) }
+    var lockPillVisible by remember { mutableStateOf(false) }
+    var showDiagnostics by remember { mutableStateOf(false) }
+    var showSleepTimerDialog by remember { mutableStateOf(false) }
+    var sleepTimerRemainingMin by remember { mutableIntStateOf(0) }
+    var showAutoNextBanner by remember { mutableStateOf(false) }
+    var autoNextCountdown by remember { mutableIntStateOf(5) }
+    var episodeQuery by remember { mutableStateOf("") }
+    var selectedEpisodeRangeIndex by remember { mutableIntStateOf(0) }
+    var resumePositionSec by remember { mutableLongStateOf(0L) }
+    // Deferred intents: effects and the player listener set these, and they are applied after the
+    // helper functions below are declared (Kotlin resolves local functions lexically).
+    var pendingAdvance by remember { mutableStateOf(false) }
+    var pendingEpisode by remember { mutableStateOf<Int?>(null) }
+    var pendingLock by remember { mutableStateOf(false) }
+    var resolveNonce by remember { mutableIntStateOf(0) }
+
+    val embedState = remember { mutableStateOf(EmbedPlayerState()) }
+    val embedController = rememberEmbedPlayerController()
+
+    val currentEpisode = episodes.firstOrNull { it.number == currentEpNumber } ?: Episode(
+        id = "${animeId}_$currentEpNumber",
+        animeId = animeId,
+        number = currentEpNumber,
+        title = "Episode $currentEpNumber",
+        thumbnail = ""
+    )
+
+    val currentSource: StreamSource? = sources.getOrNull(sourceIndex)
+    val effectiveMultiplier = savedSettings.holdToSpeedMultiplier.coerceIn(1.25f, 4f)
+    val effectiveSlowMultiplier = savedSettings.holdToSpeedSlowMultiplier.coerceIn(0.25f, 1f)
+
+    // ---------------------------------------------------------------------------------------------
+    // Player instance
+    // ---------------------------------------------------------------------------------------------
+    // Stream CDNs reject requests that arrive without the headers the resolver used, so the
+    // selected source's headers are injected into every request as it is made rather than being
+    // fixed when the player is built.
+    val playbackHeaders = remember { mutableMapOf<String, String>() }
+
+    val player = remember {
+        val baseFactory = DefaultHttpDataSource.Factory()
+            .setUserAgent(
+                "Mozilla/5.0 (Linux; Android 15; SM-S166V) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36"
+            )
+            .setAllowCrossProtocolRedirects(true)
+
+        val httpFactory = ResolvingDataSource.Factory(baseFactory) { dataSpec: DataSpec ->
+            if (playbackHeaders.isEmpty()) dataSpec else dataSpec.withRequestHeaders(playbackHeaders)
+        }
+
+        // Requests must be dispatched by scheme: a downloaded episode is a `file://` URI and an
+        // HTTP-only source cannot open it, while streams need the headers above.
+        val dataSourceFactory = DefaultDataSource.Factory(context, httpFactory)
+
+        ExoPlayer.Builder(context)
+            .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
+            .setWakeMode(C.WAKE_MODE_NETWORK)
+            .build()
+            .apply {
+                setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(C.USAGE_MEDIA)
+                        .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
+                        .build(),
+                    true
+                )
+                setHandleAudioBecomingNoisy(true)
+            }
+    }
+
+    val mediaSession = remember { MediaSession.Builder(context, player).build() }
+
+    DisposableEffect(Unit) {
+        val listener = object : Player.Listener {
+            override fun onIsPlayingChanged(playing: Boolean) {
+                isPlaying = playing
+                if (!playing && currentTimeSec > 0) {
+                    anime?.let { loaded ->
+                        val comp = durationSec > 0 && currentTimeSec >= durationSec * savedSettings.markWatchedThresholdPercent / 100
+                        scope.launch {
+                            repository.saveWatchProgress(
+                                anime = loaded,
+                                episode = currentEpisode,
+                                currentTimeSec = currentTimeSec,
+                                durationSec = if (durationSec > 0) durationSec else 1440L,
+                                language = currentLanguage,
+                                completed = comp
+                            )
+                        }
+                    }
+                }
+            }
+
+            override fun onPlaybackStateChanged(state: Int) {
+                isBuffering = state == Player.STATE_BUFFERING
+                isReady = state == Player.STATE_READY || state == Player.STATE_ENDED
+            }
+
+            override fun onPlayerError(error: PlaybackException) {
+                playbackError = error.errorCodeName
+                pendingAdvance = true
+            }
+
+            override fun onTracksChanged(tracks: Tracks) {
+                val discovered = mutableListOf<AudioTrackOption>()
+                tracks.groups.forEachIndexed { groupIdx, group ->
+                    if (group.type == C.TRACK_TYPE_AUDIO) {
+                        for (trackIdx in 0 until group.length) {
+                            val format = group.getTrackFormat(trackIdx)
+                            val lang = format.language?.ifBlank { "und" } ?: "und"
+                            val label = format.label?.takeIf { it.isNotBlank() }
+                                ?: when {
+                                    lang.startsWith("en", true) -> "English Dub ($lang)"
+                                    lang.startsWith("ja", true) || lang.startsWith("jp", true) -> "Japanese Original ($lang)"
+                                    else -> "Audio Track ${discovered.size + 1} ($lang)"
+                                }
+                            val combined = "$label $lang".lowercase()
+                            val isDub = combined.contains("eng") || combined.contains("dub") || lang.startsWith("en", true)
+                            val isSelected = group.isTrackSelected(trackIdx)
+                            val optionId = "exo_${groupIdx}_$trackIdx"
+                            if (isSelected) {
+                                activeExoAudioTrackId = optionId
+                            }
+                            discovered += AudioTrackOption(
+                                id = optionId,
+                                label = label,
+                                language = lang,
+                                isDub = isDub,
+                                isDefault = isSelected,
+                                groupIndex = groupIdx,
+                                trackIndex = trackIdx
+                            )
+                        }
+                    }
+                }
+                exoAudioTracks = discovered
+
+                // If the stream exposes multiple audio tracks inside the manifest, automatically
+                // select the track matching currentLanguage ("dub" -> English, "sub" -> Japanese).
+                if (discovered.size > 1) {
+                    val wantDub = currentLanguage.equals("dub", ignoreCase = true)
+                    val matchingTrack = discovered.firstOrNull { it.isDub == wantDub }
+                    if (matchingTrack != null && matchingTrack.id != activeExoAudioTrackId) {
+                        val targetGroup = tracks.groups.getOrNull(matchingTrack.groupIndex)
+                        if (targetGroup != null) {
+                            player.trackSelectionParameters = player.trackSelectionParameters
+                                .buildUpon()
+                                .setOverrideForType(
+                                    TrackSelectionOverride(targetGroup.mediaTrackGroup, matchingTrack.trackIndex)
+                                )
+                                .build()
+                            activeExoAudioTrackId = matchingTrack.id
+                        }
+                    }
+                }
+            }
+
+            override fun onEvents(playerRef: Player, events: Player.Events) {
+                durationSec = (playerRef.duration / 1000L).coerceAtLeast(0L)
+                if (!isScrubbing) currentTimeSec = (playerRef.currentPosition / 1000L).coerceAtLeast(0L)
+                videoVolume = playerRef.volume
+                isMuted = playerRef.volume <= 0f
+            }
+        }
+        player.addListener(listener)
+        onDispose {
+            anime?.let { loaded ->
+                val cur = if (currentTimeSec > 0) currentTimeSec else (player.currentPosition / 1000L).coerceAtLeast(0L)
+                val dur = if (durationSec > 0) durationSec else (player.duration / 1000L).coerceAtLeast(0L)
+                val comp = dur > 0 && cur >= dur * savedSettings.markWatchedThresholdPercent / 100
+                CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                    repository.saveWatchProgress(
+                        anime = loaded,
+                        episode = currentEpisode,
+                        currentTimeSec = cur,
+                        durationSec = if (dur > 0) dur else 1440L,
+                        language = currentLanguage,
+                        completed = comp
+                    )
+                }
+            }
+            player.removeListener(listener)
+            mediaSession.release()
+            player.release()
+        }
+    }
+
+    // Keep screen on while playing (user preference).
+    DisposableEffect(savedSettings.keepScreenOn, isPlaying) {
+        if (savedSettings.keepScreenOn) view.keepScreenOn = isPlaying
+        else view.keepScreenOn = false
+        onDispose { view.keepScreenOn = false }
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Resolve a real stream for the current episode
+    // ---------------------------------------------------------------------------------------------
+    // `anime` is a key so the resolve retries once the Room row arrives instead of giving up.
+    LaunchedEffect(animeId, anime?.id, currentEpNumber, currentLanguage, currentServer, resolveNonce) {
+        val loaded = anime ?: return@LaunchedEffect
+        isResolving = true
+        playbackError = null
+        dubStatusBanner = null
+        sources = emptyList()
+        sourceIndex = 0
+        exoAudioTracks = emptyList()
+        usingEmbedFallback = registry.isExplicitEmbedServer(currentServer)
+        resolveResult = null
+
+        if (!usingEmbedFallback) {
+            val result = registry.resolve(
+                anime = loaded,
+                episode = currentEpisode,
+                language = currentLanguage,
+                preferredServerId = currentServer,
+                autoFailover = savedSettings.autoFailover,
+                maxAttempts = savedSettings.failoverServerCount.coerceAtLeast(1)
+            )
+            resolveResult = result
+            sources = result.sources
+            if (!result.hasAnySource) {
+                if (result.isDubUnavailable) {
+                    dubStatusBanner = "English Dub is not available on direct servers for Episode $currentEpNumber — trying dub-capable embed or switch to SUB."
+                    Toast.makeText(
+                        context,
+                        "Dub not found on direct server — trying dub embed fallback",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    usingEmbedFallback = true
+                } else {
+                    playbackError = result.failureSummary()
+                    usingEmbedFallback = true
+                }
+            }
+        }
+        isResolving = false
+    }
+
+    // A finished offline download is played straight from disk, so downloads work with no network.
+    var localPath by remember { mutableStateOf<String?>(null) }
+    var localSubtitlePath by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(animeId, currentEpNumber) {
+        localPath = repository.localPlaybackPath(animeId, currentEpNumber)
+        localSubtitlePath = repository.localSubtitlePath(animeId, currentEpNumber)
+    }
+
+    // Load the selected source into the player.
+    LaunchedEffect(currentSource?.key, currentEpisode.id, localPath, localSubtitlePath, usingEmbedFallback) {
+        if (usingEmbedFallback) return@LaunchedEffect
+        val source = currentSource
+        if (source == null && localPath == null) return@LaunchedEffect
+        playbackError = null
+        isBuffering = true
+        isReady = false
+        currentTimeSec = 0L
+
+        playbackHeaders.clear()
+        playbackHeaders.putAll(source?.headers.orEmpty())
+        Log.i(
+            PLAYER_TAG,
+            "loading ep ${currentEpisode.number}: local=${localPath ?: "-"} source=${source?.url ?: "-"}"
+        )
+
+        val mediaItem = if (localPath != null) {
+            val builder = MediaItem.Builder()
+                .setUri("file://$localPath")
+                .setMediaMetadata(
+                    MediaMetadata.Builder()
+                        .setTitle("Episode ${currentEpisode.number}")
+                        .setArtist(anime?.title.orEmpty())
+                        .setDescription("Offline")
+                        .build()
+                )
+            // Downloads save the subtitle sidecar next to the video; attaching it here is what makes
+            // an offline episode keep its captions. Whether they are shown is still the normal policy.
+            localSubtitlePath?.let { sidecar ->
+                builder.setSubtitleConfigurations(
+                    listOf(
+                        MediaItem.SubtitleConfiguration.Builder(Uri.parse("file://$sidecar"))
+                            .setMimeType("text/vtt")
+                            .setLanguage(savedSettings.subtitleLanguage.lowercase().take(3))
+                            .setLabel(savedSettings.subtitleLanguage)
+                            .setSelectionFlags(C.SELECTION_FLAG_DEFAULT)
+                            .build()
+                    )
+                )
+            }
+            builder.build()
+        } else {
+            buildMediaItem(source!!, anime?.title.orEmpty(), currentEpisode)
+        }
+        player.setMediaItem(mediaItem)
+        player.prepare()
+        player.playWhenReady = savedSettings.autoplay
+        player.setPlaybackSpeed(playbackSpeed)
+        if (resumePositionSec > savedSettings.resumeThresholdSec * 1000L) {
+            player.seekTo(resumePositionSec)
+            resumePositionSec = 0L
+        }
+        applyResizeMode(player, savedSettings.videoFitMode)
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Progress persistence and auto-next
+    // ---------------------------------------------------------------------------------------------
+    LaunchedEffect(currentEpNumber, animeId, anime?.id, usingEmbedFallback) {
+        val loaded = anime ?: return@LaunchedEffect
+        val saved = repository.getProgressForEpisode(animeId, currentEpNumber)
+        if (saved == null) {
+            resumePositionSec = 0L
+            repository.saveWatchProgress(
+                anime = loaded,
+                episode = currentEpisode,
+                currentTimeSec = 0L,
+                durationSec = 1440L,
+                language = currentLanguage,
+                completed = false
+            )
+        } else if (!usingEmbedFallback && !saved.completed &&
+            saved.currentTimeSec > savedSettings.resumeThresholdSec
+        ) {
+            resumePositionSec = saved.currentTimeSec * 1000L
+            if (savedSettings.resumePromptEnabled) {
+                Toast.makeText(
+                    context,
+                    "Resuming episode ${currentEpNumber} from ${saved.formattedCurrentTime()}",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
+
+    LaunchedEffect(currentTimeSec, durationSec, isReady) {
+        val loaded = anime ?: return@LaunchedEffect
+        if (!isReady || durationSec <= 0) return@LaunchedEffect
+        val interval = savedSettings.saveProgressIntervalSec.coerceIn(2, 30).toLong()
+        if (currentTimeSec % interval != 0L && currentTimeSec < durationSec - 5) return@LaunchedEffect
+        val completeThreshold = durationSec * savedSettings.markWatchedThresholdPercent / 100
+        repository.saveWatchProgress(
+            anime = loaded,
+            episode = currentEpisode,
+            currentTimeSec = currentTimeSec,
+            durationSec = durationSec,
+            language = currentLanguage,
+            completed = currentTimeSec >= completeThreshold
+        )
+    }
+
+    LaunchedEffect(currentTimeSec, durationSec, isReady) {
+        if (!isReady || durationSec <= 0 || showAutoNextBanner || !savedSettings.autoNextEpisode) return@LaunchedEffect
+        if (currentTimeSec <= 5 || durationSec - currentTimeSec > 15) return@LaunchedEffect
+        if (episodes.any { it.number == currentEpNumber + 1 }) {
+            showAutoNextBanner = true
+            autoNextCountdown = savedSettings.autoNextCountdownSec.coerceAtLeast(3)
+        }
+    }
+
+    LaunchedEffect(showAutoNextBanner, autoNextCountdown) {
+        if (showAutoNextBanner && autoNextCountdown > 0) {
+            delay(1000L)
+            autoNextCountdown -= 1
+            if (autoNextCountdown == 0) {
+                showAutoNextBanner = false
+                pendingEpisode = currentEpNumber + 1
+            }
+        }
+    }
+
+    LaunchedEffect(sleepTimerRemainingMin) {
+        if (sleepTimerRemainingMin > 0) {
+            delay(60000L)
+            sleepTimerRemainingMin -= 1
+            if (sleepTimerRemainingMin == 0) {
+                player.pause()
+                Toast.makeText(context, "Sleep timer paused playback", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    val anySheetOpen = showSpeedDialog || showSubtitleDialog || showAudioDialog ||
+        showFitDialog || showServerSheet || showSourceSheet ||
+        showEpisodeSheet || showSleepTimerDialog || showDiagnostics
+
+    LaunchedEffect(showControls, isLocked, isHoldingSpeed, anySheetOpen) {
+        if (showControls && !isLocked && !isHoldingSpeed && !anySheetOpen) {
+            delay(savedSettings.controlsAutoHideSec.coerceAtLeast(3) * 1000L)
+            showControls = false
+        }
+    }
+
+    LaunchedEffect(lockPillVisible) {
+        if (lockPillVisible) {
+            delay(3500L)
+            lockPillVisible = false
+        }
+    }
+
+    // Auto lock after a while when enabled.
+    LaunchedEffect(isLocked, isPlaying, savedSettings.autoLockEnabled) {
+        if (!isLocked && savedSettings.autoLockEnabled && isPlaying) {
+            delay(savedSettings.autoLockDelaySec.coerceAtLeast(15) * 1000L)
+            if (savedSettings.lockButtonEnabled) pendingLock = true
+        }
+    }
+
+    LaunchedEffect(seekFeedbackText) {
+        if (seekFeedbackText != null) {
+            delay(700L)
+            seekFeedbackText = null
+        }
+    }
+
+    LaunchedEffect(gestureFeedback) {
+        if (gestureFeedback != null) {
+            delay(900L)
+            gestureFeedback = null
+        }
+    }
+
+    // Apply playback speed. While a hold is active the target is either the fast or the slow
+    // multiplier; with ramping on we walk up to it a step at a time instead of jumping there.
+    LaunchedEffect(
+        isHoldingSpeed,
+        holdSpeedTarget,
+        playbackSpeed,
+        savedSettings.holdToSpeedEnabled,
+        savedSettings.holdToSpeedRampUp,
+        usingEmbedFallback
+    ) {
+        fun applySpeed(value: Float) {
+            if (usingEmbedFallback) embedController.send("setRate", value.toString())
+            else player.setPlaybackSpeed(value)
+        }
+        if (!isHoldingSpeed || !savedSettings.holdToSpeedEnabled) {
+            applySpeed(playbackSpeed)
+            return@LaunchedEffect
+        }
+        if (!savedSettings.holdToSpeedRampUp) {
+            applySpeed(holdSpeedTarget)
+            return@LaunchedEffect
+        }
+        val start = if (usingEmbedFallback) playbackSpeed
+        else player.playbackParameters.speed.takeIf { it > 0f } ?: playbackSpeed
+        val steps = 8
+        repeat(steps) { index ->
+            applySpeed(start + (holdSpeedTarget - start) * ((index + 1).toFloat() / steps))
+            delay(40L)
+        }
+    }
+
+    LaunchedEffect(savedSettings.subtitlesEnabled) {
+        player.trackSelectionParameters = player.trackSelectionParameters
+            .buildUpon()
+            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !savedSettings.subtitlesEnabled)
+            .build()
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Actions
+    // ---------------------------------------------------------------------------------------------
+    fun playEpisode(number: Int) {
+        if (episodes.none { it.number == number } && number != currentEpNumber) return
+        currentEpNumber = number
+        currentTimeSec = 0L
+        isReady = false
+        showAutoNextBanner = false
+        showEpisodeSheet = false
+    }
+
+    fun seekTo(target: Long) {
+        val clamped = target.coerceAtLeast(0L).let { if (durationSec > 0) it.coerceAtMost(durationSec) else it }
+        currentTimeSec = clamped
+        if (usingEmbedFallback) embedController.send("seek", clamped.toString())
+        else player.seekTo(clamped * 1000L)
+    }
+
+    fun seekBy(delta: Long) {
+        val base = if (usingEmbedFallback) currentTimeSec else (player.currentPosition / 1000L)
+        val target = (base + delta).coerceAtLeast(0L)
+        seekTo(target)
+        seekFeedbackText = (if (delta >= 0) "+" else "") + delta + "s"
+    }
+
+    fun togglePlayback() {
+        if (usingEmbedFallback) {
+            embedController.send("toggle")
+            return
+        }
+        if (player.isPlaying) player.pause() else player.play()
+    }
+
+    fun tryNextSource() {
+        if (sources.size > sourceIndex + 1) {
+            sourceIndex += 1
+            playbackError = null
+            scope.launch { Toast.makeText(context, "Switching to another source…", Toast.LENGTH_SHORT).show() }
+        } else if (savedSettings.autoFailover && !usingEmbedFallback) {
+            playbackError = "All resolved sources failed. Try another server or the built-in player."
+        }
+    }
+
+    fun lockPlayer() {
+        isLocked = true
+        showControls = false
+        lockPillVisible = true
+        if (savedSettings.lockHapticFeedback) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        val mode = savedSettings.orientationLockMode
+        activity?.requestedOrientation = when (mode) {
+            "Landscape" -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            "Portrait" -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+            "Lock Current" -> ActivityInfo.SCREEN_ORIENTATION_LOCKED
+            else -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        }
+    }
+
+    fun unlockPlayer() {
+        isLocked = false
+        lockPillVisible = false
+        showControls = true
+        if (savedSettings.lockHapticFeedback) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+    }
+
+    /** Leaves fullscreen and always restores the controls, so the player can never look dead. */
+    fun exitFullscreen() {
+        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        isHoldingSpeed = false
+        showControls = true
+    }
+
+    fun toggleFullscreen() {
+        isHoldingSpeed = false
+        showControls = true
+        activity?.requestedOrientation = if (isLandscape) {
+            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        } else {
+            ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        }
+    }
+
+    fun enterPip() {
+        if (!savedSettings.pipEnabled) {
+            Toast.makeText(context, "Picture-in-picture is disabled in Player settings", Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            try {
+                activity?.enterPictureInPictureMode(
+                    PictureInPictureParams.Builder()
+                        .setAspectRatio(Rational(16, 9))
+                        .build()
+                )
+            } catch (t: Throwable) {
+                Toast.makeText(context, "Picture-in-picture unavailable", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    BackHandler {
+        when {
+            isLocked -> Toast.makeText(context, "Player is locked — tap the padlock to unlock", Toast.LENGTH_SHORT).show()
+            isLandscape -> exitFullscreen()
+            else -> onBackClick()
+        }
+    }
+
+    // Immersive status/navigation bars in landscape.
+    val composeView = view
+    DisposableEffect(isLandscape) {
+        val window = activity?.window
+        val controller = if (window != null) WindowCompat.getInsetsController(window, composeView) else null
+        controller?.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        if (isLandscape) controller?.hide(WindowInsetsCompat.Type.systemBars())
+        else controller?.show(WindowInsetsCompat.Type.systemBars())
+        onDispose { controller?.show(WindowInsetsCompat.Type.systemBars()) }
+    }
+
+    // A rotation rebuilds the whole control overlay and cancels any in-flight gesture, so chrome is
+    // forced back on for both directions. Without this, leaving fullscreen after the controls had
+    // auto-hidden looked like a player that no longer responded.
+    LaunchedEffect(isLandscape) {
+        isHoldingSpeed = false
+        showControls = true
+    }
+
+    // ---------------------------------------------------------------------------------------------
+    // Gestures
+    // ---------------------------------------------------------------------------------------------
+    fun onTapAt(x: Float, width: Float) {
+        if (!savedSettings.singleTapTogglesControls) return
+        showControls = !showControls
+    }
+
+    fun onDoubleTapAt(x: Float, width: Float) {
+        if (!savedSettings.doubleTapSeekEnabled) return
+        val step = savedSettings.seekDurationSec.toLong()
+        when {
+            x < width * 0.4f -> {
+                seekBy(-step)
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            }
+            x > width * 0.6f -> {
+                seekBy(step)
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            }
+            else -> showControls = !showControls
+        }
+    }
+
+    /**
+     * Which half a hold speeds playback up on. "Anywhere" treats the right half as the fast one,
+     * matching the way double-tap seeking already reads left and right.
+     */
+    fun isFastHoldHalf(x: Float, width: Float): Boolean = when (savedSettings.holdToSpeedZone) {
+        "Left Half" -> x <= width / 2f
+        "Right Half" -> x >= width / 2f
+        else -> x >= width / 2f
+    }
+
+    /**
+     * Starts a hold at [x]. The configured zone is the half that speeds up; when slow motion is
+     * enabled the opposite half slows down instead, so one long press covers both directions.
+     */
+    fun startHoldToSpeed(x: Float, width: Float) {
+        if (!savedSettings.holdToSpeedEnabled) return
+        val fastHalf = isFastHoldHalf(x, width)
+        // Outside the fast half a hold only does something when it is the slow-motion half.
+        if (!fastHalf && !savedSettings.holdToSpeedSlowDown && savedSettings.holdToSpeedZone != "Anywhere") return
+        holdSpeedTarget = if (savedSettings.holdToSpeedSlowDown && !fastHalf) effectiveSlowMultiplier
+        else effectiveMultiplier
+        isHoldingSpeed = true
+        if (savedSettings.holdToSpeedHaptic) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+    }
+
+    fun stopHoldToSpeed() {
+        if (!isHoldingSpeed) return
+        isHoldingSpeed = false
+        if (savedSettings.holdToSpeedKeepAfterRelease) {
+            playbackSpeed = holdSpeedTarget
+            Toast.makeText(
+                context,
+                "Playback speed locked at ${formatSpeed(holdSpeedTarget)}",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
+    fun playerGestures(): Modifier = Modifier.pointerInput(
+        // The whole settings object is a key so that a change made on another screen (hold zone,
+        // multiplier, gestures) applies to the running player instead of a stale capture.
+        savedSettings,
+        isLocked,
+        // Restarting on rotation keeps the tap and hold regions matched to the new layout size
+        // instead of the dimensions this block was first built with.
+        isLandscape
+    ) {
+        var lastTapTime = 0L
+        var pendingSingleTapJob: kotlinx.coroutines.Job? = null
+        // Bumped on every press, on the first drag and on release. A pending hold only fires while
+        // its generation is still current, which is how a drag or a quick tap cancels the timer.
+        // Plain (non-state) locals are fine: the pointer loop and the timer coroutine both run on
+        // the main thread, and a write here must not recompose the player.
+        var holdGeneration = 0
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false)
+            val width = size.width.toFloat()
+            val height = size.height.toFloat()
+            val downX = down.position.x
+            val downY = down.position.y
+            var moved = false
+            var startVolume = videoVolume
+            var startBrightness = brightness
+            var seekPreview: Long? = null
+
+            // A finger that rests still produces no pointer events at all, so the old in-loop
+            // `awaitPointerEvent()` time check never saw the 450ms mark and hold-to-speed never
+            // fired. A real coroutine drives the timer instead and reports back when it elapses.
+            // `down.isConsumed` means a control under the finger already took the press, which must
+            // stay a button press rather than becoming a speed hold.
+            if (savedSettings.holdToSpeedEnabled && !down.isConsumed && !isLocked) {
+                holdGeneration++
+                val generation = holdGeneration
+                scope.launch {
+                    delay(HOLD_TO_SPEED_DELAY_MS)
+                    if (generation == holdGeneration) startHoldToSpeed(downX, width)
+                }
+            }
+
+            while (true) {
+                val event = awaitPointerEvent()
+                val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                if (!change.pressed) {
+                    break
+                }
+                val dx = change.position.x - downX
+                val dy = change.position.y - downY
+
+                if (!isHoldingSpeed && (abs(dx) > 24f || abs(dy) > 24f)) {
+                    moved = true
+                    // Dragging is not holding: drop any hold that has not started yet.
+                    holdGeneration++
+                }
+
+                if (isHoldingSpeed) continue
+
+                if (moved && !isLocked) {
+                    if (abs(dx) > abs(dy) && savedSettings.gestureHorizontalSeekEnabled) {
+                        val deltaSec = (dx / width * 120f).toLong()
+                        val base = if (usingEmbedFallback) currentTimeSec else (player.currentPosition / 1000L)
+                        seekPreview = (base + deltaSec).coerceIn(0L, if (durationSec > 0) durationSec else Long.MAX_VALUE)
+                        seekFeedbackText = (if (deltaSec >= 0) "+" else "") + deltaSec + "s"
+                    } else if (abs(dy) > abs(dx)) {
+                        val vDelta = -dy / height
+                        if (downX > width / 2 && savedSettings.gestureVolumeEnabled) {
+                            val next = (startVolume + vDelta).coerceIn(0f, 1f)
+                            videoVolume = next
+                            player.volume = next
+                            gestureFeedback = "Volume ${(next * 100).toInt()}%"
+                        } else if (savedSettings.gestureBrightnessEnabled) {
+                            val next = (startBrightness + vDelta).coerceIn(0.1f, 1f)
+                            brightness = next
+                            gestureFeedback = "Brightness ${(next * 100).toInt()}%"
+                        }
+                    }
+                }
+            }
+
+            // Released. Bumping the generation first also covers a quick tap.
+            holdGeneration++
+            if (isHoldingSpeed) {
+                stopHoldToSpeed()
+            } else if (seekPreview != null) {
+                seekTo(seekPreview)
+                seekFeedbackText = null
+            } else if (!moved) {
+                val now = System.currentTimeMillis()
+                if (savedSettings.doubleTapSeekEnabled) {
+                    if (now - lastTapTime < 280L) {
+                        pendingSingleTapJob?.cancel()
+                        pendingSingleTapJob = null
+                        lastTapTime = 0L
+                        onDoubleTapAt(downX, width)
+                    } else {
+                        lastTapTime = now
+                        pendingSingleTapJob?.cancel()
+                        pendingSingleTapJob = scope.launch {
+                            delay(280L)
+                            onTapAt(downX, width)
+                        }
+                    }
+                } else {
+                    onTapAt(downX, width)
+                }
+            }
+        }
+    }
+
+    // Applies intents raised by the listener and by the effects declared above.
+    LaunchedEffect(pendingAdvance) {
+        if (pendingAdvance) {
+            pendingAdvance = false
+            tryNextSource()
+        }
+    }
+
+    LaunchedEffect(pendingEpisode) {
+        pendingEpisode?.let { target ->
+            pendingEpisode = null
+            playEpisode(target)
+        }
+    }
+
+    LaunchedEffect(pendingLock) {
+        if (pendingLock) {
+            pendingLock = false
+            lockPlayer()
+        }
+    }
+
+    if (anime == null) {
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .background(DarkBackground),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("Loading anime…", color = TextSecondary)
+        }
+        return
+    }
+
+    val currentAnime: Anime = anime!!
+    val activeEmbedProvider = remember(currentServer, currentLanguage) {
+        providerManager.getProviderForLanguage(currentServer, currentLanguage)
+    }
+    val wrapEmbeds = activeEmbedProvider.capabilities.requiresEmbed
+
+    val embedUrl = remember(currentAnime.id, currentEpNumber, currentLanguage, currentServer) {
+        activeEmbedProvider.getEmbedUrl(
+            anime = currentAnime,
+            episode = currentEpisode,
+            language = currentLanguage,
+            autoplay = savedSettings.autoplay,
+            autoSkip = savedSettings.autoSkipIntro,
+            startAtSec = 0L
+        )
+    }
+
+    val playerAccent = remember(savedSettings.playerAccentOverride, themeAccent) {
+        if (savedSettings.playerAccentOverride.equals("Theme", ignoreCase = true)) {
+            themeAccent
+        } else {
+            getThemeAccentColor(savedSettings.playerAccentOverride)
+        }
+    }
+    val iconScaleMult = when (savedSettings.playerControlSize) {
+        "Compact" -> 0.85f
+        "Large" -> 1.18f
+        else -> 1f
+    }
+    val hiddenControlSet = remember(savedSettings.playerHiddenControls) {
+        savedSettings.playerHiddenControls.split(",").map { it.trim().lowercase() }.filter { it.isNotEmpty() }.toSet()
+    }
+    val topBarControlOrder = remember(savedSettings.playerTopBarOrder) {
+        savedSettings.playerTopBarOrder.split(",").map { it.trim().lowercase() }.filter { it.isNotEmpty() }
+    }
+
+    val pageSize = 25
+    val filteredEpisodes = remember(episodes, episodeQuery) {
+        if (episodeQuery.isBlank()) episodes
+        else episodes.filter { it.number.toString().contains(episodeQuery) || it.title.contains(episodeQuery, true) }
+    }
+    val episodeChunks = remember(filteredEpisodes) {
+        if (filteredEpisodes.isEmpty()) emptyList() else filteredEpisodes.chunked(pageSize)
+    }
+    val currentChunkEpisodes = remember(episodeChunks, selectedEpisodeRangeIndex) {
+        if (episodeChunks.isNotEmpty() && selectedEpisodeRangeIndex in episodeChunks.indices) {
+            episodeChunks[selectedEpisodeRangeIndex]
+        } else filteredEpisodes
+    }
+    val currentDownload = allDownloads.firstOrNull {
+        it.animeId == currentAnime.id && it.episodeNumber == currentEpNumber
+    }
+
+    // The transport row is shared by both orientations. Landscape centres it over the video; portrait
+    // stacks it above the timeline, because a 16:9 video on a phone is only about 200dp tall and a
+    // centred row there collided with the title bar into one unusable jumble of icons.
+    val transportControls: @Composable () -> Unit = {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(18.dp)
+        ) {
+            IconButton(
+                onClick = { playEpisode(currentEpNumber - 1) },
+                enabled = currentEpNumber > 1,
+                modifier = Modifier.testTag("player_prev_episode")
+            ) {
+                Icon(
+                    Icons.Default.SkipPrevious,
+                    contentDescription = "Previous episode",
+                    tint = if (currentEpNumber > 1) Color.White else Color.Gray,
+                    modifier = Modifier.size(26.dp)
+                )
+            }
+
+            TransportButton(onClick = { seekBy(-savedSettings.seekDurationSec.toLong()) }) {
+                Icon(
+                    Icons.Default.Replay10,
+                    contentDescription = "Rewind",
+                    tint = Color.White,
+                    modifier = Modifier.size(30.dp)
+                )
+            }
+
+            val playInteractionSource = remember { MutableInteractionSource() }
+            val isPlayPressed by playInteractionSource.collectIsPressedAsState()
+            val playScale by animateFloatAsState(
+                targetValue = if (isPlayPressed) 0.88f else if (isPlaying) 1f else 1.06f,
+                animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                label = "play_scale"
+            )
+            Box(
+                modifier = Modifier
+                    .size((54f * iconScaleMult).dp)
+                    .scale(playScale)
+                    .background(playerAccent, CircleShape)
+                    .clickable(
+                        onClick = { togglePlayback() },
+                        interactionSource = playInteractionSource,
+                        indication = ripple(bounded = true, radius = 27.dp)
+                    )
+                    .testTag("player_play_pause_button"),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isBuffering) {
+                    CircularProgressIndicator(
+                        color = DarkBackground,
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(24.dp)
+                    )
+                } else {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = if (isPlaying) "Pause" else "Play",
+                        tint = DarkBackground,
+                        modifier = Modifier.size((30f * iconScaleMult).dp)
+                    )
+                }
+            }
+
+            TransportButton(onClick = { seekBy(savedSettings.seekDurationSec.toLong()) }) {
+                Icon(
+                    Icons.Default.Forward10,
+                    contentDescription = "Forward",
+                    tint = Color.White,
+                    modifier = Modifier.size(30.dp)
+                )
+            }
+
+            val nextExists = episodes.any { it.number == currentEpNumber + 1 }
+            IconButton(
+                onClick = { playEpisode(currentEpNumber + 1) },
+                enabled = nextExists,
+                modifier = Modifier.testTag("player_next_episode")
+            ) {
+                Icon(
+                    Icons.Default.SkipNext,
+                    contentDescription = "Next episode",
+                    tint = if (nextExists) Color.White else Color.Gray,
+                    modifier = Modifier.size(26.dp)
+                )
+            }
+        }
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(DarkBackground)
+    ) {
+        val playerModifier = if (isLandscape) {
+            Modifier.fillMaxSize()
+        } else {
+            Modifier
+                .fillMaxWidth()
+                .aspectRatio(16f / 9f)
+        }
+
+        Box(
+            modifier = playerModifier
+                .background(Color.Black)
+        ) {
+            if (usingEmbedFallback) {
+                EmbedPlayerView(
+                    embedUrl = embedUrl,
+                    wrapEmbeds = wrapEmbeds,
+                    state = embedState,
+                    controller = embedController
+                )
+                LaunchedEffect(embedState.value.ready, embedState.value.playing) {
+                    isReady = embedState.value.ready
+                    isPlaying = embedState.value.playing
+                    isBuffering = embedState.value.buffering
+                    durationSec = embedState.value.durationSec
+                    if (!isScrubbing) currentTimeSec = embedState.value.positionSec
+                }
+            } else {
+                AndroidView(
+                    factory = { ctx ->
+                        PlayerView(ctx).apply {
+                            useController = false
+                            this.player = player
+                            layoutParams = ViewGroup.LayoutParams(
+                                ViewGroup.LayoutParams.MATCH_PARENT,
+                                ViewGroup.LayoutParams.MATCH_PARENT
+                            )
+                            setShowBuffering(PlayerView.SHOW_BUFFERING_NEVER)
+                            applyCaptionStyle(this, savedSettings)
+                        }
+                    },
+                    update = { playerView ->
+                        playerView.player = player
+                        playerView.resizeMode = resizeModeFor(savedSettings.videoFitMode)
+                        applyCaptionStyle(playerView, savedSettings)
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+
+            // Gesture layer: detects taps, swipes, and hold-to-speed when controls are not active.
+            // When controls are active, the controls overlay handles clicks and taps directly.
+            if (!isLocked && !showControls) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .then(playerGestures())
+                )
+            }
+
+            if (isResolving) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color(0xCC000000)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator(color = themeAccent, strokeWidth = 3.dp)
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text("Finding a stream…", color = TextPrimary, fontSize = 13.sp)
+                    }
+                }
+            }
+
+            if (playbackError != null) {
+                PlaybackErrorOverlay(
+                    message = playbackError!!,
+                    onRetry = {
+                        playbackError = null
+                        resolveNonce += 1
+                    },
+                    onShowDetails = { showDiagnostics = true },
+                    onUseEmbed = {
+                        playbackError = null
+                        currentServer = StreamResolverRegistry.EMBED_SERVER_ID
+                    },
+                    onBack = onBackClick
+                )
+            }
+
+            if (seekFeedbackText != null) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(Color(0xCC000000))
+                        .padding(horizontal = 20.dp, vertical = 10.dp)
+                ) {
+                    Text(
+                        text = seekFeedbackText!!,
+                        color = themeAccent,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Black
+                    )
+                }
+            }
+
+            if (gestureFeedback != null) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color(0xCC000000))
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Text(gestureFeedback!!, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            if (isHoldingSpeed && savedSettings.holdToSpeedShowBadge) {
+                val badgeAlignment = when (savedSettings.holdToSpeedBadgePosition) {
+                    "Top" -> Alignment.TopCenter
+                    "Bottom" -> Alignment.BottomCenter
+                    else -> Alignment.Center
+                }
+                Box(
+                    modifier = Modifier
+                        .align(badgeAlignment)
+                        .then(
+                            when (savedSettings.holdToSpeedBadgePosition) {
+                                "Top" -> Modifier.statusBarsPadding().padding(top = 16.dp)
+                                "Bottom" -> Modifier.navigationBarsPadding().padding(bottom = 16.dp)
+                                else -> Modifier
+                            }
+                        )
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(themeAccent.copy(alpha = 0.9f))
+                        .padding(horizontal = 14.dp, vertical = 6.dp)
+                        .testTag("player_hold_speed_badge")
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = if (holdSpeedTarget < 1f) Icons.Default.FastRewind
+                            else Icons.Default.FastForward,
+                            contentDescription = null,
+                            tint = DarkBackground,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = buildString {
+                                append(formatSpeed(holdSpeedTarget))
+                                if (holdSpeedTarget < 1f) append(" slow motion")
+                                append(
+                                    if (savedSettings.holdToSpeedKeepAfterRelease) " • stays after release"
+                                    else " • release to resume"
+                                )
+                            },
+                            color = DarkBackground,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+            }
+
+            val lockSideAlign = if (savedSettings.lockButtonSide.equals("Right", ignoreCase = true)) {
+                Alignment.CenterEnd
+            } else {
+                Alignment.CenterStart
+            }
+
+            // Locked: block touches and show unobtrusive edge/letterbox lock icon (or legacy center pill)
+            if (isLocked) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            if (savedSettings.lockBlocksTouches) {
+                                lockPillVisible = !lockPillVisible
+                            } else {
+                                unlockPlayer()
+                            }
+                        }
+                )
+
+                val showLockControl = lockPillVisible || savedSettings.showLockedBadge
+                if (savedSettings.useLegacyPlayerLayout) {
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = showLockControl,
+                        enter = fadeIn(animationSpec = tween(180)) + scaleIn(initialScale = 0.85f),
+                        exit = fadeOut(animationSpec = tween(220)) + scaleOut(targetScale = 0.85f),
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .zIndex(100f)
+                    ) {
+                        Surface(
+                            onClick = { unlockPlayer() },
+                            shape = RoundedCornerShape(32.dp),
+                            color = Color(0xF0131722),
+                            border = BorderStroke(1.5.dp, playerAccent),
+                            shadowElevation = 16.dp,
+                            modifier = Modifier.testTag("player_unlock_button")
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .background(playerAccent.copy(alpha = 0.2f), CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Lock,
+                                        contentDescription = "Unlock",
+                                        tint = playerAccent,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                Column {
+                                    Text(
+                                        text = "Screen Locked",
+                                        color = Color.White,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "Tap to unlock controls",
+                                        color = playerAccent,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // Redesigned unobtrusive lock icon positioned in the Fit letterbox edge area
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = showLockControl,
+                        enter = fadeIn(animationSpec = tween(160)) + scaleIn(initialScale = 0.8f),
+                        exit = fadeOut(animationSpec = tween(200)) + scaleOut(targetScale = 0.8f),
+                        modifier = Modifier
+                            .align(lockSideAlign)
+                            .then(if (isLandscape) Modifier.displayCutoutPadding() else Modifier)
+                            .padding(horizontal = 10.dp)
+                            .zIndex(100f)
+                    ) {
+                        Surface(
+                            onClick = { unlockPlayer() },
+                            shape = CircleShape,
+                            color = Color(0xCC0D111A),
+                            border = BorderStroke(1.dp, playerAccent.copy(alpha = 0.85f)),
+                            shadowElevation = 8.dp,
+                            modifier = Modifier
+                                .size(38.dp)
+                                .testTag("player_unlock_button")
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Default.Lock,
+                                    contentDescription = "Unlock screen",
+                                    tint = playerAccent,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (dubStatusBanner != null && !isLocked) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .statusBarsPadding()
+                        .padding(top = if (showControls) 56.dp else 12.dp, start = 16.dp, end = 16.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xE6161B26))
+                        .border(1.dp, playerAccent.copy(alpha = 0.7f), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .zIndex(90f)
+                        .testTag("player_dub_status_banner")
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Audiotrack,
+                            contentDescription = null,
+                            tint = playerAccent,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = dubStatusBanner!!,
+                            color = TextPrimary,
+                            fontSize = 11.sp,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Switch to SUB",
+                            color = playerAccent,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.clickable {
+                                dubStatusBanner = null
+                                currentLanguage = "sub"
+                            }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "✕",
+                            color = TextSecondary,
+                            fontSize = 11.sp,
+                            modifier = Modifier.clickable { dubStatusBanner = null }
+                        )
+                    }
+                }
+            }
+
+            // Unobtrusive screen-lock icon in the letterbox margin (Left or Right per user preference)
+            if (showControls && !isLocked && savedSettings.lockButtonEnabled && !savedSettings.useLegacyPlayerLayout) {
+                Box(
+                    modifier = Modifier
+                        .align(lockSideAlign)
+                        .then(if (isLandscape) Modifier.displayCutoutPadding() else Modifier)
+                        .padding(horizontal = 10.dp)
+                        .zIndex(85f)
+                ) {
+                    Surface(
+                        onClick = { lockPlayer() },
+                        shape = CircleShape,
+                        color = Color(0xB30D111A),
+                        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.28f)),
+                        modifier = Modifier
+                            .size(34.dp)
+                            .testTag("player_lock_button")
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Default.LockOpen,
+                                contentDescription = "Lock screen",
+                                tint = Color.White.copy(alpha = 0.9f),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            androidx.compose.animation.AnimatedVisibility(
+                visible = showControls && !isLocked,
+                enter = fadeIn(animationSpec = tween(180)),
+                exit = fadeOut(animationSpec = tween(180)),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                val scrimAlpha = savedSettings.playerOverlayDimAlpha.coerceIn(0.2f, 0.85f)
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = scrimAlpha))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            showControls = false
+                        }
+                ) {
+                    // ----- top bar -----
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .statusBarsPadding()
+                            .then(if (isLandscape) Modifier.displayCutoutPadding() else Modifier)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            PlayerIconButton(
+                                onClick = {
+                                    if (isLandscape) exitFullscreen() else onBackClick()
+                                },
+                                modifier = Modifier.testTag("player_back_button")
+                            ) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Back",
+                                    tint = Color.White,
+                                    modifier = Modifier.size((20f * iconScaleMult).dp)
+                                )
+                            }
+
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(horizontal = if (isLandscape) 8.dp else 4.dp)
+                            ) {
+                                Text(
+                                    text = "${currentAnime.title} • Ep $currentEpNumber",
+                                    color = TextPrimary,
+                                    fontSize = if (isLandscape) 13.sp else 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = "${currentLanguage.uppercase()} • ${currentSource?.serverName ?: currentServer}",
+                                    color = playerAccent,
+                                    fontSize = if (isLandscape) 11.sp else 9.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+
+                            if (savedSettings.useLegacyPlayerLayout) {
+                                // Legacy layout keeps the original fixed top bar order (including top lock button)
+                                PlayerIconButton(onClick = { showSpeedDialog = true }) {
+                                    Icon(Icons.Default.Speed, contentDescription = "Speed", tint = Color.White, modifier = Modifier.size(19.dp))
+                                }
+                                PlayerIconButton(onClick = { showSubtitleDialog = true }) {
+                                    Icon(
+                                        Icons.Default.Subtitles,
+                                        contentDescription = "Subtitles",
+                                        tint = if (savedSettings.subtitlesEnabled) playerAccent else Color.White,
+                                        modifier = Modifier.size(19.dp)
+                                    )
+                                }
+                                PlayerIconButton(onClick = { showAudioDialog = true }) {
+                                    Icon(Icons.Default.Audiotrack, contentDescription = "Audio track", tint = Color.White, modifier = Modifier.size(19.dp))
+                                }
+                                PlayerIconButton(onClick = {
+                                    if (sources.isNotEmpty()) showSourceSheet = true else showServerSheet = true
+                                }) {
+                                    Icon(Icons.Default.Dns, contentDescription = "Servers and quality", tint = Color.White, modifier = Modifier.size(19.dp))
+                                }
+                                PlayerIconButton(
+                                    onClick = { lockPlayer() },
+                                    modifier = Modifier.testTag("player_lock_button")
+                                ) {
+                                    Icon(Icons.Default.LockOpen, contentDescription = "Lock player", tint = Color.White, modifier = Modifier.size(19.dp))
+                                }
+                                PlayerIconButton(onClick = { showFitDialog = true }) {
+                                    Icon(Icons.Default.AspectRatio, contentDescription = "Aspect ratio", tint = Color.White, modifier = Modifier.size(19.dp))
+                                }
+                                if (isLandscape) {
+                                    PlayerIconButton(onClick = { showSleepTimerDialog = true }) {
+                                        Icon(
+                                            Icons.Default.NightlightRound,
+                                            contentDescription = "Sleep timer",
+                                            tint = if (sleepTimerRemainingMin > 0) playerAccent else Color.White,
+                                            modifier = Modifier.size(19.dp)
+                                        )
+                                    }
+                                    PlayerIconButton(onClick = { showEpisodeSheet = true }) {
+                                        Icon(Icons.Default.Search, contentDescription = "Episodes", tint = Color.White, modifier = Modifier.size(19.dp))
+                                    }
+                                }
+                                if (savedSettings.pipEnabled) {
+                                    PlayerIconButton(onClick = { enterPip() }) {
+                                        Icon(Icons.Default.PictureInPictureAlt, contentDescription = "Picture in picture", tint = Color.White, modifier = Modifier.size(19.dp))
+                                    }
+                                }
+                                PlayerIconButton(onClick = { toggleFullscreen() }) {
+                                    Icon(
+                                        imageVector = if (isLandscape) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
+                                        contentDescription = "Fullscreen",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            } else {
+                                // Redesigned, customizable top bar (no duplicate lock icons!)
+                                topBarControlOrder.forEach { controlId ->
+                                    if (controlId in hiddenControlSet) return@forEach
+                                    when (controlId) {
+                                        "audio" -> {
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(14.dp))
+                                                    .background(playerAccent.copy(alpha = 0.18f))
+                                                    .border(0.8.dp, playerAccent.copy(alpha = 0.6f), RoundedCornerShape(14.dp))
+                                                    .clickable { showAudioDialog = true }
+                                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                                                    .testTag("player_audio_chip"),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Icon(
+                                                        Icons.Default.Audiotrack,
+                                                        contentDescription = "Audio track",
+                                                        tint = playerAccent,
+                                                        modifier = Modifier.size((14f * iconScaleMult).dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(3.dp))
+                                                    Text(
+                                                        text = currentLanguage.uppercase(),
+                                                        color = playerAccent,
+                                                        fontSize = 10.sp,
+                                                        fontWeight = FontWeight.Black
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        "subtitles" -> {
+                                            PlayerIconButton(onClick = { showSubtitleDialog = true }) {
+                                                Icon(
+                                                    Icons.Default.Subtitles,
+                                                    contentDescription = "Subtitles",
+                                                    tint = if (savedSettings.subtitlesEnabled) playerAccent else Color.White,
+                                                    modifier = Modifier.size((19f * iconScaleMult).dp)
+                                                )
+                                            }
+                                        }
+                                        "speed" -> {
+                                            PlayerIconButton(onClick = { showSpeedDialog = true }) {
+                                                Icon(
+                                                    Icons.Default.Speed,
+                                                    contentDescription = "Speed",
+                                                    tint = if (abs(playbackSpeed - 1f) > 0.05f) playerAccent else Color.White,
+                                                    modifier = Modifier.size((19f * iconScaleMult).dp)
+                                                )
+                                            }
+                                        }
+                                        "servers" -> {
+                                            PlayerIconButton(onClick = {
+                                                if (sources.isNotEmpty()) showSourceSheet = true else showServerSheet = true
+                                            }) {
+                                                Icon(
+                                                    Icons.Default.Dns,
+                                                    contentDescription = "Servers and quality",
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size((19f * iconScaleMult).dp)
+                                                )
+                                            }
+                                        }
+                                        "fit" -> {
+                                            PlayerIconButton(onClick = { showFitDialog = true }) {
+                                                Icon(
+                                                    Icons.Default.AspectRatio,
+                                                    contentDescription = "Aspect ratio",
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size((19f * iconScaleMult).dp)
+                                                )
+                                            }
+                                        }
+                                        "sleep" -> {
+                                            if (isLandscape || sleepTimerRemainingMin > 0) {
+                                                PlayerIconButton(onClick = { showSleepTimerDialog = true }) {
+                                                    Icon(
+                                                        Icons.Default.NightlightRound,
+                                                        contentDescription = "Sleep timer",
+                                                        tint = if (sleepTimerRemainingMin > 0) playerAccent else Color.White,
+                                                        modifier = Modifier.size((19f * iconScaleMult).dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        "episodes" -> {
+                                            if (isLandscape) {
+                                                PlayerIconButton(onClick = { showEpisodeSheet = true }) {
+                                                    Icon(
+                                                        Icons.Default.Search,
+                                                        contentDescription = "Episodes",
+                                                        tint = Color.White,
+                                                        modifier = Modifier.size((19f * iconScaleMult).dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        "pip" -> {
+                                            if (savedSettings.pipEnabled) {
+                                                PlayerIconButton(onClick = { enterPip() }) {
+                                                    Icon(
+                                                        Icons.Default.PictureInPictureAlt,
+                                                        contentDescription = "Picture in picture",
+                                                        tint = Color.White,
+                                                        modifier = Modifier.size((19f * iconScaleMult).dp)
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        "fullscreen" -> {
+                                            PlayerIconButton(onClick = { toggleFullscreen() }) {
+                                                Icon(
+                                                    imageVector = if (isLandscape) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
+                                                    contentDescription = "Fullscreen",
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size((20f * iconScaleMult).dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    val showCenterTransport = if (savedSettings.useLegacyPlayerLayout) {
+                        isLandscape
+                    } else {
+                        when (savedSettings.playerTransportPosition) {
+                            "Bottom" -> false
+                            else -> isLandscape
+                        }
+                    }
+
+                    // ----- transport (landscape / Center: centred over the video) -----
+                    if (showCenterTransport) {
+                        Box(modifier = Modifier.align(Alignment.Center)) {
+                            transportControls()
+                        }
+                    }
+
+                    // ----- skip intro / outro -----
+                    if (savedSettings.showSkipButtons) {
+                        Column(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(end = 12.dp, bottom = 56.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            if (currentTimeSec in 0..(savedSettings.introSkipSeconds + 30).toLong()) {
+                                SkipChip(
+                                    label = "Skip Intro",
+                                    onClick = { seekBy(savedSettings.introSkipSeconds.toLong()) }
+                                )
+                            }
+                            if (durationSec > 0 && currentTimeSec > durationSec - 180) {
+                                SkipChip(
+                                    label = "Skip Outro",
+                                    onClick = {
+                                        val target = durationSec - savedSettings.outroSkipSeconds
+                                        seekTo(target.coerceAtLeast(0L))
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    // ----- bottom bar -----
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .align(Alignment.BottomCenter)
+                            .then(if (isLandscape) Modifier.navigationBarsPadding() else Modifier)
+                            .padding(horizontal = 12.dp, vertical = 4.dp)
+                    ) {
+                        if (!showCenterTransport) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 2.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                transportControls()
+                            }
+                        }
+
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                text = formatTime(currentTimeSec),
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                            Slider(
+                                value = if (isScrubbing) scrubPosition.toFloat()
+                                else if (durationSec > 0) currentTimeSec.toFloat() else 0f,
+                                onValueChange = {
+                                    isScrubbing = true
+                                    scrubPosition = it.toLong()
+                                },
+                                onValueChangeFinished = {
+                                    isScrubbing = false
+                                    seekTo(scrubPosition)
+                                },
+                                valueRange = 0f..(durationSec.toFloat().coerceAtLeast(1f)),
+                                colors = SliderDefaults.colors(
+                                    thumbColor = playerAccent,
+                                    activeTrackColor = playerAccent,
+                                    inactiveTrackColor = Color(0x66FFFFFF)
+                                ),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(horizontal = 8.dp)
+                            )
+
+                            Text(
+                                text = formatTime(durationSec),
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (isLandscape) {
+                                Icon(
+                                    Icons.Default.Brightness6,
+                                    contentDescription = null,
+                                    tint = Color.White.copy(alpha = 0.7f),
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                LinearProgressIndicator(
+                                    progress = { brightness },
+                                    color = playerAccent,
+                                    trackColor = Color(0x33FFFFFF),
+                                    modifier = Modifier
+                                        .width(60.dp)
+                                        .height(3.dp)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = "${savedSettings.videoFitMode} • ${formatSpeed(playbackSpeed)}",
+                                    color = TextSecondary,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            Spacer(modifier = Modifier.weight(1f))
+                            if (savedSettings.holdToSpeedEnabled) {
+                                Text(
+                                    text = holdHintLabel(
+                                        fast = effectiveMultiplier,
+                                        slow = effectiveSlowMultiplier,
+                                        zone = savedSettings.holdToSpeedZone,
+                                        slowDown = savedSettings.holdToSpeedSlowDown
+                                    ),
+                                    color = TextSecondary,
+                                    fontSize = 10.sp
+                                )
+                            }
+                            // Only the Legacy layout shows the redundant second Lock button in the bottom-right
+                            if (savedSettings.useLegacyPlayerLayout && savedSettings.lockButtonEnabled) {
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.clickable { lockPlayer() }
+                                ) {
+                                    Icon(
+                                        Icons.Default.Lock,
+                                        contentDescription = "Lock",
+                                        tint = TextSecondary,
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Text("Lock", color = TextSecondary, fontSize = 10.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (showAutoNextBanner) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 16.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(DarkSurface)
+                        .border(1.dp, themeAccent, RoundedCornerShape(12.dp))
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Next episode in ${autoNextCountdown}s",
+                            color = TextPrimary,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Play now",
+                            color = themeAccent,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.clickable {
+                                showAutoNextBanner = false
+                                playEpisode(currentEpNumber + 1)
+                            }
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Cancel",
+                            color = TextSecondary,
+                            fontSize = 11.sp,
+                            modifier = Modifier.clickable { showAutoNextBanner = false }
+                        )
+                    }
+                }
+            }
+
+            if (currentTimeSec <= 2 && isReady && !usingEmbedFallback) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(12.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color(0x99000000))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = currentSource?.qualityLabel ?: "Auto",
+                        color = themeAccent,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        // ---------------- portrait: episode rail ---------------- 
+        if (!isLandscape) {
+            EpisodeRail(
+                anime = currentAnime,
+                episodes = filteredEpisodes,
+                currentEpisode = currentEpNumber,
+                allProgress = allProgress,
+                allDownloads = allDownloads,
+                themeAccent = themeAccent,
+                episodeLayout = savedSettings.episodeLayout,
+                showLayoutHint = savedSettings.showEpisodeLayoutHint,
+                onEpisodeClick = { playEpisode(it) },
+                onDownloadClick = { ep -> enqueueDownload(repository, context, scope, currentAnime, ep, currentSource) },
+                onOpenSheet = { showEpisodeSheet = true }
+            )
+        }
+    }
+
+    // ---------------- dialogs / sheets ----------------
+    if (showEpisodeSheet) {
+        EpisodeSheet(
+            anime = currentAnime,
+            episodes = filteredEpisodes,
+            query = episodeQuery,
+            onQueryChange = { episodeQuery = it },
+            currentEpisode = currentEpNumber,
+            chunks = episodeChunks,
+            chunkIndex = selectedEpisodeRangeIndex,
+            onChunkChange = { selectedEpisodeRangeIndex = it },
+            visibleEpisodes = currentChunkEpisodes,
+            allProgress = allProgress,
+            allDownloads = allDownloads,
+            themeAccent = themeAccent,
+            onEpisodeClick = { playEpisode(it) },
+            onDownloadClick = { ep -> enqueueDownload(repository, context, scope, currentAnime, ep, currentSource) },
+            onDismiss = { showEpisodeSheet = false }
+        )
+    }
+
+    if (showSourceSheet) {
+        SourcePickerSheet(
+            sources = sources,
+            activeIndex = sourceIndex,
+            serverLabel = currentServer,
+            onPick = { index ->
+                sourceIndex = index
+                showSourceSheet = false
+            },
+            onSwitchServer = {
+                showSourceSheet = false
+                showServerSheet = true
+            },
+            onDismiss = { showSourceSheet = false }
+        )
+    }
+
+    if (showServerSheet) {
+        ServerPickerSheet(
+            options = registry.serverOptions(),
+            activeId = currentServer,
+            onPick = { option ->
+                currentServer = option.id
+                showServerSheet = false
+            },
+            onDismiss = { showServerSheet = false }
+        )
+    }
+
+    if (showDiagnostics) {
+        val result = resolveResult
+        AlertDialog(
+            onDismissRequest = { showDiagnostics = false },
+            containerColor = DarkSurface,
+            title = { Text("Why didn't it play?", color = TextPrimary, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = result?.failureSummary()
+                            ?: playbackError
+                            ?: "No resolver was attempted for this server.",
+                        color = TextSecondary,
+                        fontSize = 12.sp
+                    )
+                    HorizontalDivider(color = DarkBorder, thickness = 0.5.dp)
+                    result?.attempts?.forEach { attempt ->
+                        Text(
+                            text = "${attempt.resolverName}: " +
+                                if (attempt.sources.isEmpty()) (attempt.error ?: "no stream returned")
+                                else "${attempt.sources.size} source(s)",
+                            color = if (attempt.sources.isEmpty()) TextSecondary else themeAccent,
+                            fontSize = 11.sp
+                        )
+                    }
+                    HorizontalDivider(color = DarkBorder, thickness = 0.5.dp)
+                    Text(
+                        text = "You can always switch to the built-in player (embeds), which does not " +
+                            "support offline downloads.",
+                        color = TextSecondary,
+                        fontSize = 11.sp
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDiagnostics = false
+                    currentServer = StreamResolverRegistry.EMBED_SERVER_ID
+                }) {
+                    Text("Use built-in player", color = themeAccent, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDiagnostics = false }) {
+                    Text("Close", color = TextSecondary)
+                }
+            }
+        )
+    }
+
+    if (showSleepTimerDialog) {
+        AlertDialog(
+            onDismissRequest = { showSleepTimerDialog = false },
+            containerColor = DarkSurface,
+            title = { Text("Sleep timer", color = TextPrimary, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = 320.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (sleepTimerRemainingMin > 0) {
+                        Text(
+                            "Pausing in $sleepTimerRemainingMin min",
+                            color = themeAccent,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    listOf(15, 30, 45, 60, 90, 120).forEach { minutes ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(DarkSurfaceVariant)
+                                .clickable {
+                                    sleepTimerRemainingMin = minutes
+                                    showSleepTimerDialog = false
+                                }
+                                .padding(12.dp)
+                        ) {
+                            Text("$minutes minutes", color = TextPrimary, fontSize = 13.sp)
+                        }
+                    }
+                    if (sleepTimerRemainingMin > 0) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable {
+                                    sleepTimerRemainingMin = 0
+                                    showSleepTimerDialog = false
+                                }
+                                .padding(12.dp)
+                        ) {
+                            Text("Turn off", color = Color(0xFFFF6B6B), fontSize = 13.sp)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSleepTimerDialog = false }) {
+                    Text("Close", color = TextSecondary)
+                }
+            }
+        )
+    }
+
+    if (showSpeedDialog) {
+        PlaybackSpeedSheet(
+            activeSpeed = playbackSpeed,
+            onPick = { speed ->
+                playbackSpeed = speed
+                if (usingEmbedFallback) embedController.send("setRate", speed.toString())
+                else player.setPlaybackSpeed(speed)
+                scope.launch {
+                    repository.settingsManager.update { it.copy(defaultPlaybackSpeed = speed) }
+                }
+            },
+            onDismiss = { showSpeedDialog = false }
+        )
+    }
+
+    if (showSubtitleDialog) {
+        SubtitleSettingsSheet(
+            settings = savedSettings,
+            onToggleSubtitles = { enabled ->
+                scope.launch {
+                    repository.settingsManager.update { it.copy(subtitlesEnabled = enabled) }
+                }
+                player.trackSelectionParameters = player.trackSelectionParameters
+                    .buildUpon()
+                    .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !enabled)
+                    .build()
+            },
+            onFontSizeChange = { sizeSp ->
+                scope.launch {
+                    repository.settingsManager.update { it.copy(subtitleFontSizeSp = sizeSp) }
+                }
+            },
+            onTextColorChange = { colorName ->
+                scope.launch {
+                    repository.settingsManager.update { it.copy(subtitleTextColor = colorName) }
+                }
+            },
+            onBackgroundColorChange = { bgName ->
+                scope.launch {
+                    repository.settingsManager.update { it.copy(subtitleBackgroundColor = bgName) }
+                }
+            },
+            onDismiss = { showSubtitleDialog = false }
+        )
+    }
+
+    if (showAudioDialog) {
+        AudioTrackSheet(
+            currentLanguage = currentLanguage,
+            exoAudioTracks = exoAudioTracks,
+            activeExoTrackId = activeExoAudioTrackId,
+            dubUnavailableReason = dubStatusBanner,
+            onPickLanguage = { lang ->
+                currentLanguage = lang
+                scope.launch {
+                    repository.settingsManager.update { it.copy(defaultLanguage = lang) }
+                }
+                Toast.makeText(context, "Switched to ${lang.uppercase()} audio", Toast.LENGTH_SHORT).show()
+            },
+            onPickExoTrack = { trackOption ->
+                val groups = player.currentTracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
+                val targetGroup = groups.getOrNull(trackOption.groupIndex)
+                if (targetGroup != null) {
+                    player.trackSelectionParameters = player.trackSelectionParameters
+                        .buildUpon()
+                        .setOverrideForType(
+                            TrackSelectionOverride(targetGroup.mediaTrackGroup, trackOption.trackIndex)
+                        )
+                        .build()
+                    activeExoAudioTrackId = trackOption.id
+                    Toast.makeText(context, "Selected audio track: ${trackOption.label}", Toast.LENGTH_SHORT).show()
+                }
+            },
+            onDismiss = { showAudioDialog = false }
+        )
+    }
+
+    if (showFitDialog) {
+        VideoFitSheet(
+            currentFit = savedSettings.videoFitMode,
+            onPick = { mode ->
+                scope.launch {
+                    repository.settingsManager.update { it.copy(videoFitMode = mode) }
+                    if (!usingEmbedFallback) {
+                        applyResizeMode(player, mode)
+                    } else {
+                        embedController.send("setFit", "\"${mode.lowercase()}\"")
+                    }
+                }
+            },
+            onDismiss = { showFitDialog = false }
+        )
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------------------------
+
+private fun formatTime(seconds: Long): String {
+    val safe = seconds.coerceAtLeast(0L)
+    val h = safe / 3600
+    val m = (safe % 3600) / 60
+    val s = safe % 60
+    return if (h > 0) String.format("%d:%02d:%02d", h, m, s) else String.format("%02d:%02d", m, s)
+}
+
+/** "2x" for whole numbers, "0.50x" otherwise, so the badge and hint stay short. */
+private fun formatSpeed(speed: Float): String =
+    if (speed % 1f == 0f) "${speed.toInt()}x" else String.format("%.2fx", speed)
+
+/** One short line describing what a long press does with the current hold-to-speed options. */
+private fun holdHintLabel(fast: Float, slow: Float, zone: String, slowDown: Boolean): String {
+    val side = if (zone == "Left Half") "left" else "right"
+    return when {
+        slowDown -> "Hold ${formatSpeed(fast)} • other half ${formatSpeed(slow)}"
+        zone == "Anywhere" -> "Hold for ${formatSpeed(fast)}"
+        else -> "Hold $side for ${formatSpeed(fast)}"
+    }
+}
+
+private fun nextFitMode(current: String): String = when (current) {
+    "Fit" -> "Cover"
+    "Cover" -> "Stretch"
+    "Stretch" -> "Zoom"
+    else -> "Fit"
+}
+
+@androidx.annotation.OptIn(UnstableApi::class)
+private fun resizeModeFor(fitMode: String): Int = when (fitMode) {
+    "Cover" -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+    "Stretch" -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+    "Zoom" -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+    else -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+}
+
+@androidx.annotation.OptIn(UnstableApi::class)
+private fun applyResizeMode(player: ExoPlayer, fitMode: String) {
+    // Resize mode is a view concern; the player only needs to keep the aspect ratio.
+    player.videoScalingMode = when (fitMode) {
+        "Stretch", "Zoom" -> C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
+        else -> C.VIDEO_SCALING_MODE_SCALE_TO_FIT
+    }
+}
+
+@androidx.annotation.OptIn(UnstableApi::class)
+private fun applyCaptionStyle(playerView: PlayerView, settings: com.example.data.model.AppSettings) {
+    val textColor = when (settings.subtitleTextColor) {
+        "Yellow" -> Color(0xFFFFEB3B).toArgb()
+        "Cyan" -> Color(0xFF00E5FF).toArgb()
+        "Green" -> Color(0xFF69F0AE).toArgb()
+        else -> Color.White.toArgb()
+    }
+    val background = when (settings.subtitleBackgroundColor) {
+        "Black" -> Color(0xCC000000).toArgb()
+        "Grey" -> Color(0xAA444444).toArgb()
+        "None" -> Color(0x00000000).toArgb()
+        else -> Color(0x99000000).toArgb()
+    }
+    val edgeType = if (settings.subtitleOutline) CaptionStyleCompat.EDGE_TYPE_OUTLINE
+    else CaptionStyleCompat.EDGE_TYPE_NONE
+    playerView.subtitleView?.setStyle(
+        CaptionStyleCompat(
+            textColor,
+            background,
+            Color(0x00000000).toArgb(),
+            edgeType,
+            Color.Black.toArgb(),
+            if (settings.subtitleBold) android.graphics.Typeface.DEFAULT_BOLD else null
+        )
+    )
+    // `setFractionalTextSize` is a fraction of the subtitle view's *height*, so passing a font size
+    // made a 16sp preference render as text taller than half the screen. Sizing in SP keeps the
+    // slider honest and matches the preview shown in Subtitle settings.
+    playerView.subtitleView?.setFixedTextSize(
+        TypedValue.COMPLEX_UNIT_SP,
+        settings.subtitleFontSizeSp.coerceIn(10, 40).toFloat()
+    )
+    playerView.subtitleView?.setBottomPaddingFraction(
+        when (settings.subtitlePosition) {
+            "Top" -> 1f
+            "Middle" -> 0.6f
+            else -> 0.08f
+        }
+    )
+}
+
+private fun Color.toArgb(): Int = android.graphics.Color.argb(
+    (alpha * 255).toInt(), (red * 255).toInt(), (green * 255).toInt(), (blue * 255).toInt()
+)
+
+private const val PLAYER_TAG = "ZenithPlayer"
+
+/** How long a finger must rest still before the press counts as a hold-for-speed. */
+private const val HOLD_TO_SPEED_DELAY_MS = 450L
+
+private fun buildMediaItem(source: StreamSource, animeTitle: String, episode: Episode): MediaItem {
+    val builder = MediaItem.Builder()
+        .setUri(source.url)
+        .setMediaMetadata(
+            MediaMetadata.Builder()
+                .setTitle("Episode ${episode.number}")
+                .setArtist(animeTitle)
+                .setDescription(source.serverName)
+                .build()
+        )
+
+    if (source.subtitles.isNotEmpty()) {
+        val configs = source.subtitles.map { track ->
+            MediaItem.SubtitleConfiguration.Builder(Uri.parse(track.url))
+                .setMimeType(mimeForSubtitle(track.url))
+                .setLanguage(track.language.lowercase().take(3))
+                .setLabel(track.label)
+                .setSelectionFlags(if (track.isDefault) C.SELECTION_FLAG_DEFAULT else 0)
+                .build()
+        }
+        builder.setSubtitleConfigurations(configs)
+    }
+    return builder.build()
+}
+
+private fun mimeForSubtitle(url: String): String = when {
+    url.endsWith(".vtt", true) -> "text/vtt"
+    url.endsWith(".srt", true) -> "application/x-subrip"
+    url.endsWith(".ass", true) || url.endsWith(".ssa", true) -> "text/x-ssa"
+    else -> "text/vtt"
+}
+
+/**
+ * Queues an episode download.
+ * When no source is loaded yet the repository resolves a real stream first, so downloading works
+ * from the episode list without playing the episode.
+ */
+private fun enqueueDownload(
+    repository: AnimeRepository,
+    context: Context,
+    scope: CoroutineScope,
+    anime: Anime,
+    episode: Episode,
+    source: StreamSource?
+) {
+    scope.launch {
+        Toast.makeText(
+            context,
+            if (source == null) "Finding a stream for episode ${episode.number}…"
+            else "Downloading episode ${episode.number} (${source.qualityLabel})",
+            Toast.LENGTH_SHORT
+        ).show()
+        val outcome = try {
+            repository.addDownload(
+                anime = anime,
+                episode = episode,
+                quality = source?.qualityLabel.orEmpty(),
+                streamUrl = source?.url,
+                headers = source?.headers ?: emptyMap(),
+                subtitles = source?.subtitles ?: emptyList()
+            )
+        } catch (t: Throwable) {
+            DownloadStart(false, t.message ?: t.javaClass.simpleName)
+        }
+        if (!outcome.started) {
+            Toast.makeText(
+                context,
+                outcome.error ?: "Download could not start",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
+}
+
+@Composable
+private fun PlayerIconButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.85f else 1f,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "player_btn_scale"
+    )
+    Box(
+        modifier = modifier
+            .size(36.dp)
+            .scale(scale)
+            .clip(CircleShape)
+            .clickable(
+                onClick = onClick,
+                interactionSource = interactionSource,
+                indication = ripple(bounded = true, radius = 18.dp)
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        content()
+    }
+}
+
+@Composable
+private fun TransportButton(onClick: () -> Unit, content: @Composable () -> Unit) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.86f else 1f,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "transport_scale"
+    )
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .scale(scale)
+            .clip(CircleShape)
+            .clickable(
+                onClick = onClick,
+                interactionSource = interactionSource,
+                indication = ripple(bounded = true, radius = 22.dp)
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        content()
+    }
+}
+
+@Composable
+private fun SkipChip(label: String, onClick: () -> Unit) {
+    val themeAccent = LocalThemeAccent.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.92f else 1f,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "skip_scale"
+    )
+    Box(
+        modifier = Modifier
+            .scale(scale)
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color(0xEE1E2436))
+            .border(1.dp, themeAccent, RoundedCornerShape(14.dp))
+            .clickable(
+                onClick = onClick,
+                interactionSource = interactionSource,
+                indication = ripple(bounded = true)
+            )
+            .padding(horizontal = 14.dp, vertical = 7.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Default.FastForward, contentDescription = null, tint = themeAccent, modifier = Modifier.size(15.dp))
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(label, color = themeAccent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+private fun PlaybackErrorOverlay(
+    message: String,
+    onRetry: () -> Unit,
+    onShowDetails: () -> Unit,
+    onUseEmbed: () -> Unit,
+    onBack: () -> Unit
+) {
+    val themeAccent = LocalThemeAccent.current
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xE6000000)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(20.dp)) {
+            Icon(Icons.Default.Warning, contentDescription = null, tint = Color(0xFFFFB300), modifier = Modifier.size(28.dp))
+            Spacer(modifier = Modifier.height(8.dp))
+            Text("This episode won't play here", color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = message,
+                color = TextSecondary,
+                fontSize = 11.sp,
+                maxLines = 5,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(14.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = onRetry,
+                    colors = ButtonDefaults.buttonColors(containerColor = themeAccent, contentColor = DarkBackground)
+                ) {
+                    Text("Retry", fontWeight = FontWeight.Bold)
+                }
+                Button(
+                    onClick = onUseEmbed,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = DarkSurfaceVariant,
+                        contentColor = TextPrimary
+                    )
+                ) {
+                    Text("Built-in player")
+                }
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = onShowDetails) { Text("Details", color = TextSecondary) }
+                TextButton(onClick = onBack) { Text("Go back", color = TextSecondary) }
+            }
+        }
+    }
+}
+
+// How many episodes the fixed-height grid rail can show before "See all" takes over.
+private const val GRID_RAIL_EPISODES = 6
+
+@Composable
+private fun EpisodeRail(
+    anime: Anime,
+    episodes: List<Episode>,
+    currentEpisode: Int,
+    allProgress: List<com.example.data.model.WatchProgress>,
+    allDownloads: List<com.example.data.model.DownloadItem>,
+    themeAccent: Color,
+    episodeLayout: String,
+    showLayoutHint: Boolean,
+    onEpisodeClick: (Int) -> Unit,
+    onDownloadClick: (Episode) -> Unit,
+    onOpenSheet: () -> Unit
+) {
+    Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Episodes", color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.width(6.dp))
+            Text("(${episodes.size})", color = TextSecondary, fontSize = 12.sp)
+            if (showLayoutHint) {
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("• $episodeLayout", color = TextSecondary, fontSize = 10.sp)
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            Text(
+                text = "See all",
+                color = themeAccent,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.clickable { onOpenSheet() }
+            )
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+
+        fun progressFor(ep: Episode) = allProgress.firstOrNull { it.id == "${anime.id}_${ep.number}" }
+
+        fun downloadFor(ep: Episode) = allDownloads.firstOrNull {
+            it.animeId == anime.id && it.episodeNumber == ep.number
+        }
+
+        when (episodeLayout) {
+            "Numbers" -> LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(episodes, key = { it.id }) { ep ->
+                    EpisodeNumberChip(
+                        number = ep.number,
+                        isCurrent = ep.number == currentEpisode,
+                        hasDownload = downloadFor(ep)?.status == "COMPLETED",
+                        themeAccent = themeAccent,
+                        onClick = { onEpisodeClick(ep.number) }
+                    )
+                }
+            }
+
+            "Grid" -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                episodes.take(GRID_RAIL_EPISODES).chunked(3).forEach { rowEpisodes ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        rowEpisodes.forEach { ep ->
+                            EpisodeRailCard(
+                                anime = anime,
+                                ep = ep,
+                                isCurrent = ep.number == currentEpisode,
+                                progress = progressFor(ep),
+                                download = downloadFor(ep),
+                                themeAccent = themeAccent,
+                                modifier = Modifier.weight(1f),
+                                onEpisodeClick = onEpisodeClick,
+                                onDownloadClick = onDownloadClick
+                            )
+                        }
+                        // Keeps a short final row aligned with the rows above it.
+                        repeat(3 - rowEpisodes.size) { Spacer(modifier = Modifier.weight(1f)) }
+                    }
+                }
+            }
+
+            else -> LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                items(episodes, key = { it.id }) { ep ->
+                    EpisodeRailCard(
+                        anime = anime,
+                        ep = ep,
+                        isCurrent = ep.number == currentEpisode,
+                        progress = progressFor(ep),
+                        download = downloadFor(ep),
+                        themeAccent = themeAccent,
+                        modifier = Modifier.width(132.dp),
+                        onEpisodeClick = onEpisodeClick,
+                        onDownloadClick = onDownloadClick
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** One episode tile, shared by the card rail and the grid so both stay in sync. */
+@Composable
+private fun EpisodeRailCard(
+    anime: Anime,
+    ep: Episode,
+    isCurrent: Boolean,
+    progress: com.example.data.model.WatchProgress?,
+    download: com.example.data.model.DownloadItem?,
+    themeAccent: Color,
+    modifier: Modifier,
+    onEpisodeClick: (Int) -> Unit,
+    onDownloadClick: (Episode) -> Unit
+) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (isCurrent) themeAccent.copy(alpha = 0.12f) else DarkSurface)
+            .border(
+                width = if (isCurrent) 1.dp else 0.5.dp,
+                color = if (isCurrent) themeAccent else DarkBorder,
+                shape = RoundedCornerShape(10.dp)
+            )
+            .clickable { onEpisodeClick(ep.number) }
+            .padding(6.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(16f / 9f)
+                .clip(RoundedCornerShape(8.dp))
+                .background(DarkSurfaceVariant)
+        ) {
+            AsyncImage(
+                model = ep.thumbnail.ifEmpty { anime.coverImage },
+                contentDescription = ep.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+            if (progress != null && progress.durationSec > 0) {
+                LinearProgressIndicator(
+                    progress = { progress.progressFraction },
+                    color = themeAccent,
+                    trackColor = Color(0x66000000),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .align(Alignment.BottomCenter)
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "Episode ${ep.number}",
+                color = if (isCurrent) themeAccent else TextPrimary,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+            DownloadStatusIcon(
+                download = download,
+                themeAccent = themeAccent,
+                onDownloadClick = { onDownloadClick(ep) }
+            )
+        }
+    }
+}
+
+/** Compact number tile used by the "Numbers" rail style. */
+@Composable
+private fun EpisodeNumberChip(
+    number: Int,
+    isCurrent: Boolean,
+    hasDownload: Boolean,
+    themeAccent: Color,
+    onClick: () -> Unit
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            modifier = Modifier
+                .size(46.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(if (isCurrent) themeAccent else DarkSurface)
+                .border(
+                    width = if (isCurrent) 1.dp else 0.5.dp,
+                    color = if (isCurrent) themeAccent else DarkBorder,
+                    shape = RoundedCornerShape(12.dp)
+                )
+                .clickable { onClick() }
+                .testTag("episode_number_$number"),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "$number",
+                color = if (isCurrent) DarkBackground else TextPrimary,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        if (hasDownload) {
+            Spacer(modifier = Modifier.height(3.dp))
+            Box(
+                modifier = Modifier
+                    .size(5.dp)
+                    .clip(CircleShape)
+                    .background(themeAccent)
+            )
+        }
+    }
+}
+
+/**
+ * The one place that decides how an episode's download state looks: a tick when it is saved, a ring
+ * while it is running, and the download action otherwise.
+ */
+@Composable
+private fun DownloadStatusIcon(
+    download: com.example.data.model.DownloadItem?,
+    themeAccent: Color,
+    onDownloadClick: () -> Unit,
+    size: Dp = 14.dp
+) {
+    when {
+        download?.status == "COMPLETED" -> Icon(
+            Icons.Default.CheckCircle,
+            contentDescription = "Downloaded",
+            tint = themeAccent,
+            modifier = Modifier.size(size)
+        )
+        download != null && download.status == "DOWNLOADING" -> CircularProgressIndicator(
+            progress = { (download.progress / 100f).coerceIn(0f, 1f) },
+            color = themeAccent,
+            strokeWidth = 2.dp,
+            modifier = Modifier.size(size)
+        )
+        else -> Icon(
+            Icons.Default.Download,
+            contentDescription = "Download",
+            tint = TextSecondary,
+            modifier = Modifier
+                .size(size)
+                .clickable { onDownloadClick() }
+        )
+    }
+}
+
+@Composable
+private fun EpisodeSheet(
+    anime: Anime,
+    episodes: List<Episode>,
+    query: String,
+    onQueryChange: (String) -> Unit,
+    currentEpisode: Int,
+    chunks: List<List<Episode>>,
+    chunkIndex: Int,
+    onChunkChange: (Int) -> Unit,
+    visibleEpisodes: List<Episode>,
+    allProgress: List<com.example.data.model.WatchProgress>,
+    allDownloads: List<com.example.data.model.DownloadItem>,
+    themeAccent: Color,
+    onEpisodeClick: (Int) -> Unit,
+    onDownloadClick: (Episode) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = DarkSurface,
+        title = { Text("Episodes", color = TextPrimary, fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = onQueryChange,
+                    singleLine = true,
+                    placeholder = { Text("Search episode", color = TextSecondary, fontSize = 12.sp) },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = themeAccent,
+                        unfocusedBorderColor = DarkBorder,
+                        focusedTextColor = TextPrimary,
+                        unfocusedTextColor = TextPrimary
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                if (chunks.size > 1) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        items(chunks.indices.toList()) { idx ->
+                            val chunk = chunks[idx]
+                            val isSel = idx == chunkIndex
+                            val label = if (chunk.isEmpty()) "—"
+                            else "${chunk.first().number}-${chunk.last().number}"
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(if (isSel) themeAccent else DarkSurfaceVariant)
+                                    .clickable { onChunkChange(idx) }
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = label,
+                                    color = if (isSel) DarkBackground else TextSecondary,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                LazyColumn(modifier = Modifier.height(380.dp)) {
+                    items(visibleEpisodes, key = { it.id }) { ep ->
+                        val isCurrent = ep.number == currentEpisode
+                        val progress = allProgress.firstOrNull { it.id == "${anime.id}_${ep.number}" }
+                        val download = allDownloads.firstOrNull {
+                            it.animeId == anime.id && it.episodeNumber == ep.number
+                        }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 3.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (isCurrent) themeAccent.copy(alpha = 0.12f) else DarkSurfaceVariant)
+                                .clickable { onEpisodeClick(ep.number) }
+                                .padding(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(width = 72.dp, height = 42.dp)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(DarkSurface)
+                            ) {
+                                AsyncImage(
+                                    model = ep.thumbnail.ifEmpty { anime.coverImage },
+                                    contentDescription = ep.title,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                                if (progress != null && progress.durationSec > 0) {
+                                    LinearProgressIndicator(
+                                        progress = { progress.progressFraction },
+                                        color = themeAccent,
+                                        trackColor = Color(0x66000000),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(3.dp)
+                                            .align(Alignment.BottomCenter)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Episode ${ep.number}",
+                                    color = if (isCurrent) themeAccent else TextPrimary,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = ep.title,
+                                    color = TextSecondary,
+                                    fontSize = 11.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            when {
+                                download?.status == "COMPLETED" -> Icon(
+                                    Icons.Default.CheckCircle,
+                                    contentDescription = "Downloaded",
+                                    tint = themeAccent,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                download != null && download.status == "DOWNLOADING" -> CircularProgressIndicator(
+                                    progress = { (download.progress / 100f).coerceIn(0f, 1f) },
+                                    color = themeAccent,
+                                    strokeWidth = 2.dp,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                else -> IconButton(
+                                    onClick = { onDownloadClick(ep) },
+                                    modifier = Modifier.size(28.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Download,
+                                        contentDescription = "Download episode",
+                                        tint = TextSecondary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Close", color = TextSecondary) }
+        }
+    )
+}
+
+@Composable
+private fun SourcePickerSheet(
+    sources: List<StreamSource>,
+    activeIndex: Int,
+    serverLabel: String,
+    onPick: (Int) -> Unit,
+    onSwitchServer: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val themeAccent = LocalThemeAccent.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = DarkSurface,
+        title = { Text("Quality & source", color = TextPrimary, fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Server: $serverLabel", color = TextSecondary, fontSize = 11.sp)
+                LazyColumn(modifier = Modifier.height(280.dp)) {
+                    items(sources.size) { index ->
+                        val source = sources[index]
+                        val isActive = index == activeIndex
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 3.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (isActive) themeAccent.copy(alpha = 0.15f) else DarkSurfaceVariant)
+                                .clickable { onPick(index) }
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = source.qualityLabel,
+                                    color = if (isActive) themeAccent else TextPrimary,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = source.serverName + if (source.subtitles.isNotEmpty()) " • ${source.subtitles.size} subtitle track(s)" else "",
+                                    color = TextSecondary,
+                                    fontSize = 10.sp
+                                )
+                            }
+                            if (isActive) {
+                                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = themeAccent, modifier = Modifier.size(16.dp))
+                            }
+                        }
+                    }
+                }
+                Text(
+                    text = "Switch server",
+                    color = themeAccent,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .clickable { onSwitchServer() }
+                        .padding(top = 4.dp)
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close", color = TextSecondary) } }
+    )
+}
+
+@Composable
+private fun ServerPickerSheet(
+    options: List<com.example.data.resolver.ServerOption>,
+    activeId: String,
+    onPick: (com.example.data.resolver.ServerOption) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val themeAccent = LocalThemeAccent.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = DarkSurface,
+        title = { Text("Streaming server", color = TextPrimary, fontWeight = FontWeight.Bold) },
+        text = {
+            Column(
+                modifier = Modifier
+                    .heightIn(max = 320.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                options.forEach { option ->
+                    val isActive = option.id == activeId
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (isActive) themeAccent.copy(alpha = 0.15f) else DarkSurfaceVariant)
+                            .border(
+                                width = if (isActive) 1.dp else 0.5.dp,
+                                color = if (isActive) themeAccent else DarkBorder,
+                                shape = RoundedCornerShape(10.dp)
+                            )
+                            .clickable { onPick(option) }
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = option.displayName,
+                                color = if (isActive) themeAccent else TextPrimary,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(option.description, color = TextSecondary, fontSize = 10.sp)
+                        }
+                        if (isActive) {
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = themeAccent, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close", color = TextSecondary) } }
+    )
+}
+
+@Composable
+private fun PlaybackSpeedSheet(
+    activeSpeed: Float,
+    onPick: (Float) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val themeAccent = LocalThemeAccent.current
+    val speeds = listOf(0.25f, 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 2.5f, 3.0f)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = DarkSurface,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Speed, contentDescription = null, tint = themeAccent, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Playback Speed", color = TextPrimary, fontWeight = FontWeight.Bold)
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .heightIn(max = 320.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                speeds.forEach { speed ->
+                    val isActive = abs(speed - activeSpeed) < 0.05f
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (isActive) themeAccent.copy(alpha = 0.15f) else DarkSurfaceVariant)
+                            .border(
+                                width = if (isActive) 1.dp else 0.5.dp,
+                                color = if (isActive) themeAccent else DarkBorder,
+                                shape = RoundedCornerShape(10.dp)
+                            )
+                            .clickable {
+                                onPick(speed)
+                                onDismiss()
+                            }
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (speed == 1.0f) "1.0x (Normal)" else "${speed}x",
+                            color = if (isActive) themeAccent else TextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
+                            modifier = Modifier.weight(1f)
+                        )
+                        if (isActive) {
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = themeAccent, modifier = Modifier.size(18.dp))
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close", color = TextSecondary) } }
+    )
+}
+
+@Composable
+private fun SubtitleSettingsSheet(
+    settings: com.example.data.model.AppSettings,
+    onToggleSubtitles: (Boolean) -> Unit,
+    onFontSizeChange: (Int) -> Unit,
+    onTextColorChange: (String) -> Unit,
+    onBackgroundColorChange: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val themeAccent = LocalThemeAccent.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = DarkSurface,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Subtitles, contentDescription = null, tint = themeAccent, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Subtitles & Captions", color = TextPrimary, fontWeight = FontWeight.Bold)
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .heightIn(max = 320.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(DarkSurfaceVariant)
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Show Subtitles", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Text(if (settings.subtitlesEnabled) "Captions are active" else "Captions are hidden", color = TextSecondary, fontSize = 11.sp)
+                    }
+                    Switch(
+                        checked = settings.subtitlesEnabled,
+                        onCheckedChange = { onToggleSubtitles(it) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = DarkBackground,
+                            checkedTrackColor = themeAccent,
+                            uncheckedThumbColor = TextSecondary,
+                            uncheckedTrackColor = DarkBorder
+                        )
+                    )
+                }
+
+                if (settings.subtitlesEnabled) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Font Size", color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            listOf(
+                                "Small" to 14,
+                                "Medium" to 18,
+                                "Large" to 22,
+                                "Huge" to 26
+                            ).forEach { (label, sizeSp) ->
+                                val isSelected = settings.subtitleFontSizeSp == sizeSp
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (isSelected) themeAccent else DarkSurfaceVariant)
+                                        .clickable { onFontSizeChange(sizeSp) }
+                                        .padding(vertical = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = label,
+                                        color = if (isSelected) DarkBackground else TextPrimary,
+                                        fontSize = 11.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Text Color", color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            listOf("White", "Yellow", "Cyan", "Green").forEach { colorName ->
+                                val isSelected = settings.subtitleTextColor.equals(colorName, ignoreCase = true)
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (isSelected) themeAccent else DarkSurfaceVariant)
+                                        .clickable { onTextColorChange(colorName) }
+                                        .padding(vertical = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = colorName,
+                                        color = if (isSelected) DarkBackground else TextPrimary,
+                                        fontSize = 11.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Background Box", color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            listOf(
+                                "Semi-Black" to "BlackSemi",
+                                "Solid Black" to "BlackSolid",
+                                "None" to "None"
+                            ).forEach { (label, bgVal) ->
+                                val isSelected = settings.subtitleBackgroundColor.equals(bgVal, ignoreCase = true)
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (isSelected) themeAccent else DarkSurfaceVariant)
+                                        .clickable { onBackgroundColorChange(bgVal) }
+                                        .padding(vertical = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = label,
+                                        color = if (isSelected) DarkBackground else TextPrimary,
+                                        fontSize = 11.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Done", color = themeAccent, fontWeight = FontWeight.Bold) } }
+    )
+}
+
+@Composable
+private fun AudioTrackSheet(
+    currentLanguage: String,
+    exoAudioTracks: List<ExoAudioTrackOption>,
+    activeExoTrackId: String?,
+    dubUnavailableReason: String?,
+    onPickLanguage: (String) -> Unit,
+    onPickExoTrack: (ExoAudioTrackOption) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val themeAccent = LocalThemeAccent.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = DarkSurface,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.Audiotrack, contentDescription = null, tint = themeAccent, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Audio & Dub Track", color = TextPrimary, fontWeight = FontWeight.Bold)
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .heightIn(max = 320.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    "Stream Language Mode",
+                    color = TextSecondary,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                listOf(
+                    Triple("sub", "Subtitled (JP Audio)", "Original Japanese Audio with English Subtitles"),
+                    Triple("dub", "English Dubbed (EN Audio)", "English Voice Cast Audio")
+                ).forEach { (langKey, title, description) ->
+                    val isActive = currentLanguage.equals(langKey, ignoreCase = true)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (isActive) themeAccent.copy(alpha = 0.15f) else DarkSurfaceVariant)
+                            .border(
+                                width = if (isActive) 1.dp else 0.5.dp,
+                                color = if (isActive) themeAccent else DarkBorder,
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .clickable {
+                                onPickLanguage(langKey)
+                                onDismiss()
+                            }
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = title,
+                                    color = if (isActive) themeAccent else TextPrimary,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(if (isActive) themeAccent else DarkBorder)
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = langKey.uppercase(),
+                                        color = if (isActive) DarkBackground else TextSecondary,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Black
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Text(description, color = TextSecondary, fontSize = 11.sp)
+                        }
+                        if (isActive) {
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = themeAccent, modifier = Modifier.size(20.dp))
+                        }
+                    }
+                }
+
+                if (dubUnavailableReason != null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color(0x26FFB300))
+                            .border(0.5.dp, Color(0xFFFFB300), RoundedCornerShape(10.dp))
+                            .padding(10.dp)
+                    ) {
+                        Text(
+                            text = dubUnavailableReason,
+                            color = Color(0xFFFFD54F),
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+
+                if (exoAudioTracks.size > 1) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        "Embedded Stream Audio Tracks (${exoAudioTracks.size})",
+                        color = TextSecondary,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    exoAudioTracks.forEach { track ->
+                        val isTrackSelected = track.id == activeExoTrackId
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (isTrackSelected) themeAccent.copy(alpha = 0.15f) else DarkSurfaceVariant)
+                                .border(
+                                    width = if (isTrackSelected) 1.dp else 0.5.dp,
+                                    color = if (isTrackSelected) themeAccent else DarkBorder,
+                                    shape = RoundedCornerShape(10.dp)
+                                )
+                                .clickable {
+                                    onPickExoTrack(track)
+                                    onDismiss()
+                                }
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = track.label,
+                                    color = if (isTrackSelected) themeAccent else TextPrimary,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                if (track.languageCode.isNotBlank()) {
+                                    Text(
+                                        text = "Language code: ${track.languageCode}",
+                                        color = TextSecondary,
+                                        fontSize = 10.sp
+                                    )
+                                }
+                            }
+                            if (isTrackSelected) {
+                                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = themeAccent, modifier = Modifier.size(18.dp))
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close", color = TextSecondary) } }
+    )
+}
+
+@Composable
+private fun VideoFitSheet(
+    currentFit: String,
+    onPick: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val themeAccent = LocalThemeAccent.current
+    val modes = listOf(
+        Pair("Fit", "Preserve standard 16:9 aspect ratio"),
+        Pair("Cover", "Zoom and crop edges to fill full screen"),
+        Pair("Stretch", "Stretch video non-uniformly to all edges"),
+        Pair("Zoom", "Zoom to fill display width")
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = DarkSurface,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.AspectRatio, contentDescription = null, tint = themeAccent, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Video Aspect Ratio", color = TextPrimary, fontWeight = FontWeight.Bold)
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .heightIn(max = 320.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                modes.forEach { (mode, desc) ->
+                    val isActive = currentFit.equals(mode, ignoreCase = true)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (isActive) themeAccent.copy(alpha = 0.15f) else DarkSurfaceVariant)
+                            .border(
+                                width = if (isActive) 1.dp else 0.5.dp,
+                                color = if (isActive) themeAccent else DarkBorder,
+                                shape = RoundedCornerShape(10.dp)
+                            )
+                            .clickable {
+                                onPick(mode)
+                                onDismiss()
+                            }
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = mode,
+                                color = if (isActive) themeAccent else TextPrimary,
+                                fontSize = 13.sp,
+                                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium
+                            )
+                            Text(desc, color = TextSecondary, fontSize = 10.sp)
+                        }
+                        if (isActive) {
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = themeAccent, modifier = Modifier.size(18.dp))
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close", color = TextSecondary) } }
+    )
+}
+

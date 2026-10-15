@@ -1,0 +1,6 @@
+{
+  "name": "Zenith Anime",
+  "description": "Local-first anime streaming and tracker application with offline library, watch progress, episode guides, schedules, and custom player embeds.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

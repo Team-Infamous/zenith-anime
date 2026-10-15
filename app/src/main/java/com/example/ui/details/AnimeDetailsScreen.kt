@@ -1,0 +1,1613 @@
+package com.example.ui.details
+
+import android.widget.Toast
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.material3.ripple
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ViewList
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Divider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import com.example.data.model.Episode
+import com.example.data.repository.AnimeRepository
+import com.example.ui.components.AgeRatingBadge
+import com.example.ui.components.QualityBadge
+import com.example.ui.components.NextAiringBadge
+import com.example.ui.components.CurrentSeasonBadge
+import com.example.ui.components.AnimeCard
+import com.example.ui.components.AnimeQuickActionDialog
+import com.example.ui.components.EpisodeQuickActionDialog
+import com.example.ui.components.OfflineBadge
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.RateReview
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.material.icons.filled.ViewModule
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.runtime.LaunchedEffect
+import com.example.data.model.AnimeRelation
+import com.example.data.model.AppSettings
+import com.example.data.model.MalReview
+import com.example.data.model.WatchStatus
+import com.example.data.util.SeasonLabeler
+import com.example.ui.theme.LocalThemeAccent
+import com.example.ui.theme.AccentYellow
+import com.example.ui.theme.DarkBackground
+import com.example.ui.theme.DarkBorder
+import com.example.ui.theme.DarkSurface
+import com.example.ui.theme.DarkSurfaceVariant
+import com.example.ui.theme.TextPrimary
+import com.example.ui.theme.TextSecondary
+import kotlinx.coroutines.launch
+
+/**
+ * Wording shown under a related entry.
+ * Defaults to consumer spring ("Season 2") and can never surface the raw word "Adaptation".
+ */
+private fun seasonLabelFor(relation: AnimeRelation, settings: AppSettings): String {
+    return when {
+        settings.friendlySeasonLabels -> SeasonLabeler.seasonLabel(
+            relation.title,
+            relation.relationType,
+            relation.format,
+            settings.seasonLabelStyle
+        ).ifBlank { relation.friendlyLabel }
+        settings.hideAdaptationLabel -> SeasonLabeler.friendlyRelationLabel(relation.relationType)
+        else -> relation.relationType
+    }
+}
+
+/** Episode presentation styles; these strings match [AppSettings.episodeLayout]. */
+private const val EPISODE_LAYOUT_CARDS = "Cards"
+private const val EPISODE_LAYOUT_NUMBERS = "Numbers"
+private const val EPISODE_LAYOUT_GRID = "Grid"
+private val EPISODE_LAYOUTS =
+    listOf(EPISODE_LAYOUT_CARDS, EPISODE_LAYOUT_NUMBERS, EPISODE_LAYOUT_GRID)
+
+@Composable
+fun AnimeDetailsScreen(
+    animeId: String,
+    repository: AnimeRepository,
+    onBackClick: () -> Unit,
+    onPlayEpisode: (String, Int, String) -> Unit,
+    onRelatedAnimeClick: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
+
+    val anime by repository.getAnimeById(animeId).collectAsState(initial = null)
+    val episodes by repository.getEpisodes(animeId).collectAsState(initial = emptyList())
+    val allAnime by repository.allAnime.collectAsState(initial = emptyList())
+    val latestProgress by repository.observeLatestProgress(animeId).collectAsState(initial = null)
+    val allProgress by repository.allHistory.collectAsState(initial = emptyList())
+    val themeAccent = LocalThemeAccent.current
+    val detailsSettings by repository.settings.collectAsState(initial = repository.settingsManager.getSettings())
+
+    var selectedAudioTrack by remember { mutableStateOf("sub") }
+    var isExpandedSynopsis by remember { mutableStateOf(false) }
+    var activeEpisodeForActions by remember { mutableStateOf<Episode?>(null) }
+    var longPressedAnimeForActions by remember { mutableStateOf<com.example.data.model.Anime?>(null) }
+    var selectedRangeIndex by remember { mutableStateOf(0) }
+
+    // Episode presentation is a persisted preference, so the choice survives visits and stays in
+    // sync with the setting shown in Library & Series settings.
+    val episodeLayout = detailsSettings.episodeLayout
+    fun setEpisodeLayout(next: String) {
+        repository.settingsManager.update { it.copy(episodeLayout = next) }
+    }
+
+    var episodeSearchQuery by remember { mutableStateOf("") }
+    var animeRelations by remember { mutableStateOf<List<AnimeRelation>>(emptyList()) }
+    var malReviews by remember { mutableStateOf<List<MalReview>>(emptyList()) }
+    var isLoadingReviews by remember { mutableStateOf(false) }
+    var reviewsExpanded by remember { mutableStateOf(true) }
+    var showWatchStatusMenu by remember { mutableStateOf(false) }
+
+    LaunchedEffect(animeId) {
+        isLoadingReviews = true
+        val rels = repository.getAnimeDetailsWithRelations(animeId)
+        if (rels.second.isNotEmpty()) {
+            animeRelations = rels.second
+        }
+        val targetMalId = rels.first?.malId ?: anime?.malId.orEmpty()
+        malReviews = repository.getMalReviews(animeId, targetMalId)
+        isLoadingReviews = false
+    }
+
+    val displayedEpisodes = remember(episodes, episodeSearchQuery) {
+        if (episodeSearchQuery.isBlank()) episodes
+        else {
+            val q = episodeSearchQuery.trim()
+            episodes.filter {
+                it.number.toString().contains(q) || it.title.contains(q, ignoreCase = true)
+            }
+        }
+    }
+
+    val pageSize = 25
+    val episodeChunks = remember(displayedEpisodes) {
+        if (displayedEpisodes.isEmpty()) emptyList() else displayedEpisodes.chunked(pageSize)
+    }
+    val currentChunkEpisodes = remember(episodeChunks, selectedRangeIndex, displayedEpisodes) {
+        if (episodeChunks.isNotEmpty() && selectedRangeIndex in episodeChunks.indices) {
+            episodeChunks[selectedRangeIndex]
+        } else displayedEpisodes
+    }
+
+    val relatedAnime = allAnime.filter { it.id != animeId }.take(6)
+
+    if (anime == null) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(DarkBackground),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("Loading anime details...", color = TextSecondary)
+        }
+        return
+    }
+
+    val currentAnime = anime!!
+
+    if (activeEpisodeForActions != null) {
+        val ep = activeEpisodeForActions!!
+        EpisodeQuickActionDialog(
+            episode = ep,
+            onDismiss = { activeEpisodeForActions = null },
+            onPlay = {
+                onPlayEpisode(currentAnime.id, ep.number, selectedAudioTrack)
+            },
+            onDownload = {
+                scope.launch {
+                    repository.addDownload(currentAnime, ep)
+                    Toast.makeText(context, "Episode ${ep.number} saved to offline downloads", Toast.LENGTH_SHORT).show()
+                }
+            },
+            onMarkWatched = {
+                scope.launch {
+                    repository.saveWatchProgress(
+                        anime = currentAnime,
+                        episode = ep,
+                        currentTimeSec = 1440L,
+                        durationSec = 1440L,
+                        language = selectedAudioTrack,
+                        completed = true
+                    )
+                    Toast.makeText(context, "Episode ${ep.number} marked as watched", Toast.LENGTH_SHORT).show()
+                }
+            },
+            onShare = {
+                Toast.makeText(context, "Sharing is coming soon!", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+
+    if (longPressedAnimeForActions != null) {
+        val item = longPressedAnimeForActions!!
+        AnimeQuickActionDialog(
+            anime = item,
+            onDismiss = { longPressedAnimeForActions = null },
+            onPlay = {
+                onPlayEpisode(item.id, 1, "sub")
+            },
+            onToggleFavorite = {
+                scope.launch {
+                    repository.toggleFavorite(item.id, !item.isFavorite)
+                }
+            },
+            onToggleWatchlist = {
+                scope.launch {
+                    repository.toggleWatchlist(item.id, !item.isInWatchlist)
+                }
+            },
+            onToggleCompleted = {
+                scope.launch {
+                    repository.markCompleted(item.id, !item.isCompleted)
+                }
+            },
+            onChangeWatchStatus = { status ->
+                scope.launch {
+                    repository.updateWatchStatus(item.id, status.name)
+                    Toast.makeText(context, "Moved to ${status.displayName}", Toast.LENGTH_SHORT).show()
+                }
+            },
+            onShare = {
+                Toast.makeText(context, "Sharing is coming soon!", Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+
+    LazyColumn(
+        modifier = modifier
+            .fillMaxSize()
+            .background(DarkBackground)
+    ) {
+        item {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(300.dp)
+            ) {
+                AsyncImage(
+                    model = currentAnime.bannerImage.ifEmpty { currentAnime.coverImage },
+                    contentDescription = currentAnime.title,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    Color(0x99000000),
+                                    Color.Transparent,
+                                    DarkBackground
+                                )
+                            )
+                        )
+                )
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = onBackClick,
+                        modifier = Modifier
+                            .background(Color(0x66000000), CircleShape)
+                            .testTag("details_back_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(Color(0x88000000))
+                            .border(0.5.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(20.dp))
+                            .clickable {
+                                Toast.makeText(context, "Sharing is coming soon!", Toast.LENGTH_SHORT).show()
+                            }
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                            .testTag("details_share_button")
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Share (Coming Soon)",
+                                tint = Color.White,
+                                modifier = Modifier.size(15.dp)
+                            )
+                            Text(
+                                text = "Share",
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(themeAccent.copy(alpha = 0.25f))
+                                    .padding(horizontal = 5.dp, vertical = 1.dp)
+                            ) {
+                                Text(
+                                    text = "Soon",
+                                    color = themeAccent,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        item {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = currentAnime.title,
+                        color = TextPrimary,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    Box {
+                        val activeStatus = WatchStatus.fromRaw(currentAnime.watchStatus)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (currentAnime.isInWatchlist) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(themeAccent.copy(alpha = 0.16f))
+                                        .border(1.dp, themeAccent.copy(alpha = 0.6f), RoundedCornerShape(14.dp))
+                                        .clickable { showWatchStatusMenu = true }
+                                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                                        .testTag("details_watch_status_badge")
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = activeStatus.displayName,
+                                            color = themeAccent,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        Spacer(modifier = Modifier.width(3.dp))
+                                        Icon(
+                                            imageVector = Icons.Default.ExpandMore,
+                                            contentDescription = "Change status",
+                                            tint = themeAccent,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                }
+                            }
+
+                            IconButton(
+                                onClick = {
+                                    scope.launch {
+                                        val nextInList = !currentAnime.isInWatchlist
+                                        repository.toggleWatchlist(currentAnime.id, nextInList)
+                                        Toast.makeText(
+                                            context,
+                                            if (nextInList) "Saved to My List (${activeStatus.displayName})" else "Removed from My List",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                },
+                                modifier = Modifier.testTag("details_bookmark_button")
+                            ) {
+                                Icon(
+                                    imageVector = if (currentAnime.isInWatchlist) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                                    contentDescription = "Bookmark",
+                                    tint = if (currentAnime.isInWatchlist) themeAccent else Color.White
+                                )
+                            }
+                        }
+
+                        DropdownMenu(
+                            expanded = showWatchStatusMenu,
+                            onDismissRequest = { showWatchStatusMenu = false }
+                        ) {
+                            WatchStatus.values().forEach { statusOption ->
+                                val isCurrentStatus = WatchStatus.fromRaw(currentAnime.watchStatus) == statusOption && currentAnime.isInWatchlist
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = statusOption.displayName,
+                                            color = if (isCurrentStatus) themeAccent else TextPrimary,
+                                            fontWeight = if (isCurrentStatus) FontWeight.Bold else FontWeight.Normal,
+                                            fontSize = 13.sp
+                                        )
+                                    },
+                                    onClick = {
+                                        showWatchStatusMenu = false
+                                        scope.launch {
+                                            repository.updateWatchStatus(currentAnime.id, statusOption.name)
+                                            Toast.makeText(
+                                                context,
+                                                "Status updated to ${statusOption.displayName}",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.padding(vertical = 4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Star,
+                        contentDescription = null,
+                        tint = AccentYellow,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = "${currentAnime.rating}",
+                        color = AccentYellow,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = "•  ${currentAnime.year}",
+                        color = TextSecondary,
+                        fontSize = 12.sp
+                    )
+                    AgeRatingBadge(ageRating = currentAnime.ageRating)
+                    QualityBadge(quality = currentAnime.quality)
+
+                    Box(
+                        modifier = Modifier
+                            .background(Color(0xFF1E2436), RoundedCornerShape(4.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text("SUB", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Box(
+                        modifier = Modifier
+                            .background(Color(0xFF1E2436), RoundedCornerShape(4.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text("DUB", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                if (currentAnime.nextAiringEpisode != null) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    NextAiringBadge(
+                        episode = currentAnime.nextAiringEpisode!!,
+                        timeUntilSec = currentAnime.nextAiringTimeUntilSec,
+                        atTimestamp = currentAnime.nextAiringAtTimestamp
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    val hasAired = currentAnime.availableEpisodes > 0
+                    val nextEpNum = latestProgress?.episodeNumber?.coerceAtMost(currentAnime.availableEpisodes) ?: 1
+                    Button(
+                        onClick = {
+                            if (hasAired) {
+                                onPlayEpisode(currentAnime.id, nextEpNum, selectedAudioTrack)
+                            } else {
+                                Toast.makeText(context, "This anime has not aired yet.", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (hasAired) themeAccent else DarkSurfaceVariant,
+                            contentColor = if (hasAired) DarkBackground else TextSecondary
+                        ),
+                        shape = RoundedCornerShape(24.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                            .testTag("details_play_button")
+                    ) {
+                        Icon(
+                            imageVector = if (hasAired) Icons.Default.PlayArrow else Icons.Default.Schedule,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = when {
+                                !hasAired -> "Not Yet Aired"
+                                latestProgress != null -> "Resume Ep $nextEpNum"
+                                else -> "Play"
+                            },
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
+                        )
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            if (!hasAired) {
+                                Toast.makeText(context, "Episodes are not available for download yet.", Toast.LENGTH_SHORT).show()
+                                return@OutlinedButton
+                            }
+                            val epToDownload = episodes.firstOrNull() ?: Episode(
+                                id = "${currentAnime.id}_1",
+                                animeId = currentAnime.id,
+                                number = 1,
+                                title = "Episode 1",
+                                thumbnail = currentAnime.bannerImage
+                            )
+                            scope.launch {
+                                repository.addDownload(currentAnime, epToDownload)
+                                Toast.makeText(context, "Downloading Episode 1 in background...", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        enabled = hasAired,
+                        shape = RoundedCornerShape(24.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = if (hasAired) themeAccent else TextSecondary
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, if (hasAired) themeAccent else DarkBorder),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                            .testTag("details_download_button")
+                    ) {
+                        Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Download", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                Text(
+                    text = "Genre: ${currentAnime.genres}",
+                    color = TextSecondary,
+                    fontSize = 12.sp
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Studio: ${currentAnime.studio} • Status: ${currentAnime.status}",
+                    color = TextSecondary,
+                    fontSize = 12.sp
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Column(modifier = Modifier.animateContentSize()) {
+                    Text(
+                        text = currentAnime.synopsis,
+                        color = TextPrimary.copy(alpha = 0.85f),
+                        fontSize = 13.sp,
+                        lineHeight = 19.sp,
+                        maxLines = if (isExpandedSynopsis) Int.MAX_VALUE else 3,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = if (isExpandedSynopsis) "View Less" else "... View More",
+                        color = themeAccent,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .clickable { isExpandedSynopsis = !isExpandedSynopsis }
+                            .padding(vertical = 4.dp)
+                    )
+                }
+
+                if (animeRelations.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "Seasons & Related",
+                        color = TextPrimary,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(animeRelations) { rel ->
+                            Column(
+                                modifier = Modifier
+                                    .width(96.dp)
+                                    .clickable { onRelatedAnimeClick(rel.id) }
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(130.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(DarkSurfaceVariant)
+                                ) {
+                                    AsyncImage(
+                                        model = rel.coverImage,
+                                        contentDescription = rel.title,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                    if (rel.isCurrent) {
+                                        CurrentSeasonBadge(
+                                            modifier = Modifier
+                                                .align(Alignment.TopStart)
+                                                .padding(4.dp)
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = rel.title,
+                                    color = TextPrimary,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = seasonLabelFor(rel, detailsSettings),
+                                    color = themeAccent,
+                                    fontSize = 10.sp,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                androidx.compose.material3.HorizontalDivider(color = DarkBorder, thickness = 0.5.dp)
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (currentAnime.isUpcoming) "Episodes (TBA)" else "Episodes (${displayedEpisodes.size})",
+                        color = TextPrimary,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    if (episodes.isNotEmpty()) {
+                        // Cycles Cards -> Numbers -> Grid, and stores the choice so the same style is
+                        // used everywhere and can be changed in Library & Series settings.
+                        IconButton(
+                            onClick = {
+                                val index = EPISODE_LAYOUTS.indexOf(episodeLayout).coerceAtLeast(0)
+                                setEpisodeLayout(EPISODE_LAYOUTS[(index + 1) % EPISODE_LAYOUTS.size])
+                            },
+                            modifier = Modifier
+                                .size(32.dp)
+                                .testTag("episode_layout_toggle")
+                        ) {
+                            Icon(
+                                imageVector = if (episodeLayout == EPISODE_LAYOUT_CARDS) {
+                                    Icons.Default.ViewModule
+                                } else {
+                                    Icons.AutoMirrored.Filled.ViewList
+                                },
+                                contentDescription = "Episode layout: $episodeLayout. Tap to change.",
+                                tint = themeAccent,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        Text(
+                            text = episodeLayout,
+                            color = TextSecondary,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+
+                        Spacer(modifier = Modifier.width(6.dp))
+
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(DarkSurfaceVariant)
+                                .padding(2.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(if (selectedAudioTrack == "sub") themeAccent else Color.Transparent)
+                                    .clickable { selectedAudioTrack = "sub" }
+                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    "SUB",
+                                    color = if (selectedAudioTrack == "sub") DarkBackground else TextSecondary,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(if (selectedAudioTrack == "dub") themeAccent else Color.Transparent)
+                                    .clickable { selectedAudioTrack = "dub" }
+                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    "DUB",
+                                    color = if (selectedAudioTrack == "dub") DarkBackground else TextSecondary,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+
+                if (episodes.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = episodeSearchQuery,
+                        onValueChange = { episodeSearchQuery = it },
+                        placeholder = { Text("Search episode (e.g. 12)...", color = TextSecondary, fontSize = 12.sp) },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = null,
+                                tint = TextSecondary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        },
+                        trailingIcon = {
+                            if (episodeSearchQuery.isNotEmpty()) {
+                                IconButton(onClick = { episodeSearchQuery = "" }) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = "Clear",
+                                        tint = TextSecondary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = DarkSurfaceVariant,
+                            unfocusedContainerColor = DarkSurfaceVariant,
+                            focusedBorderColor = themeAccent,
+                            unfocusedBorderColor = Color.Transparent,
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp)
+                    )
+
+                    if (detailsSettings.showEpisodeLayoutHint) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Showing episodes as $episodeLayout \u2014 change this in Library & Series settings",
+                            color = TextSecondary,
+                            fontSize = 11.sp
+                        )
+                    }
+
+                    if (episodeChunks.size > 1) {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            items(episodeChunks.indices.toList()) { idx ->
+                                val startEp = idx * pageSize + 1
+                                val endEp = minOf((idx + 1) * pageSize, episodes.size)
+                                val isSel = selectedRangeIndex == idx
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(if (isSel) themeAccent else DarkSurfaceVariant)
+                                        .clickable { selectedRangeIndex = idx }
+                                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                                ) {
+                                    Text(
+                                        text = "$startEp-$endEp",
+                                        color = if (isSel) DarkBackground else TextSecondary,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+        }
+
+        item {
+            if (displayedEpisodes.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 16.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(DarkSurfaceVariant)
+                        .border(1.dp, DarkBorder, RoundedCornerShape(16.dp))
+                        .padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(52.dp)
+                                .clip(CircleShape)
+                                .background(themeAccent.copy(alpha = 0.12f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (episodeSearchQuery.isNotBlank()) Icons.Default.Search else Icons.Default.Schedule,
+                                contentDescription = null,
+                                tint = themeAccent,
+                                modifier = Modifier.size(26.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = if (episodeSearchQuery.isNotBlank()) {
+                                "No Matching Episodes"
+                            } else if (currentAnime.isUpcoming) {
+                                "Not Yet Released"
+                            } else {
+                                "No Released Episodes Yet"
+                            },
+                            color = TextPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        val detailMessage = if (episodeSearchQuery.isNotBlank()) {
+                            "No episodes found matching \"$episodeSearchQuery\""
+                        } else if (currentAnime.isUpcoming) {
+                            val nextEp = currentAnime.nextAiringEpisode ?: 1
+                            val timeSec = currentAnime.nextAiringTimeUntilSec
+                            if (timeSec != null && timeSec > 0) {
+                                val days = timeSec / 86400
+                                val hours = (timeSec % 86400) / 3600
+                                "Episode $nextEp is scheduled to air in ${if (days > 0) "${days}d ${hours}h" else "${hours}h"}"
+                            } else {
+                                "This anime has not aired yet. Episodes will appear as they become available."
+                            }
+                        } else {
+                            "Episodes will appear here once officially released."
+                        }
+                        Text(
+                            text = detailMessage,
+                            color = TextSecondary,
+                            fontSize = 12.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            } else {
+                when (episodeLayout) {
+                EPISODE_LAYOUT_NUMBERS -> Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                ) {
+                    val rows = currentChunkEpisodes.chunked(6)
+                    rows.forEach { rowEpisodes ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            rowEpisodes.forEach { ep ->
+                                val epProgress = allProgress.firstOrNull { it.id == "${currentAnime.id}_${ep.number}" }
+                                val isWatched = epProgress?.completed == true
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(42.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (isWatched) themeAccent.copy(alpha = 0.2f) else DarkSurfaceVariant)
+                                        .border(
+                                            width = if (isWatched) 1.dp else 0.5.dp,
+                                            color = if (isWatched) themeAccent else DarkBorder,
+                                            shape = RoundedCornerShape(8.dp)
+                                        )
+                                        .clickable { onPlayEpisode(currentAnime.id, ep.number, selectedAudioTrack) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "${ep.number}",
+                                        color = if (isWatched) themeAccent else TextPrimary,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                            repeat(6 - rowEpisodes.size) {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
+                        }
+                    }
+                }
+            EPISODE_LAYOUT_GRID -> Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            ) {
+                // A plain Column of fixed-size rows instead of a LazyVerticalGrid: this sits inside
+                // the screen's LazyColumn, where a nested lazy grid has no bounded height.
+                currentChunkEpisodes.chunked(3).forEach { rowEpisodes ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        rowEpisodes.forEach { ep ->
+                            val epProgress = allProgress.firstOrNull { it.id == "${currentAnime.id}_${ep.number}" }
+                            EpisodeGridTile(
+                                episode = ep,
+                                progress = epProgress,
+                                themeAccent = themeAccent,
+                                onClick = { onPlayEpisode(currentAnime.id, ep.number, selectedAudioTrack) },
+                                onLongClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    activeEpisodeForActions = ep
+                                },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                        repeat(3 - rowEpisodes.size) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
+            }
+
+            else -> LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(currentChunkEpisodes, key = { it.id }) { ep ->
+                        val epProgress = allProgress.firstOrNull { it.id == "${currentAnime.id}_${ep.number}" }
+                        EpisodeThumbnailCard(
+                            episode = ep,
+                            progress = epProgress,
+                            themeAccent = themeAccent,
+                            onClick = { onPlayEpisode(currentAnime.id, ep.number, selectedAudioTrack) },
+                            onLongClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                activeEpisodeForActions = ep
+                            }
+                        )
+                    }
+                }
+            }
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+
+        item {
+            MalReviewsSection(
+                reviews = malReviews,
+                isLoading = isLoadingReviews,
+                expanded = reviewsExpanded,
+                onToggleExpanded = { reviewsExpanded = !reviewsExpanded },
+                themeAccent = themeAccent
+            )
+            Spacer(modifier = Modifier.height(20.dp))
+        }
+
+        if (relatedAnime.isNotEmpty()) {
+            item {
+                Text(
+                    text = "More like this",
+                    color = TextPrimary,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(relatedAnime, key = { it.id }) { rel ->
+                        AnimeCard(
+                            anime = rel,
+                            cardWidth = 130f,
+                            onClick = { onRelatedAnimeClick(rel.id) },
+                            onLongClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                longPressedAnimeForActions = rel
+                            }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+        }
+
+    }
+}
+
+@Composable
+private fun MalReviewsSection(
+    reviews: List<MalReview>,
+    isLoading: Boolean,
+    expanded: Boolean,
+    onToggleExpanded: () -> Unit,
+    themeAccent: Color
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .animateContentSize()
+            .testTag("details_mal_reviews_section")
+    ) {
+        androidx.compose.material3.HorizontalDivider(color = DarkBorder, thickness = 0.5.dp)
+        Spacer(modifier = Modifier.height(14.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onToggleExpanded() }
+                .padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.RateReview,
+                contentDescription = null,
+                tint = themeAccent,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "MyAnimeList Reviews",
+                color = TextPrimary,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+            if (reviews.isNotEmpty()) {
+                Spacer(modifier = Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(themeAccent.copy(alpha = 0.16f))
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = "${reviews.size}",
+                        color = themeAccent,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            Icon(
+                imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                contentDescription = if (expanded) "Collapse reviews" else "Expand reviews",
+                tint = TextSecondary
+            )
+        }
+
+        if (expanded) {
+            Spacer(modifier = Modifier.height(10.dp))
+            when {
+                isLoading -> {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(DarkSurfaceVariant)
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = themeAccent,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = "Fetching MyAnimeList user reviews…",
+                            color = TextSecondary,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+                reviews.isEmpty() -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(DarkSurfaceVariant)
+                            .border(0.5.dp, DarkBorder, RoundedCornerShape(14.dp))
+                            .padding(18.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No MyAnimeList user reviews available for this anime yet.",
+                            color = TextSecondary,
+                            fontSize = 12.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+                else -> {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        reviews.take(6).forEach { review ->
+                            MalReviewCard(review = review, themeAccent = themeAccent)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MalReviewCard(
+    review: MalReview,
+    themeAccent: Color
+) {
+    var isExpanded by remember { mutableStateOf(false) }
+    var revealSpoilers by remember { mutableStateOf(!review.isSpoiler) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(DarkSurface)
+            .border(0.5.dp, DarkBorder, RoundedCornerShape(14.dp))
+            .clickable { isExpanded = !isExpanded }
+            .padding(14.dp)
+            .animateContentSize()
+            .testTag("mal_review_card_${review.id}")
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(CircleShape)
+                    .background(DarkSurfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                if (review.avatarUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = review.avatarUrl,
+                        contentDescription = review.author,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = null,
+                        tint = themeAccent,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = review.author,
+                        color = TextPrimary,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(0xFF2E51A2).copy(alpha = 0.25f))
+                            .padding(horizontal = 5.dp, vertical = 1.dp)
+                    ) {
+                        Text(
+                            text = "MAL",
+                            color = Color(0xFF7CA5FF),
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Black
+                        )
+                    }
+                }
+                val metaParts = buildList {
+                    if (review.date.isNotBlank()) add(review.date)
+                    if (review.episodesWatched > 0) add("Watched ${review.episodesWatched} ep(s)")
+                    if (review.isPreliminary) add("Preliminary")
+                }
+                if (metaParts.isNotEmpty()) {
+                    Text(
+                        text = metaParts.joinToString(" • "),
+                        color = TextSecondary,
+                        fontSize = 10.sp
+                    )
+                }
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(AccentYellow.copy(alpha = 0.16f))
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Star,
+                    contentDescription = null,
+                    tint = AccentYellow,
+                    modifier = Modifier.size(13.dp)
+                )
+                Spacer(modifier = Modifier.width(3.dp))
+                Text(
+                    text = "${review.score}/10",
+                    color = AccentYellow,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        if (review.isSpoiler && !revealSpoilers) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(DarkSurfaceVariant)
+                    .clickable { revealSpoilers = true }
+                    .padding(10.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Contains Spoilers — Tap to reveal review",
+                    color = AccentYellow,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        } else {
+            Text(
+                text = review.body,
+                color = TextPrimary.copy(alpha = 0.9f),
+                fontSize = 12.sp,
+                lineHeight = 18.sp,
+                maxLines = if (isExpanded) Int.MAX_VALUE else 4,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (review.helpfulCount > 0) {
+                    Icon(
+                        imageVector = Icons.Default.ThumbUp,
+                        contentDescription = null,
+                        tint = TextSecondary,
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "${review.helpfulCount} found helpful",
+                        color = TextSecondary,
+                        fontSize = 10.sp
+                    )
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = if (isExpanded) "Show less" else "Read full review",
+                    color = themeAccent,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun EpisodeThumbnailCard(
+    episode: Episode,
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
+    progress: com.example.data.model.WatchProgress? = null,
+    themeAccent: Color = LocalThemeAccent.current,
+    modifier: Modifier = Modifier
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.94f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "ep_scale"
+    )
+
+    Column(
+        modifier = modifier
+            .width(160.dp)
+            .scale(scale)
+            .clip(RoundedCornerShape(10.dp))
+            .combinedClickable(
+                interactionSource = interactionSource,
+                indication = ripple(bounded = true, color = themeAccent),
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
+            .testTag("episode_card_${episode.number}")
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(100.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(DarkSurfaceVariant)
+        ) {
+            AsyncImage(
+                model = episode.thumbnail,
+                contentDescription = episode.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .background(Color(0x99000000), CircleShape)
+                    .align(Alignment.Center),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PlayArrow,
+                    contentDescription = "Play",
+                    tint = themeAccent,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            if (progress?.completed == true) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(6.dp)
+                        .background(Color(0xCC000000), CircleShape)
+                        .padding(2.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = "Completed",
+                        tint = themeAccent,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+
+            if (progress != null && progress.durationSec > 0) {
+                val fraction = (progress.currentTimeSec.toFloat() / progress.durationSec.toFloat()).coerceIn(0f, 1f)
+                LinearProgressIndicator(
+                    progress = { fraction },
+                    color = themeAccent,
+                    trackColor = Color(0x66000000),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .align(Alignment.BottomCenter)
+                )
+            }
+
+            if (episode.isOffline) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(6.dp)
+                ) {
+                    OfflineBadge()
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Text(
+            text = "Ep ${episode.number}: ${episode.title}",
+            color = TextPrimary,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+/**
+ * Thumbnail tile used by the three-column "Grid" episode layout.
+ *
+ * Deliberately separate from [EpisodeThumbnailCard], which hard-codes a 160dp width: these tiles
+ * share the row width instead so exactly three fit, whatever the screen size.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun EpisodeGridTile(
+    episode: Episode,
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
+    progress: com.example.data.model.WatchProgress? = null,
+    themeAccent: Color = LocalThemeAccent.current,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .aspectRatio(16f / 9f)
+            .clip(RoundedCornerShape(10.dp))
+            .background(DarkSurfaceVariant)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
+            .testTag("episode_tile_${episode.number}")
+    ) {
+        AsyncImage(
+            model = episode.thumbnail,
+            contentDescription = episode.title,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(4.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .background(Color(0xCC000000))
+                .padding(horizontal = 6.dp, vertical = 2.dp)
+        ) {
+            Text(
+                text = "${episode.number}",
+                color = if (progress?.completed == true) themeAccent else Color.White,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
+
+        if (progress?.completed == true) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(4.dp)
+                    .background(Color(0xCC000000), CircleShape)
+                    .padding(2.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = "Completed",
+                    tint = themeAccent,
+                    modifier = Modifier.size(14.dp)
+                )
+            }
+        }
+
+        if (progress != null && progress.durationSec > 0) {
+            val fraction =
+                (progress.currentTimeSec.toFloat() / progress.durationSec.toFloat()).coerceIn(0f, 1f)
+            LinearProgressIndicator(
+                progress = { fraction },
+                color = themeAccent,
+                trackColor = Color(0x66000000),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .align(Alignment.BottomCenter)
+            )
+        }
+
+        if (episode.isOffline) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(4.dp)
+            ) {
+                OfflineBadge()
+            }
+        }
+    }
+}
+
