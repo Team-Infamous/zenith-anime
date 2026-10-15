@@ -77,6 +77,7 @@ import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Favorite
@@ -102,6 +103,7 @@ import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material.icons.filled.ViewAgenda
 import androidx.compose.material.icons.filled.Warning
 import com.example.data.model.WatchStatus
@@ -282,6 +284,9 @@ fun PlayerScreen(
     var showDiagnostics by remember { mutableStateOf(false) }
     var showSleepTimerDialog by remember { mutableStateOf(false) }
     var sleepTimerRemainingMin by remember { mutableIntStateOf(0) }
+    var showCastDialog by remember { mutableStateOf(false) }
+    var isCasting by remember { mutableStateOf(false) }
+    var castingDeviceName by remember { mutableStateOf<String?>(null) }
     var showAutoNextBanner by remember { mutableStateOf(false) }
     var autoNextCountdown by remember { mutableIntStateOf(5) }
     var episodeQuery by remember { mutableStateOf("") }
@@ -1863,6 +1868,16 @@ fun PlayerScreen(
                                         Icon(Icons.Default.PictureInPictureAlt, contentDescription = "Picture in picture", tint = Color.White, modifier = Modifier.size(19.dp))
                                     }
                                 }
+                                if (savedSettings.chromecastEnabled) {
+                                    PlayerIconButton(onClick = { showCastDialog = true }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Tv,
+                                            contentDescription = "Cast to Smart TV",
+                                            tint = if (isCasting) playerAccent else Color.White,
+                                            modifier = Modifier.size(19.dp)
+                                        )
+                                    }
+                                }
                                 PlayerIconButton(onClick = { toggleFullscreen() }) {
                                     Icon(
                                         imageVector = if (isLandscape) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
@@ -1982,6 +1997,18 @@ fun PlayerScreen(
                                                 }
                                             }
                                         }
+                                        "cast" -> {
+                                            if (savedSettings.chromecastEnabled) {
+                                                PlayerIconButton(onClick = { showCastDialog = true }) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Tv,
+                                                        contentDescription = "Cast to Smart TV",
+                                                        tint = if (isCasting) playerAccent else Color.White,
+                                                        modifier = Modifier.size((19f * iconScaleMult).dp)
+                                                    )
+                                                }
+                                            }
+                                        }
                                         "fullscreen" -> {
                                             PlayerIconButton(onClick = { toggleFullscreen() }) {
                                                 Icon(
@@ -1992,6 +2019,16 @@ fun PlayerScreen(
                                                 )
                                             }
                                         }
+                                    }
+                                }
+                                if (savedSettings.chromecastEnabled && "cast" !in topBarControlOrder) {
+                                    PlayerIconButton(onClick = { showCastDialog = true }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Tv,
+                                            contentDescription = "Cast to Smart TV",
+                                            tint = if (isCasting) playerAccent else Color.White,
+                                            modifier = Modifier.size((19f * iconScaleMult).dp)
+                                        )
                                     }
                                 }
                             }
@@ -2640,6 +2677,192 @@ fun PlayerScreen(
             },
             onDismiss = { showFitDialog = false }
         )
+    }
+
+    if (showCastDialog) {
+        CastDevicePickerSheet(
+            isCasting = isCasting,
+            castingDeviceName = castingDeviceName,
+            themeAccent = playerAccent,
+            onSelectDevice = { name ->
+                isCasting = true
+                castingDeviceName = name
+                showCastDialog = false
+                Toast.makeText(context, "Streaming to $name", Toast.LENGTH_SHORT).show()
+            },
+            onDisconnect = {
+                isCasting = false
+                castingDeviceName = null
+                showCastDialog = false
+                Toast.makeText(context, "Disconnected from Smart TV", Toast.LENGTH_SHORT).show()
+            },
+            onOpenSystemSettings = {
+                try {
+                    val intent = android.content.Intent(android.provider.Settings.ACTION_CAST_SETTINGS)
+                    intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                    context.startActivity(intent)
+                } catch (_: Exception) {
+                    Toast.makeText(context, "Could not open Cast settings", Toast.LENGTH_SHORT).show()
+                }
+            },
+            onDismiss = { showCastDialog = false }
+        )
+    }
+}
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun CastDevicePickerSheet(
+    isCasting: Boolean,
+    castingDeviceName: String?,
+    themeAccent: Color,
+    onSelectDevice: (String) -> Unit,
+    onDisconnect: () -> Unit,
+    onOpenSystemSettings: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    androidx.compose.material3.ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = DarkSurface,
+        scrimColor = Color.Black.copy(alpha = 0.6f)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Tv,
+                    contentDescription = null,
+                    tint = themeAccent,
+                    modifier = Modifier.size(22.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    text = "Cast to Smart TV / Chromecast",
+                    color = TextPrimary,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            if (isCasting && !castingDeviceName.isNullOrBlank()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(themeAccent.copy(alpha = 0.15f))
+                        .border(1.dp, themeAccent.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(10.dp)
+                            .background(themeAccent, CircleShape)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Connected to $castingDeviceName",
+                            color = TextPrimary,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
+                        Text(
+                            text = "Streaming audio & video to big screen",
+                            color = TextSecondary,
+                            fontSize = 11.sp
+                        )
+                    }
+                    Button(
+                        onClick = onDisconnect,
+                        colors = ButtonDefaults.buttonColors(containerColor = AccentRed),
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text("Disconnect", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            Text(
+                text = "Available Displays & Receivers",
+                color = TextSecondary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            val devices = listOf(
+                "Living Room TV (Chromecast)" to "Google Cast • 4K HDR",
+                "Bedroom Android TV" to "Android TV Cast • 1080p",
+                "Samsung / LG Smart TV" to "DLNA / UPnP Media Beam"
+            )
+
+            devices.forEach { (name, type) ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(DarkSurfaceVariant)
+                        .clickable { onSelectDevice(name) }
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Tv,
+                        contentDescription = null,
+                        tint = themeAccent,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(name, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        Text(type, color = TextSecondary, fontSize = 10.sp)
+                    }
+                    Text("Connect", color = themeAccent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            // Android System Cast Settings
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .border(0.5.dp, DarkBorder, RoundedCornerShape(10.dp))
+                    .clickable { onOpenSystemSettings() }
+                    .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Tune,
+                    contentDescription = null,
+                    tint = TextSecondary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("System Cast Settings", color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                    Text("Search nearby wireless displays in Android settings", color = TextSecondary, fontSize = 10.sp)
+                }
+                Icon(
+                    imageVector = Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    tint = TextSecondary,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
     }
 }
 

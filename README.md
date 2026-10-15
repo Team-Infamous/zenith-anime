@@ -60,6 +60,30 @@ Join our official community Discord for announcements, feedback, feature voting,
   - In-player quick episode drawer strip and "Next Episode" 5s countdown overlay during final 30s.
   - Seamless subtitle styling engine, multi-track dub audio switching, and screen lock.
 
+- **Anime Themes & Music Jukebox (AnimeThemes.moe)**
+  - Dedicated "Themes" tab in Anime Details with creditless Openings and Endings.
+  - Watch 1080p/720p clean anime themes directly in-app with embedded Media3 video player.
+
+- **2-Way Tracker Sync & Auto-Scrobbler (AniList & MyAnimeList)**
+  - Fully opt-in (disabled by default, user preference in Settings).
+  - Automatically marks episodes watched and status completed at configurable threshold (default 85%).
+
+- **Smart TV & Google Cast Streaming**
+  - Completely disabled by default.
+  - Toggleable in Player Settings with in-player cast action icon and device picker.
+
+- **Batch Downloader & Auto-Delete Storage Manager**
+  - Download "Next 1", "Next 5", or "All Available" episodes in a single tap.
+  - Optional auto-delete watched downloads to free up device storage.
+
+- **Seasonal Release Schedule & Live Countdowns**
+  - Weekly broadcast grid with real-time live countdown badges ("Airs in Xh Ym").
+  - Airing reminder notification toggle for favorite upcoming series.
+
+- **Discord Rich Presence (RPC) & Background Audio**
+  - Broadcast current anime, episode, and remaining time to Discord via webhook.
+  - Background audio playback for listening with screen turned off.
+
 - **Interactive Customization Playground**
   - Reorder, show, or hide individual player controls.
   - Adjust transport button positioning (Center, Bottom, Split).
@@ -92,7 +116,7 @@ Pre-built APKs and distribution portals:
 
 - **Latest Release APK**: [`APK/zenith-anime-latest.apk`](APK/zenith-anime-latest.apk)
 - **Debug APK**: [`APK/app-debug.apk`](APK/app-debug.apk)
-- **GitHub Releases**: [Latest Release (v1.3.0)](https://github.com/gokuthug1/zenith-anime/releases/latest)
+- **GitHub Releases**: [Latest Release (v1.4.0)](https://github.com/gokuthug1/zenith-anime/releases/latest)
 - **Web App / Showcase**: [https://gokuthug1.github.io/zenith-anime/](https://gokuthug1.github.io/zenith-anime/)
 
 ### Requirements

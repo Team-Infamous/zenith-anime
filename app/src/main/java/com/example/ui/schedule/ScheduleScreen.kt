@@ -44,6 +44,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
@@ -482,6 +483,7 @@ fun AiringTimelineRow(
     onToggleWatchlist: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     val themeAccent = LocalThemeAccent.current
     val rowInteractionSource = remember { MutableInteractionSource() }
@@ -573,52 +575,139 @@ fun AiringTimelineRow(
                 Column(
                     modifier = Modifier.weight(1f)
                 ) {
+                    val nowSec = remember { System.currentTimeMillis() / 1000L }
+                    val diffSec = airingItem.airingAt - nowSec
+                    val countdownText = remember(airingItem.airingAt, nowSec) {
+                        when {
+                            diffSec > 86400L -> "Airs in ${diffSec / 86400L}d ${(diffSec % 86400L) / 3600L}h"
+                            diffSec > 3600L -> "Airs in ${diffSec / 3600L}h ${(diffSec % 3600L) / 60L}m"
+                            diffSec > 0L -> "Airs in ${diffSec / 60L}m"
+                            diffSec > -86400L -> "Aired ${(-diffSec) / 3600L}h ago"
+                            else -> "Aired"
+                        }
+                    }
+                    val isUpcoming = diffSec > 0L
+                    var reminderActive by remember { mutableStateOf(false) }
+
                     Text(
                         text = airingItem.anime.title,
                         color = TextPrimary,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        maxLines = 1,
+                        maxLines = 2,
+                        lineHeight = 17.sp,
                         overflow = TextOverflow.Ellipsis
                     )
 
-                    Spacer(modifier = Modifier.height(3.dp))
+                    Spacer(modifier = Modifier.height(4.dp))
 
-                    Text(
-                        text = "Episode ${airingItem.episode}",
-                        color = TextSecondary,
-                        fontSize = 12.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    // Pill Button: "+ My List" / "✓ In List"
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(if (airingItem.anime.isInWatchlist) themeAccent.copy(alpha = 0.2f) else Color(0x33FFFFFF))
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = ripple(bounded = true, color = themeAccent),
-                                onClick = onToggleWatchlist
-                            )
-                            .padding(horizontal = 10.dp, vertical = 4.dp),
-                        contentAlignment = Alignment.Center
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = if (airingItem.anime.isInWatchlist) Icons.Default.Check else Icons.Default.Add,
-                                contentDescription = null,
-                                tint = if (airingItem.anime.isInWatchlist) themeAccent else TextPrimary,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = if (airingItem.anime.isInWatchlist) "In List" else "My List",
-                                color = if (airingItem.anime.isInWatchlist) themeAccent else TextPrimary,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
+                        Text(
+                            text = "Episode ${airingItem.episode}",
+                            color = TextSecondary,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(if (isUpcoming) themeAccent.copy(alpha = 0.16f) else Color(0x22FFFFFF))
+                                .border(0.5.dp, if (isUpcoming) themeAccent.copy(alpha = 0.4f) else Color(0x33FFFFFF), RoundedCornerShape(6.dp))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (isUpcoming) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(5.dp)
+                                            .background(themeAccent, CircleShape)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                }
+                                Text(
+                                    text = countdownText,
+                                    color = if (isUpcoming) themeAccent else TextSecondary,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Pill Button: "+ My List" / "✓ In List"
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(if (airingItem.anime.isInWatchlist) themeAccent.copy(alpha = 0.2f) else Color(0x33FFFFFF))
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = ripple(bounded = true, color = themeAccent),
+                                    onClick = onToggleWatchlist
+                                )
+                                .padding(horizontal = 10.dp, vertical = 4.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = if (airingItem.anime.isInWatchlist) Icons.Default.Check else Icons.Default.Add,
+                                    contentDescription = null,
+                                    tint = if (airingItem.anime.isInWatchlist) themeAccent else TextPrimary,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (airingItem.anime.isInWatchlist) "In List" else "My List",
+                                    color = if (airingItem.anime.isInWatchlist) themeAccent else TextPrimary,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+
+                        // Airing Reminder Alert Pill
+                        if (isUpcoming) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(if (reminderActive) themeAccent.copy(alpha = 0.2f) else Color(0x22FFFFFF))
+                                    .clickable {
+                                        reminderActive = !reminderActive
+                                        Toast.makeText(
+                                            context,
+                                            if (reminderActive) "Reminder set for ${airingItem.anime.title} Ep ${airingItem.episode}!"
+                                            else "Airing reminder removed",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Notifications,
+                                        contentDescription = "Airing alert",
+                                        tint = if (reminderActive) themeAccent else TextSecondary,
+                                        modifier = Modifier.size(13.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Text(
+                                        text = if (reminderActive) "Alert On" else "Remind Me",
+                                        color = if (reminderActive) themeAccent else TextSecondary,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
                         }
                     }
                 }

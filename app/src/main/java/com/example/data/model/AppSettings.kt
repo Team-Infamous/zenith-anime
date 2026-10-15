@@ -190,7 +190,25 @@ data class AppSettings(
     val profileBannerColor: String = "Default",
     val malUsername: String = "",
     val anilistUsername: String = "",
-    val autoSyncOnOpen: Boolean = false
+    val autoSyncOnOpen: Boolean = false,
+
+    // ---- Google Cast & Smart TV (COMPLETELY disabled by default) ----
+    val chromecastEnabled: Boolean = false,
+    val chromecastDeviceName: String = "",
+
+    // ---- 2-Way Tracker Sync & Auto-Scrobbler (DISABLED by default) ----
+    val trackerSyncEnabled: Boolean = false,
+    val autoScrobbleEnabled: Boolean = false,
+    val anilistAuthToken: String = "",
+    val malAuthToken: String = "",
+    val scrobbleCompletionPercent: Int = 85,
+
+    // ---- Discord Rich Presence (DISABLED by default) ----
+    val discordRpcEnabled: Boolean = false,
+    val discordWebhookUrl: String = "",
+
+    // ---- Audio & Background mode ----
+    val audioOnlyBackgroundEnabled: Boolean = false
 ) {
     companion object {
         /** Sane values used by the "Reset player preferences" action. */

@@ -460,6 +460,61 @@ fun PlayerSettingsScreen(
             )
         }
 
+        SettingsSection(title = "GOOGLE CAST & SMART TV") {
+            SettingSwitchRow(
+                title = "Google Cast & Smart TV Streaming",
+                subtitle = "Stream video directly to Google TV, Chromecast, or Android TV. Completely disabled by default.",
+                checked = settings.chromecastEnabled,
+                onCheckedChange = { settingsManager.update { s -> s.copy(chromecastEnabled = it) } }
+            )
+        }
+
+        SettingsSection(title = "2-WAY TRACKER SYNC & SCROBBLER") {
+            SettingSwitchRow(
+                title = "Enable 2-Way Tracker Sync",
+                subtitle = "Synchronize watching progress and status with AniList / MAL. Disabled by default.",
+                checked = settings.trackerSyncEnabled,
+                onCheckedChange = { settingsManager.update { s -> s.copy(trackerSyncEnabled = it) } }
+            )
+            if (settings.trackerSyncEnabled) {
+                SettingsDivider()
+                SettingSwitchRow(
+                    title = "Auto-Scrobble Watched Episodes",
+                    subtitle = "Automatically update online anime list when episode reaches completion threshold",
+                    checked = settings.autoScrobbleEnabled,
+                    onCheckedChange = { settingsManager.update { s -> s.copy(autoScrobbleEnabled = it) } }
+                )
+                SettingsDivider()
+                IntSliderRow(
+                    title = "Scrobble Threshold",
+                    subtitle = "Percentage of episode watched before triggering auto-scrobble",
+                    value = settings.scrobbleCompletionPercent,
+                    range = 70f..95f,
+                    steps = 4,
+                    suffix = "%",
+                    onChange = { settingsManager.update { s -> s.copy(scrobbleCompletionPercent = it) } }
+                )
+            }
+        }
+
+        SettingsSection(title = "DISCORD RICH PRESENCE") {
+            SettingSwitchRow(
+                title = "Discord Rich Presence",
+                subtitle = "Broadcast currently watching anime and remaining time to Discord webhook",
+                checked = settings.discordRpcEnabled,
+                onCheckedChange = { settingsManager.update { s -> s.copy(discordRpcEnabled = it) } }
+            )
+        }
+
+        SettingsSection(title = "BACKGROUND AUDIO & PIP") {
+            SettingSwitchRow(
+                title = "Background Audio Playback",
+                subtitle = "Keep audio playing seamlessly when screen is turned off or app is minimized",
+                checked = settings.audioOnlyBackgroundEnabled,
+                onCheckedChange = { settingsManager.update { s -> s.copy(audioOnlyBackgroundEnabled = it) } }
+            )
+        }
+
         SettingsSection(title = "RESET") {
             SettingActionRow(
                 title = "Reset Player Preferences",

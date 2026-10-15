@@ -127,3 +127,14 @@ data class CharacterVa(
     val vaImage: String = "",
     val vaLanguage: String = "Japanese"
 )
+
+data class AnimeTheme(
+    val id: Int,
+    val type: String, // "OP" or "ED"
+    val sequence: Int, // 1, 2, ...
+    val songTitle: String,
+    val artist: String = "",
+    val episodes: String = "",
+    val videoUrl: String,
+    val resolution: String = "1080p"
+)

@@ -35,11 +35,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ViewList
+import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
@@ -93,6 +95,7 @@ import androidx.compose.material.icons.filled.RateReview
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.filled.ViewModule
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -100,6 +103,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.runtime.LaunchedEffect
+import com.example.data.model.Anime
 import com.example.data.model.AnimeRelation
 import com.example.data.model.AppSettings
 import com.example.data.model.CharacterVa
@@ -183,14 +187,19 @@ fun AnimeDetailsScreen(
     var animeRelations by remember { mutableStateOf<List<AnimeRelation>>(emptyList()) }
     var malReviews by remember { mutableStateOf<List<MalReview>>(emptyList()) }
     var charactersList by remember { mutableStateOf<List<CharacterVa>>(emptyList()) }
+    var themesList by remember { mutableStateOf<List<com.example.data.model.AnimeTheme>>(emptyList()) }
     var isLoadingReviews by remember { mutableStateOf(false) }
     var isLoadingCharacters by remember { mutableStateOf(false) }
+    var isLoadingThemes by remember { mutableStateOf(false) }
+    var activeThemeToPlay by remember { mutableStateOf<com.example.data.model.AnimeTheme?>(null) }
+    var showBatchDownloadDialog by remember { mutableStateOf(false) }
     var reviewsExpanded by remember { mutableStateOf(true) }
     var showWatchStatusMenu by remember { mutableStateOf(false) }
 
     LaunchedEffect(animeId) {
         isLoadingReviews = true
         isLoadingCharacters = true
+        isLoadingThemes = true
         val rels = repository.getAnimeDetailsWithRelations(animeId)
         if (rels.second.isNotEmpty()) {
             animeRelations = rels.second
@@ -200,6 +209,10 @@ fun AnimeDetailsScreen(
         isLoadingReviews = false
         charactersList = repository.getAnimeCharacters(animeId)
         isLoadingCharacters = false
+        try {
+            themesList = repository.getAnimeThemes(animeId, anime?.title ?: "")
+        } catch (_: Exception) {}
+        isLoadingThemes = false
     }
 
     val displayedEpisodes = remember(episodes, episodeSearchQuery) {
@@ -306,11 +319,14 @@ fun AnimeDetailsScreen(
         )
     }
 
-    LazyColumn(
+    Box(
         modifier = modifier
             .fillMaxSize()
             .background(DarkBackground)
     ) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize()
+        ) {
         item {
             Box(
                 modifier = Modifier
@@ -612,17 +628,7 @@ fun AnimeDetailsScreen(
                                 Toast.makeText(context, "Episodes are not available for download yet.", Toast.LENGTH_SHORT).show()
                                 return@OutlinedButton
                             }
-                            val epToDownload = episodes.firstOrNull() ?: Episode(
-                                id = "${currentAnime.id}_1",
-                                animeId = currentAnime.id,
-                                number = 1,
-                                title = "Episode 1",
-                                thumbnail = currentAnime.bannerImage
-                            )
-                            scope.launch {
-                                repository.addDownload(currentAnime, epToDownload)
-                                Toast.makeText(context, "Downloading Episode 1 in background...", Toast.LENGTH_SHORT).show()
-                            }
+                            showBatchDownloadDialog = true
                         },
                         enabled = hasAired,
                         shape = RoundedCornerShape(24.dp),
@@ -644,7 +650,7 @@ fun AnimeDetailsScreen(
                 Spacer(modifier = Modifier.height(18.dp))
 
                 // Segmented Horizontal Pager Tabs
-                val detailTabs = listOf("Episodes", "Overview", "Characters", "Reviews", "Related")
+                val detailTabs = listOf("Episodes", "Overview", "Characters", "Themes", "Reviews", "Related")
                 LazyRow(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -660,8 +666,9 @@ fun AnimeDetailsScreen(
                         val badgeText = when (index) {
                             0 -> if (displayedEpisodes.isNotEmpty()) "${displayedEpisodes.size}" else null
                             2 -> if (charactersList.isNotEmpty()) "${charactersList.size}" else null
-                            3 -> if (malReviews.isNotEmpty()) "${malReviews.size}" else null
-                            4 -> if (animeRelations.isNotEmpty()) "${animeRelations.size}" else null
+                            3 -> if (themesList.isNotEmpty()) "${themesList.size}" else null
+                            4 -> if (malReviews.isNotEmpty()) "${malReviews.size}" else null
+                            5 -> if (animeRelations.isNotEmpty()) "${animeRelations.size}" else null
                             else -> null
                         }
 
@@ -1166,8 +1173,21 @@ fun AnimeDetailsScreen(
             }
         }
 
-        // ---------------- TAB 3: REVIEWS & DISCUSSIONS ----------------
+        // ---------------- TAB 3: THEMES & MUSIC (JUKEBOX) ----------------
         if (selectedDetailTabIndex == 3) {
+            item {
+                ThemesSection(
+                    themes = themesList,
+                    isLoading = isLoadingThemes,
+                    themeAccent = themeAccent,
+                    onPlayTheme = { activeThemeToPlay = it }
+                )
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+        }
+
+        // ---------------- TAB 4: REVIEWS & DISCUSSIONS ----------------
+        if (selectedDetailTabIndex == 4) {
             item {
                 MalReviewsSection(
                     reviews = malReviews,
@@ -1180,8 +1200,8 @@ fun AnimeDetailsScreen(
             }
         }
 
-        // ---------------- TAB 4: RELATED & RECOMMENDATIONS ----------------
-        if (selectedDetailTabIndex == 4) {
+        // ---------------- TAB 5: RELATED & RECOMMENDATIONS ----------------
+        if (selectedDetailTabIndex == 5) {
             item {
                 Column(
                     modifier = Modifier
@@ -1272,7 +1292,42 @@ fun AnimeDetailsScreen(
                 }
             }
         }
+        }
 
+        if (activeThemeToPlay != null) {
+            ThemeVideoPlayerDialog(
+                theme = activeThemeToPlay!!,
+                themeAccent = themeAccent,
+                onDismiss = { activeThemeToPlay = null }
+            )
+        }
+
+        if (showBatchDownloadDialog) {
+            val currentSettings by repository.settings.collectAsState(initial = repository.settingsManager.getSettings())
+            BatchDownloadDialog(
+                anime = currentAnime,
+                episodes = episodes,
+                autoDeleteWatched = currentSettings.downloadAutoDeleteWatched,
+                themeAccent = themeAccent,
+                onDownloadCount = { count ->
+                    showBatchDownloadDialog = false
+                    val toDownload = episodes.take(count)
+                    scope.launch {
+                        toDownload.forEach { ep ->
+                            repository.addDownload(currentAnime, ep)
+                        }
+                        Toast.makeText(context, "Queued ${toDownload.size} episode(s) for background download", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                onToggleAutoDelete = { enabled ->
+                    scope.launch {
+                        repository.settingsManager.update { it.copy(downloadAutoDeleteWatched = enabled) }
+                        Toast.makeText(context, if (enabled) "Auto-delete after watching enabled" else "Auto-delete disabled", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                onDismiss = { showBatchDownloadDialog = false }
+            )
+        }
     }
 }
 
@@ -2001,6 +2056,339 @@ fun CharacterVaCard(
             }
         }
     }
+}
+
+@Composable
+private fun ThemesSection(
+    themes: List<com.example.data.model.AnimeTheme>,
+    isLoading: Boolean,
+    themeAccent: Color,
+    onPlayTheme: (com.example.data.model.AnimeTheme) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Default.Audiotrack,
+                contentDescription = null,
+                tint = themeAccent,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Anime Themes & Music",
+                color = TextPrimary,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+            if (themes.isNotEmpty()) {
+                Spacer(modifier = Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(themeAccent.copy(alpha = 0.16f))
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = "${themes.size}",
+                        color = themeAccent,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        when {
+            isLoading -> {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(DarkSurfaceVariant)
+                        .padding(18.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    CircularProgressIndicator(
+                        color = themeAccent,
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Loading creditless Openings & Endings…",
+                        color = TextSecondary,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+            themes.isEmpty() -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(DarkSurfaceVariant)
+                        .border(0.5.dp, DarkBorder, RoundedCornerShape(14.dp))
+                        .padding(20.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No creditless themes found for this title.",
+                        color = TextSecondary,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+            else -> {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    themes.forEach { theme ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(DarkSurface)
+                                .border(0.5.dp, DarkBorder, RoundedCornerShape(12.dp))
+                                .clickable { onPlayTheme(theme) }
+                                .padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(themeAccent.copy(alpha = 0.2f))
+                                    .padding(horizontal = 8.dp, vertical = 5.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "${theme.type} ${theme.sequence}",
+                                    color = themeAccent,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = theme.songTitle,
+                                    color = TextPrimary,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                if (theme.artist.isNotBlank()) {
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = theme.artist,
+                                        color = TextSecondary,
+                                        fontSize = 11.sp,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color(0x22FFFFFF))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = theme.resolution,
+                                    color = TextSecondary,
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape)
+                                    .background(themeAccent)
+                                    .clickable { onPlayTheme(theme) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = "Play theme",
+                                    tint = DarkBackground,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ThemeVideoPlayerDialog(
+    theme: com.example.data.model.AnimeTheme,
+    themeAccent: Color,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val exoPlayer = remember {
+        androidx.media3.exoplayer.ExoPlayer.Builder(context).build().apply {
+            setMediaItem(androidx.media3.common.MediaItem.fromUri(theme.videoUrl))
+            prepare()
+            playWhenReady = true
+        }
+    }
+
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        onDispose {
+            exoPlayer.release()
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = DarkSurface,
+        title = {
+            Column {
+                Text(
+                    text = "${theme.type} ${theme.sequence} — ${theme.songTitle}",
+                    color = TextPrimary,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (theme.artist.isNotBlank()) {
+                    Text(
+                        text = theme.artist,
+                        color = themeAccent,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+        },
+        text = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(16f / 9f)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color.Black)
+            ) {
+                AndroidView(
+                    factory = { ctx ->
+                        androidx.media3.ui.PlayerView(ctx).apply {
+                            player = exoPlayer
+                            useController = true
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onDismiss,
+                colors = ButtonDefaults.buttonColors(containerColor = themeAccent)
+            ) {
+                Text("Close", color = DarkBackground, fontWeight = FontWeight.Bold)
+            }
+        }
+    )
+}
+
+@Composable
+private fun BatchDownloadDialog(
+    anime: Anime,
+    episodes: List<Episode>,
+    autoDeleteWatched: Boolean,
+    themeAccent: Color,
+    onDownloadCount: (Int) -> Unit,
+    onToggleAutoDelete: (Boolean) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = DarkSurface,
+        title = {
+            Text("Download Episodes", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Save episodes offline for smooth, data-free viewing:", color = TextSecondary, fontSize = 12.sp)
+
+                Button(
+                    onClick = { onDownloadCount(1) },
+                    colors = ButtonDefaults.buttonColors(containerColor = themeAccent),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Download Next Unwatched Episode", color = DarkBackground, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
+
+                if (episodes.size >= 5) {
+                    Button(
+                        onClick = { onDownloadCount(5) },
+                        colors = ButtonDefaults.buttonColors(containerColor = DarkSurfaceVariant),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Download Next 5 Episodes", color = TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                    }
+                }
+
+                Button(
+                    onClick = { onDownloadCount(episodes.size) },
+                    colors = ButtonDefaults.buttonColors(containerColor = DarkSurfaceVariant),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Download All Available (${episodes.size} eps)", color = TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                }
+
+                androidx.compose.material3.HorizontalDivider(color = DarkBorder, thickness = 0.5.dp)
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Auto-Delete Watched", color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Deletes file once finished to save storage", color = TextSecondary, fontSize = 10.sp)
+                    }
+                    androidx.compose.material3.Switch(
+                        checked = autoDeleteWatched,
+                        onCheckedChange = onToggleAutoDelete,
+                        colors = androidx.compose.material3.SwitchDefaults.colors(
+                            checkedThumbColor = DarkBackground,
+                            checkedTrackColor = themeAccent
+                        )
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            androidx.compose.material3.TextButton(onClick = onDismiss) {
+                Text("Cancel", color = TextSecondary)
+            }
+        }
+    )
 }
 
 

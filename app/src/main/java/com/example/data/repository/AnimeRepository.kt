@@ -35,6 +35,9 @@ class AnimeRepository(private val context: Context) {
     private val notificationDao = db.notificationDao()
     private val aniListService = AniListService()
     val malSyncService = MalSyncService()
+    val animeThemesService = com.example.data.network.AnimeThemesService()
+    val trackerSyncManager = com.example.data.sync.TrackerSyncManager()
+    val discordRpcService = com.example.data.sync.DiscordRpcService()
     val settingsManager = SettingsManager(context)
     val downloadManager = AnimeDownloadManager(context, db, settingsManager)
     val resolverRegistry = StreamResolverRegistry()
@@ -184,6 +187,10 @@ class AnimeRepository(private val context: Context) {
 
     suspend fun getAnimeCharacters(animeId: String): List<com.example.data.model.CharacterVa> = withContext(Dispatchers.IO) {
         aniListService.getAnimeCharacters(animeId)
+    }
+
+    suspend fun getAnimeThemes(anilistId: String?, title: String): List<com.example.data.model.AnimeTheme> = withContext(Dispatchers.IO) {
+        animeThemesService.getAnimeThemes(anilistId, title)
     }
 
     suspend fun importWatchlist(animeList: List<Anime>, eraseExisting: Boolean): Int = withContext(Dispatchers.IO) {
@@ -481,8 +488,36 @@ class AnimeRepository(private val context: Context) {
         }
 
         // Optional housekeeping: remove the offline file once the episode has been finished.
-        if (completed && settingsManager.getSettings().downloadAutoDeleteWatched) {
+        val currentSettings = settingsManager.getSettings()
+        if (completed && currentSettings.downloadAutoDeleteWatched) {
             downloadManager.deleteByEpisode(anime.id, episode.number)
+        }
+
+        // 2-Way Tracker Sync & Auto-Scrobbler (AniList & MAL)
+        val percentWatched = if (effectiveDuration > 0) ((currentTimeSec.toFloat() / effectiveDuration.toFloat()) * 100f).toInt() else 0
+        if (completed || percentWatched >= currentSettings.scrobbleCompletionPercent) {
+            try {
+                trackerSyncManager.autoScrobble(
+                    anime = anime,
+                    episodeNumber = episode.number,
+                    isCompleted = completed,
+                    settings = currentSettings
+                )
+            } catch (_: Exception) {}
+        }
+
+        // Discord Rich Presence status update
+        if (currentSettings.discordRpcEnabled) {
+            try {
+                discordRpcService.updatePresence(
+                    animeTitle = anime.title,
+                    episodeNumber = episode.number,
+                    currentTimeSec = currentTimeSec,
+                    durationSec = effectiveDuration,
+                    coverImage = anime.coverImage,
+                    settings = currentSettings
+                )
+            } catch (_: Exception) {}
         }
     }
 
