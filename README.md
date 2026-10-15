@@ -84,6 +84,18 @@ Join our official community Discord for announcements, feedback, feature voting,
   - Broadcast current anime, episode, and remaining time to Discord via webhook.
   - Background audio playback for listening with screen turned off.
 
+- **Title Language Preference (English vs. Japanese)**
+  - Toggle between English and Japanese (Romaji) titles globally across Home, Details, Player, Library, and Continue Watching.
+
+- **Mega Server as Default & Recommended**
+  - High-speed direct HLS video streaming out of the box with download and audio track switching support.
+
+- **Refined UI/UX, Sleek Seekbar & Device Inset Support**
+  - Modernized 3.5dp slim seekbar with responsive 14dp thumb, frosted continue watching timestamp badges, and full system navigation bar padding across all device screens.
+
+- **Local Backup File Export & Clipboard Copy**
+  - Direct JSON backup export to the device's public `Download/` folder via Android MediaStore alongside instant clipboard copy.
+
 - **Interactive Customization Playground**
   - Reorder, show, or hide individual player controls.
   - Adjust transport button positioning (Center, Bottom, Split).
@@ -116,7 +128,7 @@ Pre-built APKs and distribution portals:
 
 - **Latest Release APK**: [`APK/zenith-anime-latest.apk`](APK/zenith-anime-latest.apk)
 - **Debug APK**: [`APK/app-debug.apk`](APK/app-debug.apk)
-- **GitHub Releases**: [Latest Release (v1.4.0)](https://github.com/gokuthug1/zenith-anime/releases/latest)
+- **GitHub Releases**: [Latest Release (v1.5.0)](https://github.com/gokuthug1/zenith-anime/releases/latest)
 - **Web App / Showcase**: [https://gokuthug1.github.io/zenith-anime/](https://gokuthug1.github.io/zenith-anime/)
 
 ### Requirements
