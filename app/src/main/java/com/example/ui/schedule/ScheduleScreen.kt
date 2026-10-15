@@ -402,7 +402,7 @@ fun ScheduleScreen(
                         onToggleWatchlist = {
                             scope.launch {
                                 val nextInList = !item.anime.isInWatchlist
-                                repository.toggleWatchlist(item.anime.id, nextInList)
+                                repository.toggleWatchlist(item.anime.id, nextInList, item.anime)
                                 // Optimistically update item
                                 val updated = currentItems.map { cur ->
                                     if (cur.anime.id == item.anime.id) {
@@ -442,9 +442,18 @@ fun ScheduleScreen(
             },
             onToggleWatchlist = {
                 scope.launch {
-                    repository.toggleWatchlist(target.id, !target.isInWatchlist)
+                    repository.toggleWatchlist(target.id, !target.isInWatchlist, target)
                     Toast.makeText(context, if (!target.isInWatchlist) "Added to Watchlist" else "Removed from Watchlist", Toast.LENGTH_SHORT).show()
                 }
+            },
+            onChangeWatchStatus = { status ->
+                scope.launch {
+                    repository.updateWatchStatus(target.id, status.name)
+                    Toast.makeText(context, "Moved to ${status.displayName}", Toast.LENGTH_SHORT).show()
+                }
+            },
+            onShare = {
+                Toast.makeText(context, "Sharing is coming soon!", Toast.LENGTH_SHORT).show()
             },
             onDownload = {
                 scope.launch {

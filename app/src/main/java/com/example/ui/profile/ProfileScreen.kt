@@ -34,6 +34,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.filled.ChevronRight
@@ -102,6 +107,64 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+data class AvatarPreset(
+    val name: String,
+    val url: String,
+    val type: String = "Image"
+)
+
+val AVATAR_PRESETS = listOf(
+    AvatarPreset("Cyberpunk", "https://images.unsplash.com/photo-1578632767115-351597cf2477?w=300&auto=format&fit=crop&q=80", "JPG"),
+    AvatarPreset("Sakura Spirit", "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=300&auto=format&fit=crop&q=80", "JPG"),
+    AvatarPreset("Night Walker", "https://images.unsplash.com/photo-1563089145-599997674d42?w=300&auto=format&fit=crop&q=80", "JPG"),
+    AvatarPreset("Synth Wave", "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=300&auto=format&fit=crop&q=80", "JPG"),
+    AvatarPreset("Pixel Cat", "https://media.giphy.com/media/JIX9t2j0ZTN9S/giphy.gif", "GIF"),
+    AvatarPreset("Pikachu Vector", "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/dream-world/25.svg", "SVG"),
+    AvatarPreset("Eevee Vector", "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/dream-world/133.svg", "SVG")
+)
+
+fun sanitizeSvgText(content: String): Boolean {
+    val lower = content.lowercase(java.util.Locale.US)
+    val prohibited = listOf("<script", "javascript:", "onload", "onerror", "onclick", "onmouseover", "<!entity")
+    return prohibited.none { lower.contains(it) }
+}
+
+fun validateAvatarUrl(url: String): Pair<Boolean, String?> {
+    val trimmed = url.trim()
+    if (trimmed.isEmpty()) return true to null
+    if (!trimmed.startsWith("http://", ignoreCase = true) && !trimmed.startsWith("https://", ignoreCase = true)) {
+        return false to "URL must begin with http:// or https://"
+    }
+    return try {
+        val uri = java.net.URI(trimmed)
+        if (uri.host.isNullOrBlank()) {
+            false to "Invalid domain host"
+        } else {
+            true to null
+        }
+    } catch (_: Throwable) {
+        false to "Malformed URL format"
+    }
+}
+
+fun getEffectiveAvatarModel(avatarPath: String?, avatarUrl: String? = null): Any {
+    val path = avatarPath?.trim().orEmpty()
+    val url = avatarUrl?.trim().orEmpty()
+    return when {
+        path.isNotEmpty() -> {
+            if (path.startsWith("http://", ignoreCase = true) || path.startsWith("https://", ignoreCase = true)) {
+                path
+            } else if (path.startsWith("content://", ignoreCase = true)) {
+                android.net.Uri.parse(path)
+            } else {
+                File(path)
+            }
+        }
+        url.isNotEmpty() -> url
+        else -> "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=300&auto=format&fit=crop&q=80"
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ProfileScreen(
@@ -113,6 +176,7 @@ fun ProfileScreen(
     onLibrarySettingsClick: () -> Unit = {},
     onNotificationSettingsClick: () -> Unit = {},
     onConfirmationsSettingsClick: () -> Unit = {},
+    onCustomizationPlaygroundClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -251,35 +315,15 @@ fun ProfileScreen(
                     .border(2.5.dp, themeAccent, CircleShape)
                     .padding(3.dp)
                     .clip(CircleShape)
-                    .background(DarkSurfaceVariant)
-                    .clickable {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        avatarPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                    },
+                    .background(DarkSurfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
                 AsyncImage(
-                    model = settings.avatarPath?.let { File(it) }
-                        ?: "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=300&auto=format&fit=crop&q=80",
+                    model = getEffectiveAvatarModel(settings.avatarPath, settings.avatarUrl),
                     contentDescription = "Avatar",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
-
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .size(22.dp)
-                        .background(themeAccent, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = null,
-                        tint = DarkBackground,
-                        modifier = Modifier.size(12.dp)
-                    )
-                }
             }
 
             Spacer(modifier = Modifier.width(16.dp))
@@ -293,7 +337,7 @@ fun ProfileScreen(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = if (incognitoMode) "Incognito Active • Local-First" else "Ad-Free • Tracker-Free Streaming",
+                    text = if (incognitoMode) "Incognito Active • Local-First" else settings.profileBio.ifBlank { "Ad-Free • Tracker-Free Streaming" },
                     color = themeAccent,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold
@@ -380,6 +424,12 @@ fun ProfileScreen(
                 icon = Icons.Default.ColorLens,
                 title = "Theme & Appearance ($selectedThemeColor)",
                 onClick = { showThemeDialog = true }
+            )
+
+            ProfileMenuItem(
+                icon = Icons.Default.Tune,
+                title = "Customization & UI Playground",
+                onClick = onCustomizationPlaygroundClick
             )
 
             ProfileMenuItem(
@@ -763,13 +813,190 @@ fun ProfileScreen(
 
     if (showEditProfileDialog) {
         var tempName by remember { mutableStateOf(username) }
+        var tempBio by remember { mutableStateOf(settings.profileBio) }
+        var selectedTab by remember { mutableIntStateOf(0) }
+        var inputUrl by remember { mutableStateOf(settings.avatarUrl) }
+        var pendingFileUri by remember { mutableStateOf<android.net.Uri?>(null) }
+        var pendingFilePath by remember { mutableStateOf<String?>(null) }
+        var pendingAvatarUrl by remember { mutableStateOf(settings.avatarUrl) }
+        var previewFormatBadge by remember {
+            mutableStateOf(
+                when {
+                    settings.avatarPath?.lowercase()?.endsWith(".gif") == true || settings.avatarUrl.lowercase().endsWith(".gif") -> "GIF"
+                    settings.avatarPath?.lowercase()?.endsWith(".svg") == true || settings.avatarUrl.lowercase().endsWith(".svg") -> "SVG"
+                    settings.avatarUrl.isNotBlank() -> "URL"
+                    settings.avatarPath != null -> "FILE"
+                    else -> "DEFAULT"
+                }
+            )
+        }
+        var validationError by remember { mutableStateOf<String?>(null) }
+
+        val effectiveCurrentAvatar = remember(settings.avatarPath, settings.avatarUrl) {
+            getEffectiveAvatarModel(settings.avatarPath, settings.avatarUrl)
+        }
+
+        val previewModel: Any = remember(pendingFileUri, pendingFilePath, pendingAvatarUrl, settings.avatarPath, settings.avatarUrl) {
+            when {
+                pendingFileUri != null -> pendingFileUri!!
+                !pendingFilePath.isNullOrBlank() -> File(pendingFilePath!!)
+                pendingAvatarUrl.isNotBlank() -> pendingAvatarUrl
+                else -> effectiveCurrentAvatar
+            }
+        }
+
+        val filePicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: android.net.Uri? ->
+            if (uri != null) {
+                val mimeType = context.contentResolver.getType(uri).orEmpty().lowercase(java.util.Locale.US)
+                val isSvg = mimeType.contains("svg") || uri.toString().lowercase(java.util.Locale.US).contains(".svg")
+                val isGif = mimeType.contains("gif") || uri.toString().lowercase(java.util.Locale.US).contains(".gif")
+
+                if (isSvg) {
+                    try {
+                        val content = context.contentResolver.openInputStream(uri)?.use { it.bufferedReader().readText() }.orEmpty()
+                        if (!sanitizeSvgText(content)) {
+                            validationError = "SVG rejected: Executable script elements are blocked for security."
+                            Toast.makeText(context, validationError, Toast.LENGTH_LONG).show()
+                            return@rememberLauncherForActivityResult
+                        }
+                        val target = File(context.filesDir, "avatar_${System.currentTimeMillis()}.svg")
+                        target.writeText(content)
+                        pendingFilePath = target.absolutePath
+                        pendingFileUri = null
+                        pendingAvatarUrl = ""
+                        previewFormatBadge = "SVG"
+                        validationError = null
+                    } catch (e: Exception) {
+                        validationError = "Failed to load SVG: ${e.message}"
+                    }
+                } else {
+                    try {
+                        val ext = when {
+                            isGif -> "gif"
+                            mimeType.contains("png") -> "png"
+                            mimeType.contains("webp") -> "webp"
+                            else -> "jpg"
+                        }
+                        val target = File(context.filesDir, "avatar_${System.currentTimeMillis()}.$ext")
+                        context.contentResolver.openInputStream(uri)?.use { input ->
+                            target.outputStream().use { output -> input.copyTo(output) }
+                        }
+                        pendingFilePath = target.absolutePath
+                        pendingFileUri = null
+                        pendingAvatarUrl = ""
+                        previewFormatBadge = if (isGif) "GIF" else ext.uppercase()
+                        validationError = null
+                    } catch (e: Exception) {
+                        validationError = "Failed to load file: ${e.message}"
+                    }
+                }
+            }
+        }
 
         AlertDialog(
             onDismissRequest = { showEditProfileDialog = false },
             containerColor = DarkSurface,
-            title = { Text("Edit Profile", color = TextPrimary, fontWeight = FontWeight.Bold) },
+            title = {
+                Text("Customize Profile", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            },
             text = {
-                Column {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 520.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    // Live preview card
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(DarkSurfaceVariant)
+                            .padding(14.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Box(
+                                modifier = Modifier
+                                    .size(88.dp)
+                                    .border(2.5.dp, themeAccent, CircleShape)
+                                    .padding(3.dp)
+                                    .clip(CircleShape)
+                                    .background(DarkBackground),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                AsyncImage(
+                                    model = previewModel,
+                                    contentDescription = "Preview",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize(),
+                                    onError = {
+                                        if (pendingAvatarUrl.isNotBlank()) {
+                                            validationError = "Unable to preview image from URL (format unsupported or network blocked)"
+                                        }
+                                    },
+                                    onSuccess = {
+                                        if (validationError?.startsWith("Unable to preview") == true) {
+                                            validationError = null
+                                        }
+                                    }
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Text(
+                                    text = tempName.ifBlank { "ZenithWatcher" },
+                                    color = TextPrimary,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(themeAccent.copy(alpha = 0.2f))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = previewFormatBadge,
+                                        color = themeAccent,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+
+                            if (tempBio.isNotBlank()) {
+                                Text(
+                                    text = tempBio,
+                                    color = TextSecondary,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+                    }
+
+                    if (validationError != null) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(AccentRed.copy(alpha = 0.15f))
+                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(Icons.Default.Warning, contentDescription = null, tint = AccentRed, modifier = Modifier.size(16.dp))
+                            Text(validationError!!, color = AccentRed, fontSize = 11.sp, lineHeight = 14.sp)
+                        }
+                    }
+
+                    // Profile Info
                     OutlinedTextField(
                         value = tempName,
                         onValueChange = { tempName = it },
@@ -777,27 +1004,192 @@ fun ProfileScreen(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("Profile Picture", color = TextSecondary, fontSize = 12.sp)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(
-                            onClick = {
-                                avatarPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = themeAccent, contentColor = DarkBackground),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text("Change Photo", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                        }
-                        if (settings.avatarPath != null) {
-                            Button(
-                                onClick = { removeAvatar() },
-                                colors = ButtonDefaults.buttonColors(containerColor = DarkSurfaceVariant, contentColor = AccentRed),
-                                modifier = Modifier.weight(1f)
+
+                    OutlinedTextField(
+                        value = tempBio,
+                        onValueChange = { tempBio = it },
+                        label = { Text("Bio / Tagline") },
+                        maxLines = 2,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    HorizontalDivider(color = DarkBorder, thickness = 0.5.dp)
+
+                    Text("Profile Avatar Source", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+
+                    // Tab Switcher
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(DarkSurfaceVariant)
+                            .padding(3.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        val tabs = listOf("Presets", "Web URL", "Device File")
+                        tabs.forEachIndexed { index, title ->
+                            val isSel = selectedTab == index
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(if (isSel) themeAccent else Color.Transparent)
+                                    .clickable {
+                                        selectedTab = index
+                                        validationError = null
+                                    }
+                                    .padding(vertical = 6.dp),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Text("Remove Photo", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                Text(
+                                    text = title,
+                                    color = if (isSel) DarkBackground else TextPrimary,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal
+                                )
                             }
+                        }
+                    }
+
+                    when (selectedTab) {
+                        0 -> {
+                            // Presets
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    "Choose a curated avatar (PNG, animated GIF, or vector SVG):",
+                                    color = TextSecondary,
+                                    fontSize = 11.sp
+                                )
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    AVATAR_PRESETS.forEach { preset ->
+                                        val isSelected = pendingAvatarUrl == preset.url
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            modifier = Modifier
+                                                .width(72.dp)
+                                                .clickable {
+                                                    pendingAvatarUrl = preset.url
+                                                    pendingFilePath = null
+                                                    pendingFileUri = null
+                                                    previewFormatBadge = preset.type
+                                                    validationError = null
+                                                }
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(56.dp)
+                                                    .border(
+                                                        width = if (isSelected) 2.5.dp else 1.dp,
+                                                        color = if (isSelected) themeAccent else DarkBorder,
+                                                        shape = CircleShape
+                                                    )
+                                                    .padding(2.dp)
+                                                    .clip(CircleShape)
+                                                    .background(DarkBackground)
+                                            ) {
+                                                AsyncImage(
+                                                    model = preset.url,
+                                                    contentDescription = preset.name,
+                                                    contentScale = ContentScale.Crop,
+                                                    modifier = Modifier.fillMaxSize()
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Text(
+                                                text = preset.name,
+                                                color = if (isSelected) themeAccent else TextSecondary,
+                                                fontSize = 9.sp,
+                                                maxLines = 1,
+                                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        1 -> {
+                            // Web URL
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    "Enter an HTTPS or HTTP direct image link (PNG, JPG, WEBP, GIF, SVG):",
+                                    color = TextSecondary,
+                                    fontSize = 11.sp
+                                )
+                                OutlinedTextField(
+                                    value = inputUrl,
+                                    onValueChange = {
+                                        inputUrl = it
+                                        val (isValid, err) = validateAvatarUrl(it)
+                                        if (isValid) {
+                                            validationError = null
+                                            pendingAvatarUrl = it.trim()
+                                            pendingFilePath = null
+                                            pendingFileUri = null
+                                            previewFormatBadge = when {
+                                                it.lowercase().contains(".gif") -> "GIF"
+                                                it.lowercase().contains(".svg") -> "SVG"
+                                                else -> "URL"
+                                            }
+                                        } else {
+                                            validationError = err
+                                        }
+                                    },
+                                    label = { Text("Image URL") },
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+                        2 -> {
+                            // Device File
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    "Pick any photo, animated GIF, or vector SVG from your device storage:",
+                                    color = TextSecondary,
+                                    fontSize = 11.sp
+                                )
+                                Button(
+                                    onClick = { filePicker.launch("image/*") },
+                                    colors = ButtonDefaults.buttonColors(containerColor = themeAccent, contentColor = DarkBackground),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Icon(Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Choose File (GIF / SVG / Image)", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                }
+                                if (pendingFilePath != null) {
+                                    Text(
+                                        text = "Ready to save: ${File(pendingFilePath!!).name}",
+                                        color = themeAccent,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    HorizontalDivider(color = DarkBorder, thickness = 0.5.dp)
+
+                    // Reset option
+                    if (settings.avatarPath != null || settings.avatarUrl.isNotBlank() || pendingAvatarUrl.isNotBlank() || pendingFilePath != null) {
+                        TextButton(
+                            onClick = {
+                                pendingAvatarUrl = ""
+                                pendingFilePath = null
+                                pendingFileUri = null
+                                inputUrl = ""
+                                previewFormatBadge = "DEFAULT"
+                                validationError = null
+                            },
+                            colors = ButtonDefaults.textButtonColors(contentColor = AccentRed),
+                            modifier = Modifier.align(Alignment.CenterHorizontally)
+                        ) {
+                            Text("Reset Avatar to Default", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -805,9 +1197,28 @@ fun ProfileScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        repository.settingsManager.updateProfile(tempName)
+                        if (selectedTab == 1 && inputUrl.isNotBlank()) {
+                            val (isValid, err) = validateAvatarUrl(inputUrl)
+                            if (!isValid) {
+                                validationError = err
+                                return@Button
+                            }
+                        }
+
+                        if (pendingFilePath != null) {
+                            repository.settingsManager.updateAvatar(path = pendingFilePath, url = "")
+                        } else if (pendingAvatarUrl.isNotBlank()) {
+                            repository.settingsManager.updateAvatar(path = null, url = pendingAvatarUrl)
+                        } else if (previewFormatBadge == "DEFAULT") {
+                            repository.settingsManager.updateAvatar(path = null, url = "")
+                        }
+
+                        repository.settingsManager.updateProfile(
+                            name = tempName.trim().ifBlank { "ZenithWatcher" },
+                            bio = tempBio.trim()
+                        )
                         showEditProfileDialog = false
-                        Toast.makeText(context, "Profile updated", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Profile updated successfully", Toast.LENGTH_SHORT).show()
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = themeAccent, contentColor = DarkBackground)
                 ) {

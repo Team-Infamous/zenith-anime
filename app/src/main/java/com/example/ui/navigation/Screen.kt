@@ -23,4 +23,5 @@ sealed class Screen(val route: String) {
     object LibrarySettings : Screen("library_settings")
     object NotificationSettings : Screen("notification_settings")
     object ConfirmationsSettings : Screen("confirmations_settings")
+    object CustomizationPlayground : Screen("customization_playground")
 }

@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en" data-accent="emerald">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Zenith Anime — A modern, local-first, highly customizable anime streaming and organization client for Android. Built with Jetpack Compose & ExoPlayer.">
+  <title>Zenith Anime — Modern Native Anime Client for Android</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2310b981'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z'/></svg>">
+</head>
+<body>
+  <!-- Accessibility Skip Link -->
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <!-- Header Navigation -->
+  <header class="site-header">
+    <div class="container navbar">
+      <a href="#" class="brand" aria-label="Zenith Anime Home">
+        <div class="brand-icon" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/>
+          </svg>
+        </div>
+        <span class="brand-name">Zenith Anime</span>
+        <span class="brand-tag">v1.2.0</span>
+      </a>
+
+      <nav aria-label="Primary Navigation">
+        <ul class="nav-links" id="nav-links">
+          <li><a href="#features" class="nav-link">Features</a></li>
+          <li><a href="#playground" class="nav-link">Playground</a></li>
+          <li><a href="#downloads" class="nav-link">Download</a></li>
+          <li><a href="#disclaimers" class="nav-link">Legal / DMCA</a></li>
+          <li><a href="#community" class="nav-link">Community</a></li>
+        </ul>
+      </nav>
+
+      <div class="nav-actions">
+        <!-- Theme Accent Palette Picker -->
+        <div class="color-palette" role="group" aria-label="Select Theme Accent Color">
+          <button type="button" class="color-chip active" data-color="emerald" style="background:#10b981;" aria-label="Emerald theme" aria-selected="true"></button>
+          <button type="button" class="color-chip" data-color="cyan" style="background:#06b6d4;" aria-label="Cyan theme" aria-selected="false"></button>
+          <button type="button" class="color-chip" data-color="sakura" style="background:#f43f5e;" aria-label="Sakura theme" aria-selected="false"></button>
+          <button type="button" class="color-chip" data-color="violet" style="background:#8b5cf6;" aria-label="Violet theme" aria-selected="false"></button>
+          <button type="button" class="color-chip" data-color="amber" style="background:#f59e0b;" aria-label="Amber theme" aria-selected="false"></button>
+          <button type="button" class="color-chip" data-color="crimson" style="background:#ef4444;" aria-label="Crimson theme" aria-selected="false"></button>
+        </div>
+
+        <a href="https://github.com/tnb1j/zenith-anime" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" aria-label="GitHub Repository">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+          </svg>
+          <span>GitHub</span>
+        </a>
+
+        <button type="button" class="mobile-menu-toggle" id="mobile-menu-toggle" aria-label="Toggle navigation menu" aria-expanded="false">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main id="main-content">
+    <!-- Hero Section -->
+    <section class="hero-section">
+      <div class="container">
+        <!-- Vibecoding Highlight Banner -->
+        <aside class="notice-box" role="region" aria-label="Autonomous AI Development Statement">
+          <div class="notice-icon-wrapper" aria-hidden="true">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2l2.4 7.2H22l-6 4.8 2.4 7.2L12 16.8 5.6 21.2 8 14 2 9.2h7.6z"/>
+            </svg>
+          </div>
+          <div class="notice-content">
+            <h4>100% Vibecoded in One Month by Gemini 3.8 Flash &amp; DeepSeek V4.1 Flash</h4>
+            <p>Every single line of this native application — including the Jetpack Compose UI architecture, custom ExoPlayer gesture engine, Room local-first persistence, and real-time customization playground — was designed, coded, and refined through autonomous agentic pair programming in just 30 days.</p>
+          </div>
+        </aside>
+
+        <div class="hero-grid">
+          <div class="hero-text">
+            <div class="hero-badge">
+              <span class="badge-dot" aria-hidden="true"></span>
+              <span>Native Android &bull; Jetpack Compose &bull; Local-First</span>
+            </div>
+            <h1 class="hero-title">The Ultimate Anime Experience, Engineered for Perfection.</h1>
+            <p class="hero-subtitle">Zenith Anime is a modern, high-performance streaming and library client built exclusively for Android. Featuring continuous 1-second watch progress persistence, full audio dub track switching, letterbox lock controls, and zero telemetry.</p>
+
+            <div class="hero-actions">
+              <a href="https://github.com/tnb1j/zenith-anime/raw/master/APK/zenith-anime-latest.apk" class="btn btn-primary btn-lg" download>
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                <span>Download Latest APK</span>
+              </a>
+
+              <a href="#playground" class="btn btn-secondary btn-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="3"></circle>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+                <span>Live UI Playground</span>
+              </a>
+
+              <a href="#community" class="btn btn-ghost btn-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.894.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+                </svg>
+                <span>Discord</span>
+              </a>
+            </div>
+
+            <div class="hero-meta">
+              <div class="meta-item">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                </svg>
+                <span>No Ads &bull; No Trackers</span>
+              </div>
+              <div class="meta-item">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                <span>Android 8.0+ Ready</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Hero Mockup Container -->
+          <div class="mockup-container" aria-label="Player UI Preview Mockup">
+            <div class="mockup-screen">
+              <div class="mockup-top-bar">
+                <span>Zenith Video Player</span>
+                <div class="mockup-controls-group">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-9 7H9.5v-.5h-2v3h2v-.5H11v1c0 .55-.45 1-1 1H7c-.55 0-1-.45-1-1v-4c0-.55.45-1 1-1h3c.55 0 1 .45 1 1v1zm7 0h-1.5v-.5h-2v3h2v-.5H18v1c0 .55-.45 1-1 1h-3c-.55 0-1-.45-1-1v-4c0-.55.45-1 1-1h3c.55 0 1 .45 1 1v1z"/></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.38 8.57l-1.23 1.85a8 8 0 0 1-.22 7.58H5.07A8 8 0 0 1 15.58 6.85l1.85-1.23A10 10 0 0 0 3.35 19a2 2 0 0 0 1.72 1h13.85a2 2 0 0 0 1.74-1 10 10 0 0 0-.27-10.44z"/><path d="M10.59 15.41a2 2 0 0 0 2.83 0l5.66-8.49-8.49 5.66a2 2 0 0 0 0 2.83z"/></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+                </div>
+              </div>
+
+              <!-- Unobtrusive Lock Icon -->
+              <div class="mockup-lock-icon" aria-label="Letterbox Lock Button">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 17c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm6-9h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6z"/></svg>
+              </div>
+
+              <!-- Center Transport -->
+              <div class="mockup-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="#ffffff" aria-hidden="true"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"/></svg>
+                <div class="mockup-play-btn" aria-hidden="true">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                </div>
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="#ffffff" aria-hidden="true"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg>
+              </div>
+
+              <!-- Timeline & Status -->
+              <div class="mockup-bottom-bar">
+                <div class="mockup-seekbar">
+                  <div class="mockup-progress"></div>
+                </div>
+                <div class="mockup-time-row">
+                  <span>10:24</span>
+                  <span>24:00</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features-section" id="features">
+      <div class="container">
+        <div class="section-header">
+          <p class="section-label">Engineered Features</p>
+          <h2 class="section-title">A Superior Anime Client, Built Without Compromise.</h2>
+          <p class="section-description">Every component in Zenith Anime is purpose-built for speed, privacy, and immersion.</p>
+        </div>
+
+        <div class="features-grid">
+          <article class="feature-card">
+            <div class="feature-icon-box" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 1.99-.9 1.99-2L23 5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"/>
+              </svg>
+            </div>
+            <h3 class="feature-title">ExoPlayer Video Suite</h3>
+            <p class="feature-body">Hardware-accelerated rendering with full audio track selection (including verified English dub switching), multi-language subtitle parsing, 0.25x-3.0x speed, and hold-to-speed gestures.</p>
+          </article>
+
+          <article class="feature-card">
+            <div class="feature-icon-box" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/>
+              </svg>
+            </div>
+            <h3 class="feature-title">Local-First Architecture</h3>
+            <p class="feature-body">All watchlist items, watch progress, and custom preferences are stored locally in Room database with Moshi JSON serialization. No cloud account required, zero tracking, and complete offline backup &amp; restore.</p>
+          </article>
+
+          <article class="feature-card">
+            <div class="feature-icon-box" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+              </svg>
+            </div>
+            <h3 class="feature-title">Remastered Continue Watching</h3>
+            <p class="feature-body">Widescreen 16:9 thumbnails with duration remaining badges, episode progress percentages, dedicated Info button navigating directly to anime details, and one-tap resume.</p>
+          </article>
+
+          <article class="feature-card">
+            <div class="feature-icon-box" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+              </svg>
+            </div>
+            <h3 class="feature-title">MyAnimeList Reviews</h3>
+            <p class="feature-body">Cleanly integrated user reviews and score breakdowns directly on anime details pages, linked accurately to the corresponding MAL series data.</p>
+          </article>
+
+          <article class="feature-card">
+            <div class="feature-icon-box" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 9h-4v4h-2v-4H8V9h4V5h2v4h4v2z"/>
+              </svg>
+            </div>
+            <h3 class="feature-title">Watchlist Organization</h3>
+            <p class="feature-body">Categorize collections into Watching, Completed, On Hold, Dropped, and Plan to Watch. Includes smart status filtering, sorting, and seamless imported anime management.</p>
+          </article>
+
+          <article class="feature-card">
+            <div class="feature-icon-box" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+              </svg>
+            </div>
+            <h3 class="feature-title">Profile Customization</h3>
+            <p class="feature-body">Full support for custom avatar URLs, SVG vectors, and animated GIFs with defensive image validation and sandboxed preview.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Interactive Customization Playground Section -->
+    <section class="playground-section" id="playground">
+      <div class="container">
+        <div class="section-header">
+          <p class="section-label">Interactive Engine</p>
+          <h2 class="section-title">Live Video Player Playground</h2>
+          <p class="section-description">Test layout modifications in real time. Zenith Anime lets users configure control positions, visibility, seekbars, and lock placement without writing a single line of code.</p>
+        </div>
+
+        <div class="playground-container">
+          <!-- Playground Editor Controls -->
+          <div class="playground-editor">
+            <h3>Player Customization Controls</h3>
+            <p>Modify settings below to see the simulator respond instantly:</p>
+
+            <div class="control-group">
+              <label class="control-label">Transport Button Position</label>
+              <div class="segmented-group" role="radiogroup" aria-label="Transport Button Position">
+                <button type="button" class="seg-btn active" data-group="transport" data-value="center">Center</button>
+                <button type="button" class="seg-btn" data-group="transport" data-value="bottom">Bottom</button>
+                <button type="button" class="seg-btn" data-group="transport" data-value="split">Split</button>
+              </div>
+            </div>
+
+            <div class="control-group">
+              <label class="control-label">Seekbar Timeline Style</label>
+              <div class="segmented-group" role="radiogroup" aria-label="Seekbar Timeline Style">
+                <button type="button" class="seg-btn active" data-group="seekbar" data-value="modern">Modern (4px)</button>
+                <button type="button" class="seg-btn" data-group="seekbar" data-value="minimal">Minimal (2px)</button>
+                <button type="button" class="seg-btn" data-group="seekbar" data-value="thick">Thick (6px)</button>
+              </div>
+            </div>
+
+            <div class="control-group">
+              <label class="control-label">Letterbox Screen-Lock Side</label>
+              <div class="segmented-group" role="radiogroup" aria-label="Lock Button Placement">
+                <button type="button" class="seg-btn active" data-group="lockside" data-value="left">Left Margin</button>
+                <button type="button" class="seg-btn" data-group="lockside" data-value="right">Right Margin</button>
+              </div>
+            </div>
+
+            <div class="control-group">
+              <label class="control-label">Player Layout Mode</label>
+              <div class="segmented-group" role="radiogroup" aria-label="Layout Version">
+                <button type="button" class="seg-btn active" data-group="layout" data-value="modern">Modern Layout</button>
+                <button type="button" class="seg-btn" data-group="layout" data-value="legacy">Legacy Layout</button>
+              </div>
+            </div>
+
+            <div class="control-group">
+              <label class="control-label">Individual Controls Visibility</label>
+              <div class="switch-row">
+                <div>
+                  <div class="switch-label-title">Audio &amp; Dub Track Selector</div>
+                  <div class="switch-label-desc">Display the audio track switcher in the top bar</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" class="playground-toggle" data-control="audio" checked aria-label="Toggle Audio Track Button">
+                  <span class="slider-round"></span>
+                </label>
+              </div>
+
+              <div class="switch-row">
+                <div>
+                  <div class="switch-label-title">Subtitles Selector</div>
+                  <div class="switch-label-desc">Show subtitle tracks control</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" class="playground-toggle" data-control="subtitles" checked aria-label="Toggle Subtitles Button">
+                  <span class="slider-round"></span>
+                </label>
+              </div>
+
+              <div class="switch-row">
+                <div>
+                  <div class="switch-label-title">Letterbox Lock Control</div>
+                  <div class="switch-label-desc">Show unobtrusive lock button in letterbox area</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" class="playground-toggle" data-control="lock" checked aria-label="Toggle Screen Lock Button">
+                  <span class="slider-round"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Simulator Box -->
+          <div class="simulator-view">
+            <div class="simulator-header">
+              <span>LIVE INTERACTIVE SIMULATOR</span>
+              <span class="brand-tag">Real-Time Sync</span>
+            </div>
+
+            <div class="simulator-box" id="sim-screen">
+              <!-- Top bar -->
+              <div class="mockup-top-bar">
+                <span>Demon Slayer: Ep 1</span>
+                <div class="mockup-controls-group">
+                  <span class="sim-top-icon" data-id="audio">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+                  </span>
+                  <span class="sim-top-icon" data-id="subtitles">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm-9 7H9.5v-.5h-2v3h2v-.5H11v1c0 .55-.45 1-1 1H7c-.55 0-1-.45-1-1v-4c0-.55.45-1 1-1h3c.55 0 1 .45 1 1v1zm7 0h-1.5v-.5h-2v3h2v-.5H18v1c0 .55-.45 1-1 1h-3c-.55 0-1-.45-1-1v-4c0-.55.45-1 1-1h3c.55 0 1 .45 1 1v1z"/></svg>
+                  </span>
+                  <span class="sim-top-icon" data-id="speed">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20.38 8.57l-1.23 1.85a8 8 0 0 1-.22 7.58H5.07A8 8 0 0 1 15.58 6.85l1.85-1.23A10 10 0 0 0 3.35 19a2 2 0 0 0 1.72 1h13.85a2 2 0 0 0 1.74-1 10 10 0 0 0-.27-10.44z"/><path d="M10.59 15.41a2 2 0 0 0 2.83 0l5.66-8.49-8.49 5.66a2 2 0 0 0 0 2.83z"/></svg>
+                  </span>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+                </div>
+              </div>
+
+              <!-- Unobtrusive Lock Icon -->
+              <div class="mockup-lock-icon" id="sim-lock-icon" aria-label="Letterbox lock icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 17c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm6-9h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6z"/></svg>
+              </div>
+
+              <!-- Center Transport Controls -->
+              <div class="mockup-center" id="sim-transport-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#ffffff"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"/></svg>
+                <div class="mockup-play-btn">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                </div>
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="#ffffff"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg>
+              </div>
+
+              <!-- Bottom Timeline Bar -->
+              <div class="mockup-bottom-bar">
+                <div class="mockup-center" id="sim-transport-bottom" style="display:none;margin-bottom:6px;">
+                  <div class="mockup-play-btn" style="width:32px;height:32px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                  </div>
+                </div>
+                <div class="mockup-seekbar" id="sim-seekbar">
+                  <div class="mockup-progress"></div>
+                </div>
+                <div class="mockup-time-row">
+                  <span>04:12</span>
+                  <span>23:45</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Downloads Section -->
+    <section class="download-section" id="downloads">
+      <div class="container">
+        <div class="section-header">
+          <p class="section-label">Install &amp; Deploy</p>
+          <h2 class="section-title">Get Zenith Anime Today</h2>
+          <p class="section-description">Download the pre-compiled Android package or build directly from upstream source code.</p>
+        </div>
+
+        <div class="download-cards">
+          <!-- Primary Release Card -->
+          <div class="download-card highlight">
+            <div>
+              <span class="brand-tag" style="margin-bottom:12px;display:inline-block;">Latest Stable Release</span>
+              <h3 class="download-card-title">Zenith Anime APK v1.2.0</h3>
+              <p class="download-card-desc">Production Android release featuring continuous 1-second watch persistence, remastered widescreen Continue Watching, and full customization engine.</p>
+
+              <ul class="spec-list">
+                <li class="spec-item">
+                  <span class="spec-label">File Name</span>
+                  <span class="spec-value">zenith-anime-latest.apk</span>
+                </li>
+                <li class="spec-item">
+                  <span class="spec-label">File Size</span>
+                  <span class="spec-value">~30.2 MB</span>
+                </li>
+                <li class="spec-item">
+                  <span class="spec-label">Target SDK</span>
+                  <span class="spec-value">Android 15 (API 35)</span>
+                </li>
+                <li class="spec-item">
+                  <span class="spec-label">Minimum SDK</span>
+                  <span class="spec-value">Android 8.0 (API 26)</span>
+                </li>
+                <li class="spec-item">
+                  <span class="spec-label">Architecture</span>
+                  <span class="spec-value">Universal (arm64, v7a, x86_64)</span>
+                </li>
+              </ul>
+            </div>
+
+            <div style="display:flex;gap:12px;flex-wrap:wrap;">
+              <a href="https://github.com/tnb1j/zenith-anime/raw/master/APK/zenith-anime-latest.apk" class="btn btn-primary btn-lg" download>
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                <span>Download APK (Direct)</span>
+              </a>
+
+              <button type="button" class="btn btn-secondary btn-lg" onclick="copyToClipboard('https://github.com/tnb1j/zenith-anime/raw/master/APK/zenith-anime-latest.apk', 'APK URL copied!')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+                <span>Copy Download Link</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Source Build Card -->
+          <div class="download-card">
+            <div>
+              <span class="brand-tag" style="margin-bottom:12px;display:inline-block;">Open Source</span>
+              <h3 class="download-card-title">Compile from Source</h3>
+              <p class="download-card-desc">Fully open source under the MIT License. Clone the repository and build via Gradle:</p>
+
+              <div style="background:#0b0e14;border:1px solid #222d42;border-radius:8px;padding:12px;font-family:var(--font-mono);font-size:0.8rem;margin-bottom:20px;overflow-x:auto;">
+                <span style="color:#64748b;"># Clone and build</span><br>
+                git clone https://github.com/tnb1j/zenith-anime.git<br>
+                cd zenith-anime<br>
+                ./gradlew assembleDebug
+              </div>
+            </div>
+
+            <a href="https://github.com/tnb1j/zenith-anime" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+              </svg>
+              <span>View Source on GitHub</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Disclaimers & Credits Section -->
+    <section class="disclaimer-section" id="disclaimers">
+      <div class="container">
+        <div class="section-header">
+          <p class="section-label">Legal &amp; Acknowledgements</p>
+          <h2 class="section-title">Transparency, Compliance &amp; Inspiration</h2>
+        </div>
+
+        <div class="disclaimer-grid">
+          <!-- Legal / DMCA Disclaimer -->
+          <article class="disclaimer-card">
+            <h3>
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+              <span>Legal Disclaimer / DMCA</span>
+            </h3>
+            <p><strong>Zenith Anime does not host, store, upload, or distribute any media files on its servers.</strong> This project functions solely as a client interface that indexes and provides access to content from publicly available third-party sources. Zenith Anime does not own or control any third-party content, and availability may vary depending on external providers. For copyright or legal concerns regarding specific media, please contact the respective hosting providers or rights holders directly.</p>
+            <button type="button" class="btn btn-secondary btn-sm" data-open-modal="dmca-modal">Read Full Legal Notice</button>
+          </article>
+
+          <!-- UI/UX Credits -->
+          <article class="disclaimer-card">
+            <h3>
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+              </svg>
+              <span>UI/UX Credits &amp; Inspiration</span>
+            </h3>
+            <p>The visual design system, navigation paradigm, and interaction aesthetics of Zenith Anime were heavily influenced and inspired by <a href="https://github.com/Th3-Anime/Th3-Anime" target="_blank" rel="noopener noreferrer" style="color:var(--color-accent);text-decoration:none;font-weight:600;">Th3-Anime</a>. We extend sincere recognition to their team for advancing user experience standards across the open-source anime landscape.</p>
+            <a href="https://github.com/Th3-Anime/Th3-Anime" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm">Visit Th3-Anime Repository</a>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Community Section -->
+    <section class="download-section" id="community" style="background-color:var(--color-bg);">
+      <div class="container" style="text-align:center;max-width:720px;">
+        <p class="section-label">Join The Community</p>
+        <h2 class="section-title">Connect with Anime Fans &amp; Developers</h2>
+        <p class="section-description" style="margin-bottom:var(--space-6);">Join the official Zenith Anime Discord server for updates, feature requests, bug reporting, theme sharing, and general anime discussion.</p>
+        <a href="https://discord.gg/zenithanime" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-lg">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.894.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
+          </svg>
+          <span>Join the Zenith Anime Discord Server</span>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal Dialog: Full DMCA / Legal Notice -->
+  <div class="modal-overlay" id="dmca-modal" role="dialog" aria-modal="true" aria-labelledby="dmca-modal-title" aria-hidden="true">
+    <div class="modal-window">
+      <div class="modal-header">
+        <h3 id="dmca-modal-title">Comprehensive DMCA &amp; Legal Policy</h3>
+        <button type="button" class="modal-close-btn" aria-label="Close dialog">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p><strong>1. Non-Hosting Statement:</strong> Zenith Anime is an open-source software application that functions strictly as an indexing client. It does not own, produce, host, store, or transmit any video streams, audiovisual media files, or copyright-protected content on any server.</p>
+        <br>
+        <p><strong>2. Third-Party Indexing:</strong> The links, media streams, and metadata rendered within the client are retrieved dynamically from publicly available, un-authenticated third-party providers on the public web. Availability and stream health remain under the sole discretion of those independent external sources.</p>
+        <br>
+        <p><strong>3. Takedown &amp; Infringement Notices:</strong> As Zenith Anime maintains no media servers or databases of hosted media, removing content from Zenith Anime cannot delete the content from the internet. Copyright holders seeking removal must direct copyright infringement notices to the specific third-party hosting service hosting the file.</p>
+      </div>
+      <div style="text-align:right;">
+        <button type="button" class="btn btn-secondary modal-close-btn">Understood</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Site Footer -->
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <div class="brand">
+            <div class="brand-icon" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/>
+              </svg>
+            </div>
+            <span class="brand-name">Zenith Anime</span>
+          </div>
+          <p>A native, local-first anime client engineered for privacy, speed, and customization on Android.</p>
+        </div>
+
+        <div class="footer-col">
+          <h5>Navigation</h5>
+          <ul class="footer-links">
+            <li><a href="#features" class="footer-link">Features</a></li>
+            <li><a href="#playground" class="footer-link">UI Playground</a></li>
+            <li><a href="#downloads" class="footer-link">Download APK</a></li>
+            <li><a href="#community" class="footer-link">Discord Community</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h5>Open Source</h5>
+          <ul class="footer-links">
+            <li><a href="https://github.com/tnb1j/zenith-anime" class="footer-link">GitHub Repository</a></li>
+            <li><a href="https://github.com/tnb1j/zenith-anime/releases" class="footer-link">Releases</a></li>
+            <li><a href="https://github.com/tnb1j/zenith-anime/blob/master/LICENSE" class="footer-link">MIT License</a></li>
+            <li><a href="https://github.com/Th3-Anime/Th3-Anime" class="footer-link">Th3-Anime Inspiration</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h5>Legal</h5>
+          <ul class="footer-links">
+            <li><a href="#disclaimers" class="footer-link">DMCA Policy</a></li>
+            <li><a href="#disclaimers" class="footer-link">Third-Party Indexing</a></li>
+            <li><a href="#disclaimers" class="footer-link">Terms &amp; Disclaimers</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <span>&copy; 2026 Zenith Anime Contributors. Released under the MIT License.</span>
+        <span>Vibecoded by Gemini 3.8 Flash &amp; DeepSeek V4.1 Flash in 1 month.</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

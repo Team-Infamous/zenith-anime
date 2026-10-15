@@ -89,19 +89,34 @@ fun MyListScreen(
         initial = repository.settingsManager.getSettings()
     )
 
-    val tabs = listOf("All Saved", "Favorites", "Watchlist", "Completed")
+    val tabs = listOf(
+        "All Saved",
+        com.example.data.model.WatchStatus.WATCHING.displayName,
+        com.example.data.model.WatchStatus.COMPLETED.displayName,
+        com.example.data.model.WatchStatus.ON_HOLD.displayName,
+        com.example.data.model.WatchStatus.DROPPED.displayName,
+        com.example.data.model.WatchStatus.PLAN_TO_WATCH.displayName,
+        "Favorites"
+    )
     var selectedTabIndex by remember { mutableStateOf(0) }
     var selectedQuickActionAnime by remember { mutableStateOf<Anime?>(null) }
     var showSortMenu by remember { mutableStateOf(false) }
+
+    val allSaved = remember(favorites, watchlist, completed) {
+        (favorites + watchlist + completed).distinctBy { it.id }
+    }
 
     // De-duplicate first and sort second: ordering before distinct() is what made the grid look
     // like it reshuffled itself as the saved lists changed.
     val displayedAnime: List<Anime> = LibrarySort.apply(
         when (selectedTabIndex) {
-            0 -> (favorites + watchlist + completed).distinctBy { it.id }
-            1 -> favorites
-            2 -> watchlist
-            3 -> completed
+            0 -> allSaved
+            1 -> allSaved.filter { it.isInWatchlist && com.example.data.model.WatchStatus.fromRaw(it.watchStatus) == com.example.data.model.WatchStatus.WATCHING }
+            2 -> allSaved.filter { it.isCompleted || com.example.data.model.WatchStatus.fromRaw(it.watchStatus) == com.example.data.model.WatchStatus.COMPLETED }
+            3 -> allSaved.filter { it.isInWatchlist && com.example.data.model.WatchStatus.fromRaw(it.watchStatus) == com.example.data.model.WatchStatus.ON_HOLD }
+            4 -> allSaved.filter { it.isInWatchlist && com.example.data.model.WatchStatus.fromRaw(it.watchStatus) == com.example.data.model.WatchStatus.DROPPED }
+            5 -> allSaved.filter { it.isInWatchlist && com.example.data.model.WatchStatus.fromRaw(it.watchStatus) == com.example.data.model.WatchStatus.PLAN_TO_WATCH }
+            6 -> favorites
             else -> emptyList()
         },
         settings.librarySortOrder
@@ -319,9 +334,18 @@ fun MyListScreen(
             },
             onToggleWatchlist = {
                 scope.launch {
-                    repository.toggleWatchlist(target.id, !target.isInWatchlist)
+                    repository.toggleWatchlist(target.id, !target.isInWatchlist, target)
                     Toast.makeText(context, if (!target.isInWatchlist) "Added to Watchlist" else "Removed from Watchlist", Toast.LENGTH_SHORT).show()
                 }
+            },
+            onChangeWatchStatus = { status ->
+                scope.launch {
+                    repository.updateWatchStatus(target.id, status.name)
+                    Toast.makeText(context, "Moved to ${status.displayName}", Toast.LENGTH_SHORT).show()
+                }
+            },
+            onShare = {
+                Toast.makeText(context, "Sharing is coming soon!", Toast.LENGTH_SHORT).show()
             },
             onDownload = {
                 scope.launch {

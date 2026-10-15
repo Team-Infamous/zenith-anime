@@ -275,7 +275,7 @@ fun AnimeDetailsScreen(
             },
             onToggleWatchlist = {
                 scope.launch {
-                    repository.toggleWatchlist(item.id, !item.isInWatchlist)
+                    repository.toggleWatchlist(item.id, !item.isInWatchlist, item)
                 }
             },
             onToggleCompleted = {
@@ -450,7 +450,7 @@ fun AnimeDetailsScreen(
                                 onClick = {
                                     scope.launch {
                                         val nextInList = !currentAnime.isInWatchlist
-                                        repository.toggleWatchlist(currentAnime.id, nextInList)
+                                        repository.toggleWatchlist(currentAnime.id, nextInList, currentAnime)
                                         Toast.makeText(
                                             context,
                                             if (nextInList) "Saved to My List (${activeStatus.displayName})" else "Removed from My List",

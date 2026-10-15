@@ -25,7 +25,8 @@ data class AppSettings(
     val introSkipSeconds: Int = 85,
     val outroSkipSeconds: Int = 90,
     val showSkipButtons: Boolean = true,
-    val saveProgressIntervalSec: Int = 5,
+    val saveProgressEverySecond: Boolean = true,
+    val saveProgressIntervalSec: Int = 1,
     val resumeThresholdSec: Int = 10,
     val resumePromptEnabled: Boolean = true,
 

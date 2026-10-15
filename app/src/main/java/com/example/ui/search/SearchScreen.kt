@@ -587,9 +587,18 @@ fun SearchScreen(
             },
             onToggleWatchlist = {
                 scope.launch {
-                    repository.toggleWatchlist(target.id, !target.isInWatchlist)
+                    repository.toggleWatchlist(target.id, !target.isInWatchlist, target)
                     Toast.makeText(context, if (!target.isInWatchlist) "Added to Watchlist" else "Removed from Watchlist", Toast.LENGTH_SHORT).show()
                 }
+            },
+            onChangeWatchStatus = { status ->
+                scope.launch {
+                    repository.updateWatchStatus(target.id, status.name)
+                    Toast.makeText(context, "Moved to ${status.displayName}", Toast.LENGTH_SHORT).show()
+                }
+            },
+            onShare = {
+                Toast.makeText(context, "Sharing is coming soon!", Toast.LENGTH_SHORT).show()
             },
             onDownload = {
                 scope.launch {

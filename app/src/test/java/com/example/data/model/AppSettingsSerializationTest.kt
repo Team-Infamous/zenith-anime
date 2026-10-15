@@ -94,6 +94,31 @@ class AppSettingsSerializationTest {
     }
 
     @Test
+    fun layoutPlaygroundAndCustomizationSettingsSurviveRoundTrip() {
+        val customized = AppSettings.DEFAULT.copy(
+            useLegacyPlayerLayout = true,
+            lockButtonSide = "Right",
+            playerTopBarOrder = "lock,speed,server,audio,subtitle,pip,aspect,sleep",
+            playerHiddenControls = "speed,pip",
+            playerTransportPosition = "Bottom",
+            playerControlSize = "Large",
+            playerAccentOverride = "Sakura",
+            playerOverlayDimAlpha = 0.70f,
+            playerSeekbarStyle = "Thick",
+            avatarUrl = "https://example.com/avatar.gif",
+            avatarSvgContent = "<svg></svg>",
+            reduceAnimations = true
+        )
+        val roundTripped = roundTrip(customized)
+        assertEquals(customized, roundTripped)
+        assertEquals(true, roundTripped.useLegacyPlayerLayout)
+        assertEquals("Right", roundTripped.lockButtonSide)
+        assertEquals("speed,pip", roundTripped.playerHiddenControls)
+        assertEquals("Sakura", roundTripped.playerAccentOverride)
+        assertEquals("https://example.com/avatar.gif", roundTripped.avatarUrl)
+    }
+
+    @Test
     fun partialJsonKeepsDefaultsForMissingKeysSoOlderBackupsStillLoad() {
         val parsed = adapter.fromJson("{\"defaultServer\":\"embed\",\"amoledMode\":true}")!!
         assertEquals("embed", parsed.defaultServer)

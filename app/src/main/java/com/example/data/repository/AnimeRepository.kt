@@ -149,11 +149,30 @@ class AnimeRepository(private val context: Context) {
     }
 
     suspend fun getAnimeDetailsWithRelations(animeId: String): Pair<Anime?, List<com.example.data.model.AnimeRelation>> = withContext(Dispatchers.IO) {
-        val pair = aniListService.getAnimeDetailsWithRelations(animeId)
+        val existingPrior = animeDao.getAnimeByIdOnce(animeId)
+            ?: animeDao.getAnimeByMalIdOnce(animeId.removePrefix("mal_"))
+
+        val lookupId = if (animeId.startsWith("mal_")) {
+            animeId
+        } else if (existingPrior?.malId?.isNotBlank() == true && existingPrior.malId != "0" && existingPrior.id.startsWith("mal_")) {
+            "mal_${existingPrior.malId}"
+        } else {
+            animeId
+        }
+
+        val pair = aniListService.getAnimeDetailsWithRelations(lookupId)
         if (pair.first != null) {
-            val merged = upsertPreservingLocalState(pair.first!!)
+            val incoming = pair.first!!.copy(
+                id = existingPrior?.id ?: animeId,
+                malId = if (pair.first!!.malId.isNotBlank() && pair.first!!.malId != "0") pair.first!!.malId else (existingPrior?.malId ?: "")
+            )
+            val merged = mergeWithExisting(incoming, existingPrior)
+            animeDao.insert(merged)
             ensureEpisodesGenerated(merged)
             return@withContext Pair(merged, pair.second)
+        } else if (existingPrior != null) {
+            ensureEpisodesGenerated(existingPrior)
+            return@withContext Pair(existingPrior, emptyList())
         }
         pair
     }
@@ -296,19 +315,32 @@ class AnimeRepository(private val context: Context) {
         animeDao.updateFavorite(animeId, isFavorite)
     }
 
-    suspend fun toggleWatchlist(animeId: String, inWatchlist: Boolean) = withContext(Dispatchers.IO) {
-        animeDao.updateWatchlist(animeId, inWatchlist)
-        if (inWatchlist) {
-            val existing = animeDao.getAnimeByIdOnce(animeId)
-            val currentStatus = existing?.watchStatus.orEmpty()
+    suspend fun toggleWatchlist(animeId: String, inWatchlist: Boolean, animeFallback: Anime? = null) = withContext(Dispatchers.IO) {
+        val existing = animeDao.getAnimeByIdOnce(animeId)
+            ?: animeFallback?.malId?.takeIf { it.isNotBlank() && it != "0" }?.let { animeDao.getAnimeByMalIdOnce(it) }
+
+        if (existing != null) {
+            val currentStatus = existing.watchStatus
             val validStatus = if (currentStatus.isBlank()) WatchStatus.PLAN_TO_WATCH.name else WatchStatus.fromRaw(currentStatus).name
             animeDao.updateWatchStatusFull(
-                id = animeId,
+                id = existing.id,
                 status = validStatus,
-                isCompleted = validStatus == WatchStatus.COMPLETED.name || existing?.isCompleted == true,
-                inWatchlist = true,
+                isCompleted = validStatus == WatchStatus.COMPLETED.name || existing.isCompleted,
+                inWatchlist = inWatchlist,
                 updatedAt = System.currentTimeMillis()
             )
+        } else if (animeFallback != null) {
+            val initialStatus = if (inWatchlist) WatchStatus.PLAN_TO_WATCH.name else animeFallback.watchStatus
+            val newAnime = animeFallback.copy(
+                id = animeId,
+                isInWatchlist = inWatchlist,
+                watchStatus = initialStatus,
+                lastUpdated = System.currentTimeMillis()
+            )
+            animeDao.insert(newAnime)
+            ensureEpisodesGenerated(newAnime)
+        } else {
+            animeDao.updateWatchlist(animeId, inWatchlist)
         }
     }
 
@@ -452,6 +484,10 @@ class AnimeRepository(private val context: Context) {
 
     suspend fun deleteProgress(progressId: String) = withContext(Dispatchers.IO) {
         watchProgressDao.deleteProgress(progressId)
+    }
+
+    suspend fun deleteProgressByAnime(animeId: String) = withContext(Dispatchers.IO) {
+        watchProgressDao.deleteProgressByAnimeId(animeId)
     }
 
     suspend fun clearHistory() = withContext(Dispatchers.IO) {

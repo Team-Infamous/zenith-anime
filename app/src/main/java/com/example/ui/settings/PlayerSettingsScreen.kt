@@ -161,15 +161,24 @@ fun PlayerSettingsScreen(
                 onCheckedChange = { settingsManager.updateShowSkipButtons(it) }
             )
             SettingsDivider()
-            IntSliderRow(
-                title = "Save Progress Every",
-                subtitle = "How often your watch position is stored",
-                value = settings.saveProgressIntervalSec,
-                range = 5f..60f,
-                steps = 10,
-                suffix = "s",
-                onChange = { settingsManager.update { s -> s.copy(saveProgressIntervalSec = it) } }
+            SettingSwitchRow(
+                title = "Save Progress Every Second",
+                subtitle = "Saves watch progress every single second to eliminate progress jumps",
+                checked = settings.saveProgressEverySecond,
+                onCheckedChange = { settingsManager.update { s -> s.copy(saveProgressEverySecond = it) } }
             )
+            if (!settings.saveProgressEverySecond) {
+                SettingsDivider()
+                IntSliderRow(
+                    title = "Save Progress Interval",
+                    subtitle = "How often your watch position is stored in database",
+                    value = settings.saveProgressIntervalSec,
+                    range = 1f..60f,
+                    steps = 11,
+                    suffix = "s",
+                    onChange = { settingsManager.update { s -> s.copy(saveProgressIntervalSec = it) } }
+                )
+            }
             SettingsDivider()
             IntSliderRow(
                 title = "Resume Threshold",
@@ -399,9 +408,9 @@ fun PlayerSettingsScreen(
             SettingChoiceRow(
                 title = "Lock Icon Position",
                 subtitle = "Position the unobtrusive lock button in the left or right letterbox margin",
-                currentValue = settings.lockButtonPosition,
+                currentValue = settings.lockButtonSide,
                 options = listOf("Left", "Right"),
-                onSelect = { settingsManager.update { s -> s.copy(lockButtonPosition = it) } }
+                onSelect = { settingsManager.update { s -> s.copy(lockButtonSide = it) } }
             )
             SettingsDivider()
             SettingSwitchRow(

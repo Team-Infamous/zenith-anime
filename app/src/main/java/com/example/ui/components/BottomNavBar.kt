@@ -49,6 +49,12 @@ import com.example.ui.theme.DarkBorder
 import com.example.ui.theme.LocalThemeAccent
 import com.example.ui.theme.TextSecondary
 
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
+
 sealed class NavIcon {
     data class Vector(val selected: ImageVector, val unselected: ImageVector) : NavIcon()
     data class DrawableRes(val selectedRes: Int, val unselectedRes: Int) : NavIcon()
@@ -64,6 +70,7 @@ data class NavItem(
 fun BottomNavBar(
     currentRoute: String?,
     onNavigate: (String) -> Unit,
+    avatarModel: Any? = null,
     modifier: Modifier = Modifier
 ) {
     val themeAccent = LocalThemeAccent.current
@@ -124,22 +131,43 @@ fun BottomNavBar(
                             .scale(iconScale),
                         contentAlignment = Alignment.Center
                     ) {
-                        when (val icon = item.icon) {
-                            is NavIcon.Vector -> {
-                                Icon(
-                                    imageVector = if (isSelected) icon.selected else icon.unselected,
+                        if (item.route == Screen.Profile.route && avatarModel != null) {
+                            Box(
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .border(
+                                        width = if (isSelected) 1.5.dp else 0.dp,
+                                        color = if (isSelected) themeAccent else androidx.compose.ui.graphics.Color.Transparent,
+                                        shape = CircleShape
+                                    )
+                                    .padding(if (isSelected) 1.5.dp else 0.dp)
+                                    .clip(CircleShape)
+                            ) {
+                                AsyncImage(
+                                    model = avatarModel,
                                     contentDescription = item.label,
-                                    tint = animatedColor,
-                                    modifier = Modifier.size(24.dp)
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
                                 )
                             }
-                            is NavIcon.DrawableRes -> {
-                                Icon(
-                                    painter = painterResource(id = if (isSelected) icon.selectedRes else icon.unselectedRes),
-                                    contentDescription = item.label,
-                                    tint = animatedColor,
-                                    modifier = Modifier.size(24.dp)
-                                )
+                        } else {
+                            when (val icon = item.icon) {
+                                is NavIcon.Vector -> {
+                                    Icon(
+                                        imageVector = if (isSelected) icon.selected else icon.unselected,
+                                        contentDescription = item.label,
+                                        tint = animatedColor,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                                is NavIcon.DrawableRes -> {
+                                    Icon(
+                                        painter = painterResource(id = if (isSelected) icon.selectedRes else icon.unselectedRes),
+                                        contentDescription = item.label,
+                                        tint = animatedColor,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
                             }
                         }
                     }

@@ -173,7 +173,13 @@ class SettingsManager(context: Context) {
     fun updateMalUsername(username: String) = update { it.copy(malUsername = username) }
     fun updateAnilistUsername(username: String) = update { it.copy(anilistUsername = username) }
 
-    fun updateProfile(name: String) = update { it.copy(username = name) }
+    fun updateProfile(name: String, bio: String? = null) = update {
+        if (bio != null) it.copy(username = name, profileBio = bio) else it.copy(username = name)
+    }
+
+    fun updateAvatar(path: String?, url: String = "") = update {
+        it.copy(avatarPath = path, avatarUrl = url)
+    }
 
     fun updateAvatarPath(path: String?) = update { it.copy(avatarPath = path) }
 

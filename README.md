@@ -1,22 +1,120 @@
+# Zenith Anime
+
 <div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
+
+**A modern, local-first, highly customizable anime streaming and organization client for Android.**
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/Platform-Android%208.0+-green.svg)](https://developer.android.com)
+[![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4.svg)](https://developer.android.com/jetpack/compose)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.0+-7F52FF.svg)](https://kotlinlang.org)
+
 </div>
 
-# Run and deploy your AI Studio app
+---
 
-This contains everything you need to run your app locally.
+> [!IMPORTANT]
+> ### ⚡ Development Note: 100% Vibecoded in One Month
+> **This entire application was vibecoded by Gemini 3.8 Flash and DeepSeek V4.1 Flash in one month.**
+> Every single feature, architecture layer, Jetpack Compose screen, ExoPlayer integration, custom room database schema, and live UI customization playground was generated and refined through autonomous agentic pair programming.
 
-View your app in AI Studio: https://ai.studio/apps/4f9faacc-cb21-4339-9de9-3f015feb4a76
+---
 
-## Run Locally
+> [!WARNING]
+> ### ⚖️ Legal Disclaimer / DMCA
+> **Zenith Anime does not host, store, upload, or distribute any media files on its servers.** This project functions solely as a client interface that indexes and provides access to content from publicly available third-party sources. Zenith Anime does not own or control any third-party content, and availability may vary depending on external providers. For copyright or legal concerns regarding specific media, please contact the respective hosting providers or rights holders directly.
 
-**Prerequisites:**  [Android Studio](https://developer.android.com/studio)
+---
 
+> [!NOTE]
+> ### 🎨 UI/UX Credits & Inspiration
+> The user interface design, aesthetic, and interaction patterns are heavily inspired by and influenced by [Th3-Anime](https://github.com/Th3-Anime/Th3-Anime). Deep appreciation goes to the creators and designers of Th3-Anime for establishing a beautiful bar for anime streaming interfaces.
 
-1. Open Android Studio
-2. Select **Open** and choose the directory containing this project
-3. Allow Android Studio to fix any incompatibilities as it imports the project.
-4. Create a file named `.env` in the project directory and set `GEMINI_API_KEY` in that file to your Gemini API key (see `.env.example` for an example)
-5. Remove this line from the app's `build.gradle.kts` file: `signingConfig = signingConfigs.getByName("debugConfig")`
-6. Run the app on an emulator or physical device
-7. If you have already published your app in AI Studio, please [request upload key reset](https://support.google.com/googleplay/android-developer/answer/9842756#zippy=%2Crequest-an-upload-key-reset) in Google Play Console.
+---
+
+## 💬 Community & Discord
+
+Join our official community Discord for announcements, feedback, feature voting, bug reports, and discussion:
+
+**[Join the Zenith Anime Discord Server](https://discord.gg/zenithanime)** *(Server invite link)*
+
+---
+
+## ✨ Features
+
+- **Full Video Player Suite (ExoPlayer Engine)**
+  - Seamless subtitle tracks (English, Japanese, Spanish, etc.) & real dub audio switching.
+  - Granular playback speed control (0.25x – 3.0x) and fast hold-to-speed gestures.
+  - Video aspect ratio modes: Fit, Fill, Zoom, 16:9, and 4:3.
+  - Customizable auto-hide controls, sleep timer with countdown, and auto-skip intro/outro.
+  - Unobtrusive letterbox screen-lock button with user-selected left or right placement.
+  - Continuous 1-second watch progress persistence for jump-free progress bars.
+
+- **Interactive Customization Playground**
+  - Reorder, show, or hide individual player controls.
+  - Adjust transport button positioning (Center, Bottom, Split).
+  - Switch timeline seekbar styles (Modern, Minimal, Thick).
+  - Toggle between Modern and Legacy video player layouts.
+  - Choose accent color overrides (Emerald, Cyan, Sakura, Violet, Amber, Crimson).
+  - Live real-time preview of player and UI changes before applying.
+
+- **Remastered Continue Watching**
+  - Rich 16:9 widescreen thumbnails with dark gradient scrims and progress percentage badges.
+  - Multi-line titles and formatted remaining duration indicators.
+  - Dedicated **Info** action button to navigate directly to the anime details page.
+  - "Clear All" with confirmation safeguard.
+
+- **Anime Organization & MyAnimeList Integration**
+  - Clear watch statuses: Watching, Completed, On Hold, Dropped, Plan to Watch.
+  - Authentic MyAnimeList (MAL) reviews integrated directly into details pages.
+  - Local-first architecture: Room database + Moshi serialization. Zero telemetry or tracking.
+  - Full backup & restore for offline data portability.
+
+- **Profile Customization**
+  - Support for custom avatar URLs, SVG vectors, and animated GIFs.
+  - Safe image validation and responsive UI rendering.
+
+---
+
+## 📥 Download & Installation
+
+Pre-built APKs are available in the repository:
+
+- **Latest Release**: [`APK/zenith-anime-latest.apk`](APK/zenith-anime-latest.apk)
+- **Debug APK**: [`APK/app-debug.apk`](APK/app-debug.apk)
+
+### Requirements
+- Android 8.0 (API level 26) or higher.
+- ARM64 or x86_64 device / emulator.
+
+---
+
+## 🛠️ Building from Source
+
+### Prerequisites
+- [Android Studio Ladybug (2024.2+) or newer](https://developer.android.com/studio)
+- JDK 17 or higher
+- Android SDK 35
+
+### Clone and Compile
+
+```bash
+git clone https://github.com/tnb1j/zenith-anime.git
+cd zenith-anime
+./gradlew assembleDebug
+```
+
+The output APK will be generated at:
+`app/build/outputs/apk/debug/app-debug.apk`
+
+### Running Unit Tests
+
+```bash
+./gradlew testDebugUnitTest
+```
+
+---
+
+## 📄 License
+
+This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for complete details.

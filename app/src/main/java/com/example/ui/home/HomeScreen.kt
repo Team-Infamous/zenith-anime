@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -511,7 +512,8 @@ fun HomeScreen(
                                                     val nextState = !featuredAnime.isInWatchlist
                                                     repository.toggleWatchlist(
                                                         featuredAnime.id,
-                                                        nextState
+                                                        nextState,
+                                                        featuredAnime
                                                     )
                                                     Toast.makeText(
                                                         context,
@@ -579,7 +581,8 @@ fun HomeScreen(
                                         onPlayClick = { onPlayClick(item.animeId, item.episodeNumber) },
                                         onDismissClick = {
                                             scope.launch {
-                                                repository.deleteProgress(item.id)
+                                                repository.deleteProgressByAnime(item.animeId)
+                                                Toast.makeText(context, "Removed from Continue Watching", Toast.LENGTH_SHORT).show()
                                             }
                                         },
                                         onInfoClick = {
@@ -735,10 +738,12 @@ fun HomeScreen(
                     onAnimeClick(prog.animeId)
                 },
                 onRemoveFromContinueWatching = {
+                    val animeId = prog.animeId
+                    val animeTitle = prog.animeTitle
                     selectedContinueProgress = null
                     scope.launch {
-                        repository.deleteProgress(prog.id)
-                        Toast.makeText(context, "Removed from Continue Watching", Toast.LENGTH_SHORT).show()
+                        repository.deleteProgressByAnime(animeId)
+                        Toast.makeText(context, "Removed $animeTitle from Continue Watching", Toast.LENGTH_SHORT).show()
                     }
                 }
             )
@@ -759,7 +764,7 @@ fun HomeScreen(
                 },
                 onToggleWatchlist = {
                     scope.launch {
-                        repository.toggleWatchlist(target.id, !target.isInWatchlist)
+                        repository.toggleWatchlist(target.id, !target.isInWatchlist, target)
                         Toast.makeText(context, if (!target.isInWatchlist) "Added to Watchlist" else "Removed from Watchlist", Toast.LENGTH_SHORT).show()
                     }
                 },
@@ -795,9 +800,23 @@ fun HomeScreen(
                     showAllContinueWatchingSheet = false
                     onPlayClick(animeId, episodeNum)
                 },
-                onDismissItem = { id ->
+                onDismissItem = { progressId ->
+                    val animeId = continueWatchingAll.firstOrNull { it.id == progressId }?.animeId
                     scope.launch {
-                        repository.deleteProgress(id)
+                        if (animeId != null) {
+                            repository.deleteProgressByAnime(animeId)
+                        } else {
+                            repository.deleteProgress(progressId)
+                        }
+                    }
+                },
+                onAnimeClick = { animeId ->
+                    showAllContinueWatchingSheet = false
+                    onAnimeClick(animeId)
+                },
+                onClearAll = {
+                    scope.launch {
+                        repository.clearHistory()
                     }
                 },
                 onDismiss = { showAllContinueWatchingSheet = false }
@@ -948,12 +967,14 @@ private fun HomeCollectionExpandedView(
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .navigationBarsPadding()
         ) {
             itemsIndexed(displayed, key = { _, anime -> anime.id }) { index, anime ->
                 AnimeCard(
                     anime = anime,
-                    fillWidth = true,
+                    modifier = Modifier.fillMaxWidth(),
                     rank = if (showRank && sortOption == "Default" && filterQuery.isBlank()) index + 1 else null,
                     onClick = { onAnimeClick(anime.id) },
                     onLongClick = { onAnimeLongClick(anime) }

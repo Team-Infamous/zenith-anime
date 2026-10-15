@@ -57,6 +57,13 @@ import com.example.ui.settings.LibrarySettingsScreen
 import com.example.ui.settings.NotificationSettingsScreen
 import com.example.ui.settings.PlayerSettingsScreen
 import com.example.ui.settings.SubtitleSettingsScreen
+import coil.Coil
+import coil.ImageLoader
+import coil.decode.GifDecoder
+import coil.decode.ImageDecoderDecoder
+import coil.decode.SvgDecoder
+import com.example.ui.profile.getEffectiveAvatarModel
+import com.example.ui.settings.CustomizationPlaygroundScreen
 import com.example.ui.splash.AnimatedSplashScreen
 import com.example.ui.sync.MalSyncScreen
 import com.example.ui.theme.DarkBackground
@@ -67,6 +74,18 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
+        val imageLoader = ImageLoader.Builder(applicationContext)
+            .components {
+                if (Build.VERSION.SDK_INT >= 28) {
+                    add(ImageDecoderDecoder.Factory())
+                } else {
+                    add(GifDecoder.Factory())
+                }
+                add(SvgDecoder.Factory())
+            }
+            .build()
+        Coil.setImageLoader(imageLoader)
+
         val repository = AnimeRepository(applicationContext)
 
         setContent {
@@ -75,14 +94,14 @@ class MainActivity : ComponentActivity() {
                 themeAccent = settings.themeAccent,
                 amoled = settings.amoledMode
             ) {
-                MainApp(repository = repository)
+                MainApp(repository = repository, settings = settings)
             }
         }
     }
 }
 
 @Composable
-fun MainApp(repository: AnimeRepository) {
+fun MainApp(repository: AnimeRepository, settings: com.example.data.model.AppSettings) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -135,6 +154,7 @@ fun MainApp(repository: AnimeRepository) {
             if (showBottomBar) {
                 BottomNavBar(
                     currentRoute = currentRoute,
+                    avatarModel = getEffectiveAvatarModel(settings.avatarPath, settings.avatarUrl),
                     onNavigate = { route ->
                         if (currentRoute != route) {
                             navController.navigate(route) {
@@ -150,6 +170,7 @@ fun MainApp(repository: AnimeRepository) {
             }
         }
     ) { innerPadding ->
+        val animDuration = if (settings.reduceAnimations) 0 else 220
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -160,10 +181,10 @@ fun MainApp(repository: AnimeRepository) {
                 navController = navController,
                 startDestination = Screen.Home.route,
                 modifier = Modifier.fillMaxSize(),
-                enterTransition = { fadeIn(animationSpec = tween(220)) },
-                exitTransition = { fadeOut(animationSpec = tween(220)) },
-                popEnterTransition = { fadeIn(animationSpec = tween(220)) },
-                popExitTransition = { fadeOut(animationSpec = tween(220)) }
+                enterTransition = { fadeIn(animationSpec = tween(animDuration)) },
+                exitTransition = { fadeOut(animationSpec = tween(animDuration)) },
+                popEnterTransition = { fadeIn(animationSpec = tween(animDuration)) },
+                popExitTransition = { fadeOut(animationSpec = tween(animDuration)) }
             ) {
                 composable(Screen.Home.route) {
                     HomeScreen(
@@ -242,6 +263,9 @@ fun MainApp(repository: AnimeRepository) {
                         },
                         onConfirmationsSettingsClick = {
                             navController.navigate(Screen.ConfirmationsSettings.route)
+                        },
+                        onCustomizationPlaygroundClick = {
+                            navController.navigate(Screen.CustomizationPlayground.route)
                         }
                     )
                 }
@@ -257,6 +281,18 @@ fun MainApp(repository: AnimeRepository) {
 
                 composable(Screen.PlayerSettings.route) {
                     PlayerSettingsScreen(
+                        repository = repository,
+                        onBackClick = {
+                            navController.popBackStack()
+                        },
+                        onOpenLayoutPlayground = {
+                            navController.navigate(Screen.CustomizationPlayground.route)
+                        }
+                    )
+                }
+
+                composable(Screen.CustomizationPlayground.route) {
+                    CustomizationPlaygroundScreen(
                         repository = repository,
                         onBackClick = {
                             navController.popBackStack()
@@ -359,6 +395,9 @@ fun MainApp(repository: AnimeRepository) {
                         repository = repository,
                         onBackClick = {
                             navController.popBackStack()
+                        },
+                        onAnimeDetailsClick = { targetAnimeId ->
+                            navController.navigate(Screen.Details.createRoute(targetAnimeId))
                         }
                     )
                 }
