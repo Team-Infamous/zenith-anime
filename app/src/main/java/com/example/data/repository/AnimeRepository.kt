@@ -624,6 +624,8 @@ class AnimeRepository(private val context: Context) {
             obj.put("id", a.id)
             obj.put("malId", a.malId)
             obj.put("title", a.title)
+            obj.put("englishTitle", a.englishTitle)
+            obj.put("romajiTitle", a.romajiTitle)
             obj.put("nativeTitle", a.nativeTitle)
             obj.put("coverImage", a.coverImage)
             obj.put("bannerImage", a.bannerImage)
@@ -739,6 +741,8 @@ class AnimeRepository(private val context: Context) {
                         id = id,
                         malId = obj.optString("malId", ""),
                         title = obj.optString("title", "Anime"),
+                        englishTitle = obj.optString("englishTitle", obj.optString("title", "")),
+                        romajiTitle = obj.optString("romajiTitle", obj.optString("nativeTitle", "")),
                         nativeTitle = obj.optString("nativeTitle", ""),
                         coverImage = obj.optString("coverImage", ""),
                         bannerImage = obj.optString("bannerImage", ""),

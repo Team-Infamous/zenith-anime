@@ -31,8 +31,8 @@ import java.util.concurrent.TimeUnit
  * MAL id when we have one, and every failure is reported rather than papered over.
  */
 class AnikotoResolver : AnimeStreamResolver {
-    override val id = "anikoto"
-    override val displayName = "Anikoto"
+    override val id = "mega"
+    override val displayName = "Mega"
     override val isRemote = true
 
     // Short timeouts keep a dead host from stalling playback; the registry falls back quickly.

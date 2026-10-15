@@ -766,6 +766,8 @@ class AniListService {
                 id = id,
                 malId = malId,
                 title = mainTitle,
+                englishTitle = english ?: "",
+                romajiTitle = romaji ?: "",
                 nativeTitle = native,
                 coverImage = cover,
                 bannerImage = banner,

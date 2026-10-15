@@ -87,6 +87,16 @@ fun LibrarySettingsScreen(
         }
 
         SettingsSection(title = "SEASONS AND NAMING") {
+            SettingChoiceRow(
+                title = "Anime title language",
+                subtitle = "Choose whether anime titles display in English or Japanese (Romaji)",
+                currentValue = settings.titleLanguagePreference,
+                options = listOf("English", "Japanese"),
+                onSelect = { value ->
+                    repository.settingsManager.update { it.copy(titleLanguagePreference = value) }
+                }
+            )
+            SettingsDivider()
             SettingSwitchRow(
                 title = "Friendly season names",
                 subtitle = "Say Season 1, Season 2 instead of AniList words like Adaptation or Sequel",

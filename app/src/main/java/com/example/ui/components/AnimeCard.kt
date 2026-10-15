@@ -57,7 +57,8 @@ fun AnimeCard(
     onLongClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     cardWidth: Float? = null,
-    rank: Int? = null
+    rank: Int? = null,
+    titlePreference: String = "English"
 ) {
     val haptic = LocalHapticFeedback.current
     val themeAccent = LocalThemeAccent.current
@@ -188,7 +189,7 @@ fun AnimeCard(
         Spacer(modifier = Modifier.height(7.dp))
 
         Text(
-            text = anime.title,
+            text = anime.displayTitle(titlePreference),
             color = TextPrimary,
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold,

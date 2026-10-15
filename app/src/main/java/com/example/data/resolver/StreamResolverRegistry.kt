@@ -36,7 +36,7 @@ class StreamResolverRegistry {
      * the live resolver IDs so direct resolution always triggers for direct-stream server choices.
      */
     fun normalizeResolverId(serverId: String): String = when (serverId.trim().lowercase()) {
-        "zoro", "aniwatch", "hianime", "anikoto", "megacloud" -> "anikoto"
+        "mega", "megacloud", "zoro", "aniwatch", "hianime", "anikoto" -> "mega"
         "allanime", "animekai" -> "allanime"
         else -> serverId.trim().lowercase()
     }
@@ -54,8 +54,8 @@ class StreamResolverRegistry {
         val remote = resolvers.map {
             ServerOption(
                 id = it.id,
-                displayName = it.displayName,
-                description = "Direct stream • downloads supported",
+                displayName = if (it.id == "mega") "Mega (Recommended)" else it.displayName,
+                description = if (it.id == "mega") "High-speed direct HLS • downloads supported" else "Direct stream • downloads supported",
                 isRemote = true
             )
         }

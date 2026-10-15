@@ -178,16 +178,13 @@ fun ContinueWatchingAllSheet(
 
                 IconButton(
                     onClick = onDismiss,
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.06f))
+                    modifier = Modifier.size(36.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Close",
                         tint = TextSecondary,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
@@ -195,34 +192,50 @@ fun ContinueWatchingAllSheet(
             // Search filter if there are 4+ items
             if (items.size >= 4) {
                 Spacer(modifier = Modifier.height(12.dp))
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text("Filter your continue watching list...", color = TextSecondary, fontSize = 12.sp) },
-                    leadingIcon = {
-                        Icon(Icons.Default.Search, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(18.dp))
-                    },
-                    trailingIcon = {
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { searchQuery = "" }, modifier = Modifier.size(24.dp)) {
-                                Icon(Icons.Default.Close, contentDescription = "Clear filter", tint = TextSecondary, modifier = Modifier.size(14.dp))
-                            }
-                        }
-                    },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = themeAccent,
-                        unfocusedBorderColor = DarkBorder,
-                        focusedContainerColor = DarkSurfaceVariant,
-                        unfocusedContainerColor = DarkSurfaceVariant,
-                        focusedTextColor = TextPrimary,
-                        unfocusedTextColor = TextPrimary
-                    ),
-                    shape = RoundedCornerShape(12.dp),
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp)
-                )
+                        .height(42.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(DarkSurfaceVariant)
+                        .border(0.5.dp, if (searchQuery.isNotEmpty()) themeAccent.copy(alpha = 0.6f) else DarkBorder, RoundedCornerShape(12.dp))
+                        .padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Search,
+                        contentDescription = null,
+                        tint = TextSecondary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                        if (searchQuery.isEmpty()) {
+                            Text(
+                                "Filter your continue watching list...",
+                                color = TextSecondary,
+                                fontSize = 12.sp
+                            )
+                        }
+                        androidx.compose.foundation.text.BasicTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            singleLine = true,
+                            textStyle = androidx.compose.ui.text.TextStyle(
+                                color = TextPrimary,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Normal
+                            ),
+                            cursorBrush = androidx.compose.ui.graphics.SolidColor(themeAccent),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { searchQuery = "" }, modifier = Modifier.size(24.dp)) {
+                            Icon(Icons.Default.Close, contentDescription = "Clear filter", tint = TextSecondary, modifier = Modifier.size(14.dp))
+                        }
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -393,8 +406,19 @@ fun ContinueWatchingAllSheet(
 
                                 Spacer(modifier = Modifier.height(2.dp))
 
+                                val epSubtitle = remember(item.episodeNumber, item.episodeTitle) {
+                                    val raw = item.episodeTitle.trim()
+                                    if (raw.isBlank() || raw.equals("Episode ${item.episodeNumber}", ignoreCase = true)) {
+                                        "Episode ${item.episodeNumber}"
+                                    } else if (raw.startsWith("Episode ${item.episodeNumber}", ignoreCase = true)) {
+                                        raw
+                                    } else {
+                                        "Episode ${item.episodeNumber} • $raw"
+                                    }
+                                }
+
                                 Text(
-                                    text = if (item.episodeTitle.isNotBlank()) "Episode ${item.episodeNumber} • ${item.episodeTitle}" else "Episode ${item.episodeNumber}",
+                                    text = epSubtitle,
                                     color = TextSecondary,
                                     fontSize = 11.sp,
                                     maxLines = 1,
@@ -447,15 +471,13 @@ fun ContinueWatchingAllSheet(
                                         onClick = { onAnimeClick(item.animeId) },
                                         modifier = Modifier
                                             .size(32.dp)
-                                            .clip(CircleShape)
-                                            .background(Color.White.copy(alpha = 0.05f))
                                             .testTag("continue_watching_info_${item.id}")
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Info,
                                             contentDescription = "Anime details",
                                             tint = TextSecondary,
-                                            modifier = Modifier.size(16.dp)
+                                            modifier = Modifier.size(18.dp)
                                         )
                                     }
                                 }
@@ -464,15 +486,13 @@ fun ContinueWatchingAllSheet(
                                     onClick = { onDismissItem(item.id) },
                                     modifier = Modifier
                                         .size(32.dp)
-                                        .clip(CircleShape)
-                                        .background(Color.White.copy(alpha = 0.05f))
                                         .testTag("continue_watching_remove_${item.id}")
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.DeleteOutline,
                                         contentDescription = "Remove from continue watching",
                                         tint = TextSecondary,
-                                        modifier = Modifier.size(16.dp)
+                                        modifier = Modifier.size(18.dp)
                                     )
                                 }
                             }

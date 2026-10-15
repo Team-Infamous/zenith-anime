@@ -433,7 +433,7 @@ fun AnimeDetailsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = currentAnime.title,
+                        text = currentAnime.displayTitle(detailsSettings.titleLanguagePreference),
                         color = TextPrimary,
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
@@ -442,45 +442,47 @@ fun AnimeDetailsScreen(
 
                     Box {
                         val activeStatus = WatchStatus.fromRaw(currentAnime.watchStatus)
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            if (currentAnime.isInWatchlist) {
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(14.dp))
-                                        .background(themeAccent.copy(alpha = 0.16f))
-                                        .border(1.dp, themeAccent.copy(alpha = 0.6f), RoundedCornerShape(14.dp))
-                                        .clickable { showWatchStatusMenu = true }
-                                        .padding(horizontal = 10.dp, vertical = 5.dp)
-                                        .testTag("details_watch_status_badge")
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(
-                                            text = activeStatus.displayName,
-                                            color = themeAccent,
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                        Spacer(modifier = Modifier.width(3.dp))
-                                        Icon(
-                                            imageVector = Icons.Default.ExpandMore,
-                                            contentDescription = "Change status",
-                                            tint = themeAccent,
-                                            modifier = Modifier.size(14.dp)
-                                        )
-                                    }
+                        if (currentAnime.isInWatchlist) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(themeAccent.copy(alpha = 0.16f))
+                                    .border(1.dp, themeAccent.copy(alpha = 0.6f), RoundedCornerShape(14.dp))
+                                    .clickable { showWatchStatusMenu = true }
+                                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                                    .testTag("details_watch_status_badge")
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Bookmark,
+                                        contentDescription = null,
+                                        tint = themeAccent,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = activeStatus.displayName,
+                                        color = themeAccent,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(modifier = Modifier.width(3.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.ExpandMore,
+                                        contentDescription = "Change status",
+                                        tint = themeAccent,
+                                        modifier = Modifier.size(14.dp)
+                                    )
                                 }
                             }
-
+                        } else {
                             IconButton(
                                 onClick = {
                                     scope.launch {
-                                        val nextInList = !currentAnime.isInWatchlist
-                                        repository.toggleWatchlist(currentAnime.id, nextInList, currentAnime)
+                                        repository.toggleWatchlist(currentAnime.id, true, currentAnime)
                                         Toast.makeText(
                                             context,
-                                            if (nextInList) "Saved to My List (${activeStatus.displayName})" else "Removed from My List",
+                                            "Saved to My List (${activeStatus.displayName})",
                                             Toast.LENGTH_SHORT
                                         ).show()
                                     }
@@ -488,9 +490,9 @@ fun AnimeDetailsScreen(
                                 modifier = Modifier.testTag("details_bookmark_button")
                             ) {
                                 Icon(
-                                    imageVector = if (currentAnime.isInWatchlist) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                                    imageVector = Icons.Default.BookmarkBorder,
                                     contentDescription = "Bookmark",
-                                    tint = if (currentAnime.isInWatchlist) themeAccent else Color.White
+                                    tint = Color.White
                                 )
                             }
                         }
@@ -523,6 +525,24 @@ fun AnimeDetailsScreen(
                                     }
                                 )
                             }
+                            Divider(color = DarkBorder, thickness = 0.5.dp)
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = "Remove from My List",
+                                        color = com.example.ui.theme.AccentRed,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 13.sp
+                                    )
+                                },
+                                onClick = {
+                                    showWatchStatusMenu = false
+                                    scope.launch {
+                                        repository.toggleWatchlist(currentAnime.id, false, currentAnime)
+                                        Toast.makeText(context, "Removed from My List", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            )
                         }
                     }
                 }
@@ -796,44 +816,58 @@ fun AnimeDetailsScreen(
                         Spacer(modifier = Modifier.height(8.dp))
 
                         // Episode Search
-                        OutlinedTextField(
-                            value = episodeSearchQuery,
-                            onValueChange = { episodeSearchQuery = it },
-                            placeholder = { Text("Search episode (e.g. 12)...", color = TextSecondary, fontSize = 12.sp) },
-                            leadingIcon = {
-                                Icon(
-                                    Icons.Default.Search,
-                                    contentDescription = null,
-                                    tint = TextSecondary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            },
-                            trailingIcon = {
-                                if (episodeSearchQuery.isNotEmpty()) {
-                                    IconButton(onClick = { episodeSearchQuery = "" }) {
-                                        Icon(
-                                            Icons.Default.Close,
-                                            contentDescription = "Clear",
-                                            tint = TextSecondary,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    }
-                                }
-                            },
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = DarkSurfaceVariant,
-                                unfocusedContainerColor = DarkSurfaceVariant,
-                                focusedBorderColor = themeAccent,
-                                unfocusedBorderColor = Color.Transparent,
-                                focusedTextColor = TextPrimary,
-                                unfocusedTextColor = TextPrimary
-                            ),
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(48.dp)
-                        )
+                                .height(42.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(DarkSurfaceVariant)
+                                .border(0.5.dp, if (episodeSearchQuery.isNotEmpty()) themeAccent.copy(alpha = 0.6f) else Color.Transparent, RoundedCornerShape(12.dp))
+                                .padding(horizontal = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = null,
+                                tint = TextSecondary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                                if (episodeSearchQuery.isEmpty()) {
+                                    Text(
+                                        "Search episode (e.g. 12)...",
+                                        color = TextSecondary,
+                                        fontSize = 12.5.sp
+                                    )
+                                }
+                                androidx.compose.foundation.text.BasicTextField(
+                                    value = episodeSearchQuery,
+                                    onValueChange = { episodeSearchQuery = it },
+                                    singleLine = true,
+                                    textStyle = androidx.compose.ui.text.TextStyle(
+                                        color = TextPrimary,
+                                        fontSize = 12.5.sp,
+                                        fontWeight = FontWeight.Normal
+                                    ),
+                                    cursorBrush = androidx.compose.ui.graphics.SolidColor(themeAccent),
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                            if (episodeSearchQuery.isNotEmpty()) {
+                                IconButton(
+                                    onClick = { episodeSearchQuery = "" },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = "Clear",
+                                        tint = TextSecondary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
 
                         // Episode Range Selector Carousel (1-25, 26-50, etc.)
                         if (episodeChunks.size > 1) {

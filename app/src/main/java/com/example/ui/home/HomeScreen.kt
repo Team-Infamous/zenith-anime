@@ -231,6 +231,7 @@ fun HomeScreen(
                     section = activeSection,
                     items = sectionItems,
                     showRank = activeSection == HomeCollectionSection.TRENDING,
+                    titlePreference = homeSettings.titleLanguagePreference,
                     onBackClick = { expandedCollectionSection = null },
                     onAnimeClick = onAnimeClick,
                     onAnimeLongClick = { selectedQuickActionAnime = it }
@@ -386,7 +387,7 @@ fun HomeScreen(
                                         Column(
                                             modifier = Modifier
                                                 .align(Alignment.BottomStart)
-                                                .padding(horizontal = 16.dp, vertical = 24.dp)
+                                                .padding(start = 16.dp, end = 16.dp, bottom = 28.dp)
                                         ) {
                                             Row(
                                                 verticalAlignment = Alignment.CenterVertically,
@@ -439,7 +440,7 @@ fun HomeScreen(
                                             Spacer(modifier = Modifier.height(8.dp))
 
                                             Text(
-                                                text = hero.title,
+                                                text = hero.displayTitle(homeSettings.titleLanguagePreference),
                                                 color = TextPrimary,
                                                 fontSize = 24.sp,
                                                 fontWeight = FontWeight.Bold,
@@ -524,7 +525,7 @@ fun HomeScreen(
                                                     )
                                                     Spacer(modifier = Modifier.width(5.dp))
                                                     Text(
-                                                        text = if (hero.isInWatchlist) "In List" else "+ My List",
+                                                        text = if (hero.isInWatchlist) "In List" else "My List",
                                                         fontWeight = FontWeight.Medium,
                                                         fontSize = 13.sp
                                                     )
@@ -554,8 +555,8 @@ fun HomeScreen(
                                 // Animated Hero Carousel Indicators
                                 Row(
                                     modifier = Modifier
-                                        .align(Alignment.BottomEnd)
-                                        .padding(end = 16.dp, bottom = 24.dp),
+                                        .align(Alignment.BottomCenter)
+                                        .padding(bottom = 10.dp),
                                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
@@ -630,6 +631,7 @@ fun HomeScreen(
                                         anime = anime,
                                         cardWidth = 140f,
                                         rank = index + 1,
+                                        titlePreference = homeSettings.titleLanguagePreference,
                                         onClick = { onAnimeClick(anime.id) },
                                         onLongClick = { selectedQuickActionAnime = anime }
                                     )
@@ -653,6 +655,7 @@ fun HomeScreen(
                                     AnimeCard(
                                         anime = anime,
                                         cardWidth = 135f,
+                                        titlePreference = homeSettings.titleLanguagePreference,
                                         onClick = { onAnimeClick(anime.id) },
                                         onLongClick = { selectedQuickActionAnime = anime }
                                     )
@@ -676,6 +679,7 @@ fun HomeScreen(
                                     AnimeCard(
                                         anime = anime,
                                         cardWidth = 135f,
+                                        titlePreference = homeSettings.titleLanguagePreference,
                                         onClick = { onAnimeClick(anime.id) },
                                         onLongClick = { selectedQuickActionAnime = anime }
                                     )
@@ -925,6 +929,7 @@ private fun HomeCollectionExpandedView(
     section: HomeCollectionSection,
     items: List<Anime>,
     showRank: Boolean,
+    titlePreference: String = "English",
     onBackClick: () -> Unit,
     onAnimeClick: (String) -> Unit,
     onAnimeLongClick: (Anime) -> Unit
@@ -1071,6 +1076,7 @@ private fun HomeCollectionExpandedView(
                     anime = anime,
                     modifier = Modifier.fillMaxWidth(),
                     rank = if (showRank && sortOption == "Default" && filterQuery.isBlank()) index + 1 else null,
+                    titlePreference = titlePreference,
                     onClick = { onAnimeClick(anime.id) },
                     onLongClick = { onAnimeLongClick(anime) }
                 )

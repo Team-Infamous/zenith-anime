@@ -62,6 +62,7 @@ fun ContinueWatchingCard(
     onDismissClick: () -> Unit,
     onInfoClick: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
+    displayTitle: String? = null,
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
@@ -179,7 +180,7 @@ fun ContinueWatchingCard(
         Spacer(modifier = Modifier.height(7.dp))
 
         Text(
-            text = progress.animeTitle,
+            text = displayTitle ?: progress.animeTitle,
             color = TextPrimary,
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold,
@@ -187,11 +188,20 @@ fun ContinueWatchingCard(
             overflow = TextOverflow.Ellipsis
         )
 
-        Text(
-            text = if (progress.currentTimeSec == 0L) "Ready to watch" else "${progress.formattedCurrentTime()} / ${progress.formattedDuration()}",
-            color = if (progress.currentTimeSec == 0L) themeAccent else TextSecondary,
-            fontSize = 11.sp,
-            fontWeight = if (progress.currentTimeSec == 0L) FontWeight.Medium else FontWeight.Normal
-        )
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(6.dp))
+                .background(Color(0x22FFFFFF))
+                .padding(horizontal = 6.dp, vertical = 2.dp)
+        ) {
+            Text(
+                text = if (progress.currentTimeSec == 0L) "Ready to watch" else "${progress.formattedCurrentTime()} / ${progress.formattedDuration()}",
+                color = if (progress.currentTimeSec == 0L) themeAccent else TextSecondary,
+                fontSize = 10.5.sp,
+                fontWeight = if (progress.currentTimeSec == 0L) FontWeight.SemiBold else FontWeight.Medium
+            )
+        }
     }
 }

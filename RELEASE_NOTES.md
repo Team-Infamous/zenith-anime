@@ -1,4 +1,4 @@
-# Zenith Anime v1.4.0
+# Zenith Anime v1.5.0
 
 > **Notice:** The entire Zenith Anime application was vibecoded by **Gemini 3.8 Flash** in **one month**.
 
@@ -6,34 +6,43 @@ Zenith Anime is a modern, local-first, highly customizable anime streaming and o
 
 ---
 
-## 🚀 What's New in v1.4.0
+## 🚀 What's New in v1.5.0
 
-### 🎵 Anime Themes & Music Jukebox (AnimeThemes.moe)
-- **Dedicated "Themes" Tab**: Explore creditless Openings (OP) and Endings (ED) directly on the Anime Details screen powered by the AnimeThemes.moe API.
-- **Embedded In-App Theme Player**: Watch full 1080p/720p clean anime openings and endings without leaving the app using the high-performance Media3 video player dialog.
-- **Theme Details**: Song titles, performing artists, sequence numbers, and resolution badges.
+### 🌐 English vs. Japanese Anime Titles (User Preference)
+- **Universal Title Language Preference**: New setting in Library & Behavior settings allowing users to choose between **English** or **Japanese (Romaji)** anime titles across the entire app.
+- **Full App Consistency**: Applies seamlessly across the Home screen (Hero, Trending, Top Rated, Popular), Library, Continue Watching rows/sheets, Search results, Anime Details, and the Video Player.
+- **Database Schema Migration (Room v4)**: Added migration `MIGRATION_3_4` storing both `englishTitle` and `romajiTitle` locally with backward compatibility and zero data loss.
+- **AniList & MAL Sync Integration**: Both AniList and MalSync metadata providers now populate both title variants during live catalog sync.
 
-### 🔄 2-Way Tracker Sync & Auto-Scrobbler (AniList & MyAnimeList)
-- **User Preference (Disabled by Default)**: Tracker sync stays completely offline unless explicitly enabled by the user in Settings.
-- **Auto-Scrobble Engine**: Automatically updates your AniList or MyAnimeList watch list when an episode reaches completion threshold (default 85%).
-- **Customizable Threshold**: Adjust scrobble completion percentage from 50% to 100% in Settings.
-- **Direct Auth Support**: Secure personal access token configuration for AniList and MAL.
+### ⚡ Mega Server as Default & Recommended
+- **Mega (Recommended)**: Set as the default primary streaming server across fresh installs and reset states.
+- **Direct High-Speed HLS Streaming**: Optimized direct video resolution with download and audio track switching support.
+- **Cleaner Pill Displays**: Server chips in the player format cleanly as `Mega` instead of truncating or displaying unformatted provider tags.
 
-### 📺 Google Cast & Smart TV Streaming
-- **Disabled by Default**: Completely dormant by default. When enabled in Player Settings, adds cast options and device pickers to both Modern and Legacy video player top bars.
-- **Streamlined Casting**: Seamlessly route streams to compatible Google Cast / Chromecast and Android TV devices.
+### 🎨 Design Modernization, Sleek Animations & UI Bloat Cleanup
+- **Hero Carousel Improvements**:
+  - Fixed the `+ + My List` double-plus icon/text bug.
+  - Repositioned carousel indicator dots to the bottom edge so they never overlap with the `(i)` info action button.
+- **Continue Watching Card & Sheets**:
+  - Continue watching timestamp wrapped in a sleek frosted translucent pill badge.
+  - Removed circular cutout background clutter from sheet action buttons ((X), (i), and delete).
+  - Deduplicated episode subtitles (e.g., displaying `Episode 1` instead of `Episode 1 • Episode 1`).
+- **Input Box Layout Polish**:
+  - Replaced clipped `OutlinedTextField` with vertically centered `BasicTextField` rows in `AnimeDetailsScreen`, `PlayerScreen`, and bottom sheets for flawless text rendering on all screen sizes and densities.
+- **Player Episode Tab Bloat Reduction**:
+  - Removed redundant `Sheet` button since episodes are already conveniently browsable directly within the tab list.
+  - Landscape top bar episode navigation icon updated to `VideoLibrary` for visual clarity.
+- **Sleek Video Seekbar**:
+  - Replaced chunky 16dp Material 3 track with a refined 3.5dp slim track and responsive 14dp thumb for a modern, sleek streaming interface.
+- **Full Device Responsiveness**:
+  - Added `navigationBarsPadding()` to the portrait tab player section and bottom sheets to prevent system bar overlap across 3-button and gesture navigation modes on modern devices.
+- **Details Screen Status Consolidation**:
+  - Consolidated separate bookmark toggle and status dropdown into a unified interactive status badge with one-tap removal.
 
-### 💾 Batch Downloader & Auto-Delete Storage Manager
-- **Batch Download Modal**: Queue "Next 1", "Next 5", or "All Available" episodes for background download in a single tap.
-- **Auto-Delete Watched Episodes**: Automatically removes downloaded video files and sidecar subtitle assets from internal storage once marked as watched (90%+ completion).
-
-### ⏰ Seasonal Release Schedule with Live Countdowns & Airing Reminders
-- **Live Airing Countdown Clock**: Badges dynamically calculate real-time release status (`Airs in 2h 15m`, `Airs in 3d 4h`, `Aired 1h ago`) with pulsing status indicators.
-- **One-Tap Airing Reminders**: Tap the notification bell icon to schedule an episode reminder directly from the weekly schedule.
-
-### 🎮 Discord Rich Presence (RPC) & Background Audio
-- **Discord Status Updates**: Optional webhook presence dispatch broadcasting currently playing anime, episode number, and remaining duration.
-- **Background Audio Playback**: Keep listening to anime audio tracks even when your phone screen is locked or while multitasking in other apps.
+### 💾 Enhanced Local Backup & Export
+- **Dual Export Options**:
+  - **Download File**: Direct JSON file export directly into the device's public `Download/` directory via Android MediaStore (`zenith_anime_backup_<timestamp>.json`).
+  - **Copy JSON**: Instant clipboard copy with notification toast.
 
 ---
 
@@ -41,8 +50,8 @@ Zenith Anime is a modern, local-first, highly customizable anime streaming and o
 
 | Asset | Size | SHA-256 Checksum |
 | :--- | :--- | :--- |
-| `zenith-anime-latest.apk` | 28.6 MB | `f064f072bbe3aad6790bf6d18906ae7d0354158b6c7042040373243bb0d93e66` |
-| `app-debug.apk` | 28.6 MB | `f064f072bbe3aad6790bf6d18906ae7d0354158b6c7042040373243bb0d93e66` |
+| `zenith-anime-latest.apk` | 28.6 MB | `0819911A6F74FF6C90FEABFB2D7FBEDCD4D90A02096EA0B0AFE116D01D0D5B73` |
+| `app-debug.apk` | 28.6 MB | `0819911A6F74FF6C90FEABFB2D7FBEDCD4D90A02096EA0B0AFE116D01D0D5B73` |
 
 ### Installation Instructions
 1. Download `zenith-anime-latest.apk` to your Android device.

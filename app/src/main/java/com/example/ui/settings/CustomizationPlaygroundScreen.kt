@@ -55,6 +55,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Subtitles
+import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
@@ -120,7 +121,7 @@ private val ALL_PLAYER_CONTROLS = listOf(
     PlayerControlDef("servers", "Server / Quality", Icons.Default.Dns, "Stream provider & resolution"),
     PlayerControlDef("fit", "Aspect Ratio", Icons.Default.AspectRatio, "Fit, Cover, Stretch modes"),
     PlayerControlDef("sleep", "Sleep Timer", Icons.Default.NightlightRound, "Auto-stop timer"),
-    PlayerControlDef("episodes", "Episodes Sheet", Icons.Default.Search, "Browse episode catalog"),
+    PlayerControlDef("episodes", "Episodes Sheet", Icons.Default.VideoLibrary, "Browse episode catalog"),
     PlayerControlDef("pip", "Picture in Picture", Icons.Default.PictureInPictureAlt, "Floating mini player"),
     PlayerControlDef("fullscreen", "Fullscreen", Icons.Default.Fullscreen, "Expand full landscape")
 )
@@ -769,7 +770,7 @@ private fun PlayerLivePreview(
                                 "servers" -> Icons.Default.Dns
                                 "fit" -> Icons.Default.AspectRatio
                                 "sleep" -> Icons.Default.NightlightRound
-                                "episodes" -> Icons.Default.Search
+                                "episodes" -> Icons.Default.VideoLibrary
                                 "pip" -> Icons.Default.PictureInPictureAlt
                                 else -> Icons.Default.Fullscreen
                             }

@@ -105,6 +105,7 @@ import androidx.compose.material.icons.filled.Subtitles
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material.icons.filled.ViewAgenda
+import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material.icons.filled.Warning
 import com.example.data.model.WatchStatus
 import com.example.ui.theme.AccentRed
@@ -203,7 +204,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
-@OptIn(UnstableApi::class)
+@OptIn(UnstableApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerScreen(
     animeId: String,
@@ -1860,7 +1861,7 @@ fun PlayerScreen(
                                         )
                                     }
                                     PlayerIconButton(onClick = { showEpisodeSheet = true }) {
-                                        Icon(Icons.Default.Search, contentDescription = "Episodes", tint = Color.White, modifier = Modifier.size(19.dp))
+                                        Icon(Icons.Default.VideoLibrary, contentDescription = "Episodes", tint = Color.White, modifier = Modifier.size(19.dp))
                                     }
                                 }
                                 if (savedSettings.pipEnabled) {
@@ -1977,7 +1978,7 @@ fun PlayerScreen(
                                             if (isLandscape) {
                                                 PlayerIconButton(onClick = { showEpisodeSheet = true }) {
                                                     Icon(
-                                                        Icons.Default.Search,
+                                                        Icons.Default.VideoLibrary,
                                                         contentDescription = "Episodes",
                                                         tint = Color.White,
                                                         modifier = Modifier.size((19f * iconScaleMult).dp)
@@ -2119,8 +2120,25 @@ fun PlayerScreen(
                                 colors = SliderDefaults.colors(
                                     thumbColor = playerAccent,
                                     activeTrackColor = playerAccent,
-                                    inactiveTrackColor = Color(0x66FFFFFF)
+                                    inactiveTrackColor = Color(0x40FFFFFF)
                                 ),
+                                thumb = {
+                                    SliderDefaults.Thumb(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        colors = SliderDefaults.colors(thumbColor = playerAccent),
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                },
+                                track = { sliderState ->
+                                    SliderDefaults.Track(
+                                        sliderState = sliderState,
+                                        colors = SliderDefaults.colors(
+                                            activeTrackColor = playerAccent,
+                                            inactiveTrackColor = Color(0x40FFFFFF)
+                                        ),
+                                        modifier = Modifier.height(3.5.dp)
+                                    )
+                                },
                                 modifier = Modifier
                                     .weight(1f)
                                     .padding(horizontal = 8.dp)
@@ -2308,7 +2326,8 @@ fun PlayerScreen(
             RemasteredPortraitPlayerSection(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f),
+                    .weight(1f)
+                    .navigationBarsPadding(),
                 anime = currentAnime,
                 episodes = episodes,
                 currentEpisode = currentEpisode,
@@ -3265,7 +3284,7 @@ private fun RemasteredPortraitPlayerSection(
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = anime.title,
+                        text = anime.displayTitle(savedSettings.titleLanguagePreference),
                         color = TextPrimary,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
@@ -3552,8 +3571,19 @@ private fun RemasteredPortraitPlayerSection(
                     modifier = Modifier.size(14.dp)
                 )
                 Spacer(modifier = Modifier.width(4.dp))
+                val formattedServerName = remember(currentServer) {
+                    when (currentServer.lowercase()) {
+                        "mega", "megacloud" -> "Mega"
+                        "rapidcloud", "rapid" -> "Rapid"
+                        "streamwish" -> "Wish"
+                        "mp4upload" -> "Mp4Upload"
+                        "doodstream" -> "Dood"
+                        "filemoon" -> "Filemoon"
+                        else -> currentServer.replaceFirstChar { it.uppercase() }
+                    }
+                }
                 Text(
-                    text = currentServer,
+                    text = formattedServerName,
                     color = TextPrimary,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold
@@ -3716,47 +3746,42 @@ private fun RemasteredPortraitPlayerSection(
 
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    // Compact Search Bar
-                    OutlinedTextField(
-                        value = episodeSearchQuery,
-                        onValueChange = { episodeSearchQuery = it },
-                        singleLine = true,
-                        placeholder = { Text("Search ep…", color = TextSecondary, fontSize = 11.sp) },
-                        leadingIcon = {
-                            Icon(Icons.Default.Search, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(14.dp))
-                        },
-                        trailingIcon = {
-                            if (episodeSearchQuery.isNotEmpty()) {
-                                IconButton(onClick = { episodeSearchQuery = "" }, modifier = Modifier.size(24.dp)) {
-                                    Icon(Icons.Default.Close, contentDescription = "Clear", tint = TextSecondary, modifier = Modifier.size(12.dp))
-                                }
-                            }
-                        },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = themeAccent,
-                            unfocusedBorderColor = DarkBorder,
-                            focusedTextColor = TextPrimary,
-                            unfocusedTextColor = TextPrimary,
-                            focusedContainerColor = DarkSurfaceVariant.copy(alpha = 0.5f),
-                            unfocusedContainerColor = DarkSurfaceVariant.copy(alpha = 0.5f)
-                        ),
+                    // Compact Search Bar (Centered BasicTextField, eliminates cutoff, no bloat Sheet button)
+                    Row(
                         modifier = Modifier
                             .weight(1f)
-                            .height(40.dp)
-                    )
-
-                    Spacer(modifier = Modifier.width(6.dp))
-
-                    Text(
-                        text = "Sheet",
-                        color = themeAccent,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .clickable { onOpenEpisodeSheet() }
-                            .padding(horizontal = 6.dp, vertical = 6.dp)
-                    )
+                            .height(38.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(DarkSurfaceVariant.copy(alpha = 0.6f))
+                            .border(0.5.dp, if (episodeSearchQuery.isNotEmpty()) themeAccent.copy(alpha = 0.6f) else DarkBorder, RoundedCornerShape(10.dp))
+                            .padding(horizontal = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Search, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(15.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                            if (episodeSearchQuery.isEmpty()) {
+                                Text("Search ep…", color = TextSecondary, fontSize = 11.5.sp)
+                            }
+                            androidx.compose.foundation.text.BasicTextField(
+                                value = episodeSearchQuery,
+                                onValueChange = { episodeSearchQuery = it },
+                                singleLine = true,
+                                textStyle = androidx.compose.ui.text.TextStyle(
+                                    color = TextPrimary,
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.Normal
+                                ),
+                                cursorBrush = androidx.compose.ui.graphics.SolidColor(themeAccent),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                        if (episodeSearchQuery.isNotEmpty()) {
+                            IconButton(onClick = { episodeSearchQuery = "" }, modifier = Modifier.size(20.dp)) {
+                                Icon(Icons.Default.Close, contentDescription = "Clear", tint = TextSecondary, modifier = Modifier.size(12.dp))
+                            }
+                        }
+                    }
                 }
 
                 // Range Chunks if > 25 episodes

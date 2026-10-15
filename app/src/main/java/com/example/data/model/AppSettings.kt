@@ -9,7 +9,7 @@ import com.squareup.moshi.JsonClass
 @JsonClass(generateAdapter = true)
 data class AppSettings(
     // ---- Streams & servers ----
-    val defaultServer: String = "zoro",
+    val defaultServer: String = "mega",
     val defaultLanguage: String = "sub",
     val playbackQuality: String = "Auto",
     val autoFailover: Boolean = true,
@@ -121,6 +121,7 @@ data class AppSettings(
     val downloadExportAfterFinish: Boolean = false,
 
     // ---- Library & series ----
+    val titleLanguagePreference: String = "English",
     val continueWatchingOneCard: Boolean = true,
     val continueWatchingLimit: Int = 20,
     val continueWatchingShowNextEpisode: Boolean = true,

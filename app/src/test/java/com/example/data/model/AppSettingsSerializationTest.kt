@@ -128,6 +128,6 @@ class AppSettingsSerializationTest {
         assertEquals(AppSettings.DEFAULT.friendlySeasonLabels, parsed.friendlySeasonLabels)
         assertEquals(AppSettings.DEFAULT.lockButtonEnabled, parsed.lockButtonEnabled)
         assertEquals(AppSettings.DEFAULT.downloadConcurrency, parsed.downloadConcurrency)
-        assertEquals(AppSettings.DEFAULT, parsed.copy(defaultServer = "zoro", amoledMode = false))
+        assertEquals(AppSettings.DEFAULT, parsed.copy(defaultServer = "mega", amoledMode = false))
     }
 }

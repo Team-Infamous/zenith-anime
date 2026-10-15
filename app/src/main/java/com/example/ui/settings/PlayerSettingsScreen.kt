@@ -560,11 +560,10 @@ private fun IntSliderRow(
 }
 
 private val SERVER_OPTIONS = listOf(
-    "Zoro (Recommended)" to "zoro",
-    "AniWatch" to "aniwatch",
+    "Mega (Recommended)" to "mega",
     "AllAnime" to "allanime",
-    "AnimeKai" to "animekai",
-    "MegaCloud" to "megacloud",
+    "AniEmbed" to "aniembed",
+    "Viduki" to "viduki",
     "Web Embed (Fallback)" to "embed"
 )
 

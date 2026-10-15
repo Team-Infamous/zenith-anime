@@ -233,7 +233,7 @@ fun AnimatedSplashScreen(
             Spacer(modifier = Modifier.height(10.dp))
 
             Text(
-                text = "v2.0 • Pro Streaming Experience",
+                text = "v${com.example.BuildConfig.VERSION_NAME} • Streaming Experience",
                 color = TextSecondary.copy(alpha = 0.5f),
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Medium

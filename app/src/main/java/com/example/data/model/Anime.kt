@@ -8,6 +8,8 @@ data class Anime(
     @PrimaryKey val id: String,
     val malId: String = "",
     val title: String,
+    val englishTitle: String = "",
+    val romajiTitle: String = "",
     val nativeTitle: String = "",
     val coverImage: String,
     val bannerImage: String,
@@ -33,6 +35,14 @@ data class Anime(
     val watchStatus: String = "WATCHING",
     val lastUpdated: Long = System.currentTimeMillis()
 ) {
+    fun displayTitle(preference: String = "English"): String {
+        return if (preference.equals("Japanese", ignoreCase = true) || preference.equals("Romaji", ignoreCase = true)) {
+            romajiTitle.ifBlank { nativeTitle }.ifBlank { title }
+        } else {
+            englishTitle.ifBlank { title }.ifBlank { romajiTitle }
+        }
+    }
+
     val genreList: List<String>
         get() = genres.split(",").map { it.trim() }.filter { it.isNotEmpty() }
 

@@ -49,6 +49,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PlayCircleOutline
 import androidx.compose.material.icons.filled.ReportProblem
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.SyncAlt
 import androidx.compose.material3.AlertDialog
@@ -162,6 +163,34 @@ fun getEffectiveAvatarModel(avatarPath: String?, avatarUrl: String? = null): Any
         }
         url.isNotEmpty() -> url
         else -> "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=300&auto=format&fit=crop&q=80"
+    }
+}
+
+fun saveBackupToDeviceStorage(context: android.content.Context, json: String): String? {
+    return try {
+        val fileName = "zenith_anime_backup_${System.currentTimeMillis()}.json"
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            val contentValues = android.content.ContentValues().apply {
+                put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "application/json")
+                put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS)
+            }
+            val uri = context.contentResolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+            if (uri != null) {
+                context.contentResolver.openOutputStream(uri)?.use { out ->
+                    out.write(json.toByteArray(Charsets.UTF_8))
+                }
+                "Saved to Downloads/$fileName"
+            } else null
+        } else {
+            val dir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+            dir.mkdirs()
+            val file = File(dir, fileName)
+            file.writeText(json, Charsets.UTF_8)
+            "Saved to Downloads/${file.name}"
+        }
+    } catch (_: Exception) {
+        null
     }
 }
 
@@ -539,7 +568,7 @@ fun ProfileScreen(
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "Version 2.0.0 Pro • 5 Multi-Servers Active",
+                text = "Version ${com.example.BuildConfig.VERSION_NAME} • ${providerManager.getAvailableProviders().size} Multi-Servers Active",
                 color = Color(0xFF475569),
                 fontSize = 11.sp
             )
@@ -1248,21 +1277,49 @@ fun ProfileScreen(
 
                     Spacer(modifier = Modifier.height(14.dp))
 
-                    Button(
-                        onClick = {
-                            scope.launch {
-                                val json = repository.exportBackupJson()
-                                clipboardManager.setText(AnnotatedString(json))
-                                backupStatusMessage = "Backup JSON (${json.length} chars) copied to clipboard"
-                                Toast.makeText(context, "Backup copied to clipboard", Toast.LENGTH_LONG).show()
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = themeAccent, contentColor = DarkBackground),
-                        modifier = Modifier.fillMaxWidth()
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Export Backup JSON (Copy)", fontWeight = FontWeight.Bold)
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    val json = repository.exportBackupJson()
+                                    val res = saveBackupToDeviceStorage(context, json)
+                                    if (res != null) {
+                                        backupStatusMessage = "Backup file saved ($res)"
+                                        Toast.makeText(context, "Saved to Downloads", Toast.LENGTH_LONG).show()
+                                    } else {
+                                        clipboardManager.setText(AnnotatedString(json))
+                                        backupStatusMessage = "Storage unavailable. Copied backup JSON to clipboard."
+                                        Toast.makeText(context, "Backup copied to clipboard", Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = themeAccent, contentColor = DarkBackground),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text("Download File", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
+
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    val json = repository.exportBackupJson()
+                                    clipboardManager.setText(AnnotatedString(json))
+                                    backupStatusMessage = "Backup JSON (${json.length} chars) copied to clipboard"
+                                    Toast.makeText(context, "Backup copied to clipboard", Toast.LENGTH_LONG).show()
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = DarkSurfaceVariant, contentColor = TextPrimary),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text("Copy JSON", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -1404,6 +1461,9 @@ fun ProfileScreen(
     }
 
     if (showAboutDialog) {
+        val serverList = remember {
+            providerManager.getAvailableProviders().joinToString(", ") { it.displayName }
+        }
         AlertDialog(
             onDismissRequest = { showAboutDialog = false },
             containerColor = DarkSurface,
@@ -1417,7 +1477,7 @@ fun ProfileScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "• Zero Cloud: No accounts, no telemetry, no tracking servers.\n• 5 Multi-Server streaming providers (TryEmbed, MegaPlay, VidLink, Kaido, FastCloud).\n• Automatic ad-blocking and redirect protection.\n• Full offline library, schedule and backup portability.",
+                        text = "• Version: v${com.example.BuildConfig.VERSION_NAME} (Build ${com.example.BuildConfig.VERSION_CODE})\n• Zero Cloud: No accounts, no telemetry, no tracking servers.\n• Multi-Servers Active (${providerManager.getAvailableProviders().size}): $serverList.\n• Automatic ad-blocking and redirect protection.\n• Full offline library, schedule and backup portability.",
                         color = TextSecondary,
                         fontSize = 12.sp,
                         lineHeight = 18.sp
