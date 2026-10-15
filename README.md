@@ -10,6 +10,7 @@
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0+-7F52FF.svg)](https://kotlinlang.org)
 [![Build APK](https://github.com/gokuthug1/zenith-anime/actions/workflows/build-apk.yml/badge.svg)](https://github.com/gokuthug1/zenith-anime/actions/workflows/build-apk.yml)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/G9vh5kVcvC)
+[![Website](https://img.shields.io/badge/Website-zenith--anime-10b981.svg)](https://gokuthug1.github.io/zenith-anime/)
 
 </div>
 
@@ -17,20 +18,20 @@
 
 > [!IMPORTANT]
 > ### ⚡ Development Note: 100% Vibecoded in One Month
-> **This entire application was vibecoded by Gemini 3.8 Flash and DeepSeek V4.1 Flash in one month.**
-> Every single feature, architecture layer, Jetpack Compose screen, ExoPlayer integration, custom room database schema, and live UI customization playground was generated and refined through autonomous agentic pair programming.
+> **This entire application was vibecoded by Gemini 3.8 Flash in one month.**
+> Every single feature, architecture layer, Jetpack Compose screen, ExoPlayer integration, custom Room database schema, and live UI customization playground was generated and refined through autonomous agentic pair programming.
 
 ---
 
 > [!WARNING]
 > ### ⚖️ Legal Disclaimer / DMCA
-> **Zenith Anime does not host, store, upload, or distribute any media files on its servers.** This project functions solely as a client interface that indexes and provides access to content from publicly available third-party sources. Zenith Anime does not own or control any third-party content, and availability may vary depending on external providers. For copyright or legal concerns regarding specific media, please contact the respective hosting providers or rights holders directly.
+> **Zenith Anime does not host, store, upload, or distribute any media files on any server.** This project functions solely as a client interface that indexes and provides access to content from publicly available third-party sources. Zenith Anime does not own or control any third-party content, and availability may vary depending on external providers. For copyright or legal concerns regarding specific media, please contact the respective hosting providers or rights holders directly.
 
 ---
 
 > [!NOTE]
 > ### 🎨 UI/UX Credits & Inspiration
-> The user interface design, aesthetic, and interaction patterns are heavily inspired by and influenced by [Th3-Anime](https://github.com/Th3-Anime/Th3-Anime). Deep appreciation goes to the creators and designers of Th3-Anime for establishing a beautiful bar for anime streaming interfaces.
+> The user interface design, aesthetic, and interaction patterns are heavily inspired by [Th3-Anime](https://github.com/Th3-Anime/Th3-Anime). Sincere appreciation goes to the creators and designers of Th3-Anime for setting a high standard for anime streaming interfaces.
 
 ---
 
@@ -80,10 +81,12 @@ Join our official community Discord for announcements, feedback, feature voting,
 
 ## 📥 Download & Installation
 
-Pre-built APKs are available in the repository:
+Pre-built APKs and distribution portals:
 
-- **Latest Release**: [`APK/zenith-anime-latest.apk`](APK/zenith-anime-latest.apk)
+- **Latest Release APK**: [`APK/zenith-anime-latest.apk`](APK/zenith-anime-latest.apk)
 - **Debug APK**: [`APK/app-debug.apk`](APK/app-debug.apk)
+- **GitHub Releases**: [Latest Release (v1.2.0)](https://github.com/gokuthug1/zenith-anime/releases/latest)
+- **Web App / Showcase**: [https://gokuthug1.github.io/zenith-anime/](https://gokuthug1.github.io/zenith-anime/)
 
 ### Requirements
 - Android 8.0 (API level 26) or higher.
@@ -96,7 +99,7 @@ Pre-built APKs are available in the repository:
 ### Prerequisites
 - [Android Studio Ladybug (2024.2+) or newer](https://developer.android.com/studio)
 - JDK 17 or higher
-- Android SDK 35
+- Android SDK 35+ (API 35/36)
 
 ### Clone and Compile
 
