@@ -99,7 +99,7 @@ Pre-built APKs are available in the repository:
 ### Clone and Compile
 
 ```bash
-git clone https://github.com/tnb1j/zenith-anime.git
+git clone https://github.com/gokuthug1/zenith-anime.git
 cd zenith-anime
 ./gradlew assembleDebug
 ```
