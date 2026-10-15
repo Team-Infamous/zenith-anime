@@ -45,13 +45,20 @@ Join our official community Discord for announcements, feedback, feature voting,
 
 ## ✨ Features
 
-- **Full Video Player Suite (ExoPlayer Engine)**
-  - Seamless subtitle tracks (English, Japanese, Spanish, etc.) & real dub audio switching.
-  - Granular playback speed control (0.25x – 3.0x) and fast hold-to-speed gestures.
-  - Video aspect ratio modes: Fit, Fill, Zoom, 16:9, and 4:3.
-  - Customizable auto-hide controls, sleep timer with countdown, and auto-skip intro/outro.
-  - Unobtrusive letterbox screen-lock button with user-selected left or right placement.
-  - Continuous 1-second watch progress persistence for jump-free progress bars.
+- **Flagship UI/UX & Navigation Overhaul**
+  - Dynamic 5-card auto-scrolling spotlight hero carousel with animated pill indicators.
+  - Sticky glassmorphic top bar with collapsing frosted blur navbar and random anime picker.
+  - 2-line smart typography wrapping and frosted pill badges across catalog cards.
+  - Modern floating island dock bottom navigation with active luminous glow.
+  - Segmented anime details screen (Episodes default, Overview, Characters & VAs, Reviews, Related).
+  - Detailed 16:9 thumbnail list vs compact numbered grid switcher and episode range selector.
+
+- **Full Video Player Suite & Automation (ExoPlayer Engine)**
+  - YouTube-style double-tap seeking ripples with stacking +10s / +20s / +30s badges.
+  - Sleek vertical swipe HUDs for brightness (left) and volume (right) with central pill indicator.
+  - Auto-skip opening (OP) and ending (ED) with instant 85s jump button.
+  - In-player quick episode drawer strip and "Next Episode" 5s countdown overlay during final 30s.
+  - Seamless subtitle styling engine, multi-track dub audio switching, and screen lock.
 
 - **Interactive Customization Playground**
   - Reorder, show, or hide individual player controls.
@@ -85,7 +92,7 @@ Pre-built APKs and distribution portals:
 
 - **Latest Release APK**: [`APK/zenith-anime-latest.apk`](APK/zenith-anime-latest.apk)
 - **Debug APK**: [`APK/app-debug.apk`](APK/app-debug.apk)
-- **GitHub Releases**: [Latest Release (v1.2.0)](https://github.com/gokuthug1/zenith-anime/releases/latest)
+- **GitHub Releases**: [Latest Release (v1.3.0)](https://github.com/gokuthug1/zenith-anime/releases/latest)
 - **Web App / Showcase**: [https://gokuthug1.github.io/zenith-anime/](https://gokuthug1.github.io/zenith-anime/)
 
 ### Requirements

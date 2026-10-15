@@ -1,4 +1,4 @@
-# Zenith Anime v1.2.0
+# Zenith Anime v1.3.0
 
 > **Notice:** The entire Zenith Anime application was vibecoded by **Gemini 3.8 Flash** in **one month**.
 
@@ -6,33 +6,31 @@ Zenith Anime is a modern, local-first, highly customizable anime streaming and o
 
 ---
 
-## 🚀 What's New in v1.2.0
+## 🚀 What's New in v1.3.0
 
-### 📺 Video Player Remaster & UI/UX Polish
-- **Letterbox Screen Lock**: Redesigned lock control placed unobtrusively inside the black letterbox area in Fit mode with display cutout support. Configurable left or right screen placement.
-- **Orientation Lock Stability**: Fixed a bug where locking the player forced an exit from fullscreen into portrait mode; orientation lock now reliably holds landscape.
-- **Independent Menu Scrolling**: Playback speed, aspect ratio, audio dub, and sleep timer menus now feature independent scroll containers, eliminating clipping and touch conflicts.
-- **Dub Audio Engine**: Fully overhauled multi-track audio discovery and selection. Users can switch to English or other dubbed audio streams seamlessly.
-- **Control Streamlining**: Removed redundant controls and unwanted brightness sliders from the player overlay for an unobstructed view.
+### 🎨 Flagship UI/UX Overhaul
+- **Auto-Advancing Hero Carousel**: Replaced static spotlight banner on the Home Screen with a dynamic 5-card auto-scrolling spotlight carousel with animated pill indicators and vibrant backdrop mesh gradient tinting.
+- **Sticky Glassmorphic Top Bar**: Smoothly collapses into a frosted-glass blurred navbar (`Color(0xEE121622)` with `1px` translucent border) as you scroll, keeping Search, Genre Filter, and the new **Random Anime** picker accessible at all times.
+- **2-Line Smart Typography & Frosted Badges**: Fixed aggressive single-line title truncation across catalog grids and cards by enabling 2-line auto-wrapping with tight line height (`lineHeight = 16.sp`, `maxLines = 2`), frosted glass pill badges (`Color(0x66000000)`), and ambient poster elevation shadows.
+- **Segmented Pager Tabs for Anime Details**: Organized series details into 5 dedicated horizontal tabs:
+  - **Episodes** *(Default)*: Rapid binge navigation.
+  - **Overview**: Synopsis, genres, format, airing status, studios, and staff metadata.
+  - **Characters & Voice Actors**: Comprehensive character cards paired with Japanese and English VAs powered by AniList GraphQL.
+  - **Reviews**: Community reviews and score distributions.
+  - **Related**: Sequels, prequels, spin-offs, and franchise recommendations.
+- **Episode View Switcher & Range Carousel**:
+  - **Detailed List Mode**: Rich 16:9 thumbnails, episode titles, duration, watched checkmarks, and progress indicators.
+  - **Compact Grid Mode**: Clean numbered squares (`[ 1 ]`, `[ 2 ]`, ...) for quick episode picking.
+  - **Episode Range Selector Carousel**: Fast range jumping (`1–25`, `26–50`, etc.) for long-running series.
+- **Floating Island Dock Bottom Navigation**: Modern floating pill dock with 24dp rounded corners, frosted backdrop blur, and an active luminous indicator beneath selected tabs.
 
-### ⏱️ Watch Progress Persistence
-- **1-Second Interval Saving**: Added a granular progress-saving setting allowing state synchronization down to every second, eliminating progress jumps on resume.
-- **Continuous Timeline Tracking**: Improved playback position tracking on app minimize, pause, and exit.
-
-### 📋 Continue Watching & Home Remaster
-- **Widescreen Episode Cards**: Upgraded Continue Watching cards to an elegant 16:9 widescreen layout with thumbnail artwork and high-contrast progress bars.
-- **Press-and-Hold Context Menu**: Long-press any Continue Watching card to quickly remove individual episodes, clear an entire series, or navigate directly to anime details.
-- **Direct Info Navigation**: The top-corner info badge now navigates directly to the anime details page.
-- **Home Cleanup**: Removed non-functional category chips and redundant refresh buttons for a streamlined browsing experience.
-
-### 🌟 Details Page & Reviews
-- **MyAnimeList (MAL) Reviews**: Integrated official MAL community reviews into anime details with pagination and reviewer ratings.
-- **Watchlist Persistence Bug Fix**: Fixed a critical bug where opening details before watching caused the anime to disappear from the watchlist.
-- **Share Notice**: Added a friendly popup indicating that sharing functionality is coming soon.
-
-### 👤 Profile & Customization Playground
-- **Profile Avatar**: Cleaned up the avatar display by removing the obstructing edit pen icon and its overlay trigger.
-- **Responsive UI Playground**: Viewport auto-fitting ensures all controls and preview frames fit user screens without horizontal overflow.
+### ⚡ Player Experience & Automation
+- **YouTube-Style Double-Tap Seek Ripples**: Double-tapping the left or right side of the screen triggers dynamic curved ripples with animated stacking badges (`+10s`, `+20s`, `+30s`, etc.).
+- **Vertical Swipe HUDs**: Sliding vertically on the left side controls screen brightness and sliding on the right side controls volume, indicated by a sleek minimalist floating pill HUD in the center.
+- **Auto-Skip OP/ED Button**: Floating quick chip that instantly skips 85 seconds forward without touching the seekbar.
+- **"Next Episode" Countdown Overlay**: Automatically slides up in the bottom-right corner during the last 30 seconds of an episode with a 5-second auto-play timer and "Watch Next" / "Dismiss" actions.
+- **In-Player Quick Episode Drawer Strip**: Bottom drawer strip inside the player allowing users to switch episodes on the fly without exiting fullscreen.
+- **Subtitle Styling Enhancements**: Added outline thickness controls and styling options in the subtitle dialog.
 
 ---
 
@@ -40,8 +38,8 @@ Zenith Anime is a modern, local-first, highly customizable anime streaming and o
 
 | Asset | Size | SHA-256 Checksum |
 | :--- | :--- | :--- |
-| `zenith-anime-latest.apk` | 30.2 MB | `aad0a4c36090ecef90c74685708a556df8304ddbe776df356d1eba4f2ff6a416` |
-| `app-debug.apk` | 30.2 MB | `aad0a4c36090ecef90c74685708a556df8304ddbe776df356d1eba4f2ff6a416` |
+| `zenith-anime-latest.apk` | 28.5 MB | `150c3f719c350ddd8bb6f94f877178f20e6335bcbae93140504b0824eae03424` |
+| `app-debug.apk` | 28.5 MB | `150c3f719c350ddd8bb6f94f877178f20e6335bcbae93140504b0824eae03424` |
 
 ### Installation Instructions
 1. Download `zenith-anime-latest.apk` to your Android device.
@@ -67,4 +65,3 @@ Zenith Anime is a modern, local-first, highly customizable anime streaming and o
 ## 💬 Community & Discussion
 
 - **Official Discord Server:** [https://discord.gg/G9vh5kVcvC](https://discord.gg/G9vh5kVcvC)
-
