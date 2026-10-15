@@ -4,6 +4,8 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -12,6 +14,10 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -166,14 +172,35 @@ fun HomeScreen(
         allAnime
     }
 
-    val featuredAnime = remember(allAnime, featuredIndex) {
-        if (allAnime.isNotEmpty()) allAnime[featuredIndex % allAnime.size] else null
+    val homeListState = rememberLazyListState()
+    val isScrolled by remember {
+        derivedStateOf {
+            homeListState.firstVisibleItemIndex > 0 || homeListState.firstVisibleItemScrollOffset > 30
+        }
     }
+    val topBarAlpha by animateFloatAsState(
+        targetValue = if (isScrolled) 0.95f else 0f,
+        animationSpec = tween(220),
+        label = "top_bar_alpha"
+    )
+    val topBarBorderAlpha by animateFloatAsState(
+        targetValue = if (isScrolled) 0.15f else 0f,
+        animationSpec = tween(220),
+        label = "top_bar_border_alpha"
+    )
 
-    LaunchedEffect(allAnime) {
-        while (allAnime.isNotEmpty()) {
-            delay(8000L)
-            featuredIndex = (featuredIndex + 1) % allAnime.size
+    val heroAnimeList = remember(allAnime) {
+        allAnime.take(5)
+    }
+    val heroPagerState = rememberPagerState(pageCount = { heroAnimeList.size })
+
+    LaunchedEffect(heroAnimeList.size) {
+        if (heroAnimeList.isNotEmpty()) {
+            while (true) {
+                delay(6500L)
+                val next = (heroPagerState.currentPage + 1) % heroAnimeList.size
+                heroPagerState.animateScrollToPage(next)
+            }
         }
     }
 
@@ -314,248 +341,238 @@ fun HomeScreen(
                     }
                 }
             } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize()
-                ) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    LazyColumn(
+                        state = homeListState,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
                     item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(450.dp)
-                        ) {
-                            if (featuredAnime != null) {
-                                AsyncImage(
-                                    model = featuredAnime.bannerImage.ifEmpty { featuredAnime.coverImage },
-                                    contentDescription = featuredAnime.title,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            }
-
+                        if (heroAnimeList.isNotEmpty()) {
                             Box(
                                 modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(
-                                        Brush.verticalGradient(
-                                            colors = listOf(
-                                                Color(0xB30B0E14),
-                                                Color(0x330B0E14),
-                                                Color(0xCC0B0E14),
-                                                DarkBackground
-                                            )
-                                        )
-                                    )
-                            )
-
-                            Row(
-                                modifier = Modifier
                                     .fillMaxWidth()
-                                    .statusBarsPadding()
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                                    .height(470.dp)
                             ) {
-                                Image(
-                                    painter = painterResource(id = R.drawable.ic_zenith_logo),
-                                    contentDescription = "Zenith Anime Emblem",
-                                    modifier = Modifier
-                                        .size(34.dp)
-                                        .clip(RoundedCornerShape(8.dp)),
-                                    contentScale = ContentScale.Crop
-                                )
+                                HorizontalPager(
+                                    state = heroPagerState,
+                                    modifier = Modifier.fillMaxSize()
+                                ) { page ->
+                                    val hero = heroAnimeList[page]
+                                    Box(modifier = Modifier.fillMaxSize()) {
+                                        AsyncImage(
+                                            model = hero.bannerImage.ifEmpty { hero.coverImage },
+                                            contentDescription = hero.title,
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
 
-                                Spacer(modifier = Modifier.width(10.dp))
-
-                                Text(
-                                    text = "Zenith Anime",
-                                    color = TextPrimary,
-                                    fontSize = 20.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-
-                                Spacer(modifier = Modifier.weight(1f))
-
-                                IconButton(
-                                    onClick = onSearchClick,
-                                    modifier = Modifier.testTag("home_search_button")
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Search,
-                                        contentDescription = "Search",
-                                        tint = Color.White
-                                    )
-                                }
-
-                                IconButton(
-                                    onClick = onNotificationsClick,
-                                    modifier = Modifier.testTag("home_notifications_button")
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Notifications,
-                                        contentDescription = "Notifications",
-                                        tint = Color.White
-                                    )
-                                }
-                            }
-
-                            if (featuredAnime != null) {
-                                Column(
-                                    modifier = Modifier
-                                        .align(Alignment.BottomStart)
-                                        .padding(16.dp)
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
+                                        // Dominant backdrop tinting & gradient overlay
                                         Box(
                                             modifier = Modifier
-                                                .background(themeAccent, RoundedCornerShape(4.dp))
-                                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                                        ) {
-                                            Text(
-                                                text = "SPOTLIGHT",
-                                                color = DarkBackground,
-                                                fontSize = 10.sp,
-                                                fontWeight = FontWeight.Black
-                                            )
-                                        }
-
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            modifier = Modifier
-                                                .background(Color(0x991E2436), RoundedCornerShape(4.dp))
-                                                .padding(horizontal = 6.dp, vertical = 2.dp)
-                                        ) {
-                                            Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFB800), modifier = Modifier.size(12.dp))
-                                            Spacer(modifier = Modifier.width(3.dp))
-                                            Text(
-                                                text = String.format("%.1f", featuredAnime.rating),
-                                                color = Color.White,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                        }
-
-                                        val epText = when {
-                                            featuredAnime.isUpcoming || featuredAnime.availableEpisodes <= 0 -> "Upcoming"
-                                            featuredAnime.isAiring -> "${featuredAnime.availableEpisodes} EPS AVAILABLE"
-                                            else -> "${featuredAnime.availableEpisodes} EPS"
-                                        }
-                                        Text(
-                                            text = "$epText • ${featuredAnime.quality}",
-                                            color = TextSecondary,
-                                            fontSize = 11.sp
-                                        )
-                                    }
-
-                                    Spacer(modifier = Modifier.height(6.dp))
-
-                                    Text(
-                                        text = featuredAnime.title,
-                                        color = TextPrimary,
-                                        fontSize = 22.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        lineHeight = 28.sp,
-                                        maxLines = 2,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.clickable { onAnimeClick(featuredAnime.id) }
-                                    )
-
-                                    Spacer(modifier = Modifier.height(4.dp))
-
-                                    Text(
-                                        text = featuredAnime.genres,
-                                        color = TextSecondary,
-                                        fontSize = 12.sp,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-
-                                    Spacer(modifier = Modifier.height(14.dp))
-
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        val hasAired = featuredAnime.availableEpisodes > 0
-                                        Button(
-                                            onClick = {
-                                                if (hasAired) {
-                                                    onPlayClick(featuredAnime.id, 1)
-                                                } else {
-                                                    Toast.makeText(context, "This anime has not aired yet.", Toast.LENGTH_SHORT).show()
-                                                }
-                                            },
-                                            colors = ButtonDefaults.buttonColors(
-                                                containerColor = if (hasAired) themeAccent else DarkSurfaceVariant,
-                                                contentColor = if (hasAired) DarkBackground else TextSecondary
-                                            ),
-                                            shape = RoundedCornerShape(24.dp),
-                                            contentPadding = PaddingValues(horizontal = 22.dp, vertical = 10.dp),
-                                            modifier = Modifier.testTag("featured_play_button")
-                                        ) {
-                                            Icon(
-                                                imageVector = if (hasAired) Icons.Default.PlayArrow else Icons.Default.Schedule,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                            Text(
-                                                text = if (hasAired) "Watch Ep 1" else "Coming Soon",
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 14.sp
-                                            )
-                                        }
-
-                                        Spacer(modifier = Modifier.width(12.dp))
-
-                                        OutlinedButton(
-                                            onClick = {
-                                                scope.launch {
-                                                    val nextState = !featuredAnime.isInWatchlist
-                                                    repository.toggleWatchlist(
-                                                        featuredAnime.id,
-                                                        nextState,
-                                                        featuredAnime
+                                                .fillMaxSize()
+                                                .background(
+                                                    Brush.verticalGradient(
+                                                        colors = listOf(
+                                                            Color(0xCC0B0E14),
+                                                            Color(0x330B0E14),
+                                                            themeAccent.copy(alpha = 0.20f),
+                                                            Color(0xDD0B0E14),
+                                                            DarkBackground
+                                                        )
                                                     )
-                                                    Toast.makeText(
-                                                        context,
-                                                        if (nextState) "Added to My List" else "Removed from My List",
-                                                        Toast.LENGTH_SHORT
-                                                    ).show()
-                                                }
-                                            },
-                                            shape = RoundedCornerShape(24.dp),
-                                            colors = ButtonDefaults.outlinedButtonColors(
-                                                contentColor = Color.White
-                                            ),
-                                            contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp),
-                                            modifier = Modifier.testTag("featured_watchlist_button")
-                                        ) {
-                                            Icon(
-                                                imageVector = if (featuredAnime.isInWatchlist) Icons.Default.Check else Icons.Default.Add,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                            Text(
-                                                text = if (featuredAnime.isInWatchlist) "In List" else "+ My List",
-                                                fontWeight = FontWeight.Medium,
-                                                fontSize = 13.sp
-                                            )
-                                        }
+                                                )
+                                        )
 
-                                        Spacer(modifier = Modifier.width(12.dp))
-
-                                        IconButton(
-                                            onClick = { onAnimeClick(featuredAnime.id) },
+                                        Column(
                                             modifier = Modifier
-                                                .background(Color(0x66000000), CircleShape)
-                                                .testTag("featured_details_button")
+                                                .align(Alignment.BottomStart)
+                                                .padding(horizontal = 16.dp, vertical = 24.dp)
                                         ) {
-                                            Icon(
-                                                Icons.Default.Info,
-                                                contentDescription = "Details",
-                                                tint = Color.White
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(6.dp))
+                                                        .background(themeAccent)
+                                                        .padding(horizontal = 7.dp, vertical = 3.dp)
+                                                ) {
+                                                    Text(
+                                                        text = "SPOTLIGHT",
+                                                        color = DarkBackground,
+                                                        fontSize = 10.sp,
+                                                        fontWeight = FontWeight.Black
+                                                    )
+                                                }
+
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(6.dp))
+                                                        .background(Color(0x66000000))
+                                                        .border(0.5.dp, Color(0x33FFFFFF), RoundedCornerShape(6.dp))
+                                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                ) {
+                                                    Icon(Icons.Default.Star, contentDescription = null, tint = Color(0xFFFFB800), modifier = Modifier.size(12.dp))
+                                                    Spacer(modifier = Modifier.width(3.dp))
+                                                    Text(
+                                                        text = String.format("%.1f", hero.rating),
+                                                        color = Color.White,
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                }
+
+                                                val epText = when {
+                                                    hero.isUpcoming || hero.availableEpisodes <= 0 -> "Upcoming"
+                                                    hero.isAiring -> "${hero.availableEpisodes} EPS AVAILABLE"
+                                                    else -> "${hero.availableEpisodes} EPS"
+                                                }
+                                                Text(
+                                                    text = "$epText • ${hero.quality}",
+                                                    color = TextSecondary,
+                                                    fontSize = 11.sp
+                                                )
+                                            }
+
+                                            Spacer(modifier = Modifier.height(8.dp))
+
+                                            Text(
+                                                text = hero.title,
+                                                color = TextPrimary,
+                                                fontSize = 24.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                lineHeight = 28.sp,
+                                                maxLines = 2,
+                                                overflow = TextOverflow.Ellipsis,
+                                                modifier = Modifier.clickable { onAnimeClick(hero.id) }
                                             )
+
+                                            Spacer(modifier = Modifier.height(4.dp))
+
+                                            Text(
+                                                text = hero.genres,
+                                                color = TextSecondary,
+                                                fontSize = 12.sp,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+
+                                            Spacer(modifier = Modifier.height(14.dp))
+
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                val hasAired = hero.availableEpisodes > 0
+                                                Button(
+                                                    onClick = {
+                                                        if (hasAired) {
+                                                            onPlayClick(hero.id, 1)
+                                                        } else {
+                                                            Toast.makeText(context, "This anime has not aired yet.", Toast.LENGTH_SHORT).show()
+                                                        }
+                                                    },
+                                                    colors = ButtonDefaults.buttonColors(
+                                                        containerColor = if (hasAired) themeAccent else DarkSurfaceVariant,
+                                                        contentColor = if (hasAired) DarkBackground else TextSecondary
+                                                    ),
+                                                    shape = RoundedCornerShape(24.dp),
+                                                    contentPadding = PaddingValues(horizontal = 22.dp, vertical = 10.dp),
+                                                    modifier = Modifier.testTag("featured_play_button")
+                                                ) {
+                                                    Icon(
+                                                        imageVector = if (hasAired) Icons.Default.PlayArrow else Icons.Default.Schedule,
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(6.dp))
+                                                    Text(
+                                                        text = if (hasAired) "Watch Ep 1" else "Coming Soon",
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontSize = 14.sp
+                                                    )
+                                                }
+
+                                                Spacer(modifier = Modifier.width(10.dp))
+
+                                                OutlinedButton(
+                                                    onClick = {
+                                                        scope.launch {
+                                                            val nextState = !hero.isInWatchlist
+                                                            repository.toggleWatchlist(
+                                                                hero.id,
+                                                                nextState,
+                                                                hero
+                                                            )
+                                                            Toast.makeText(
+                                                                context,
+                                                                if (nextState) "Added to My List" else "Removed from My List",
+                                                                Toast.LENGTH_SHORT
+                                                            ).show()
+                                                        }
+                                                    },
+                                                    shape = RoundedCornerShape(24.dp),
+                                                    colors = ButtonDefaults.outlinedButtonColors(
+                                                        contentColor = Color.White
+                                                    ),
+                                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                                                    modifier = Modifier.testTag("featured_watchlist_button")
+                                                ) {
+                                                    Icon(
+                                                        imageVector = if (hero.isInWatchlist) Icons.Default.Check else Icons.Default.Add,
+                                                        contentDescription = null,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                    Spacer(modifier = Modifier.width(5.dp))
+                                                    Text(
+                                                        text = if (hero.isInWatchlist) "In List" else "+ My List",
+                                                        fontWeight = FontWeight.Medium,
+                                                        fontSize = 13.sp
+                                                    )
+                                                }
+
+                                                Spacer(modifier = Modifier.width(10.dp))
+
+                                                IconButton(
+                                                    onClick = { onAnimeClick(hero.id) },
+                                                    modifier = Modifier
+                                                        .clip(CircleShape)
+                                                        .background(Color(0x66000000))
+                                                        .border(0.5.dp, Color(0x33FFFFFF), CircleShape)
+                                                        .testTag("featured_details_button")
+                                                ) {
+                                                    Icon(
+                                                        Icons.Default.Info,
+                                                        contentDescription = "Details",
+                                                        tint = Color.White
+                                                    )
+                                                }
+                                            }
                                         }
+                                    }
+                                }
+
+                                // Animated Hero Carousel Indicators
+                                Row(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .padding(end = 16.dp, bottom = 24.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    repeat(heroAnimeList.size) { index ->
+                                        val isCurrent = heroPagerState.currentPage == index
+                                        val pillWidth by animateDpAsState(
+                                            targetValue = if (isCurrent) 22.dp else 6.dp,
+                                            animationSpec = tween(250),
+                                            label = "hero_pill_width_$index"
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .height(5.dp)
+                                                .width(pillWidth)
+                                                .clip(RoundedCornerShape(3.dp))
+                                                .background(if (isCurrent) themeAccent else Color(0x66FFFFFF))
+                                        )
                                     }
                                 }
                             }
@@ -668,8 +685,86 @@ fun HomeScreen(
                         }
                     }
                 }
+
+                // Sticky Collapsing Glassmorphic Top Bar
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.TopCenter)
+                        .background(Color(0xF00B0E14).copy(alpha = topBarAlpha))
+                        .border(
+                            width = 0.5.dp,
+                            color = Color(0x1AFFFFFF).copy(alpha = topBarBorderAlpha),
+                            shape = RoundedCornerShape(bottomStart = if (isScrolled) 16.dp else 0.dp, bottomEnd = if (isScrolled) 16.dp else 0.dp)
+                        )
+                        .statusBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_zenith_logo),
+                            contentDescription = "Zenith Anime Emblem",
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(RoundedCornerShape(8.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+
+                        Spacer(modifier = Modifier.width(10.dp))
+
+                        Text(
+                            text = "Zenith Anime",
+                            color = TextPrimary,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        Spacer(modifier = Modifier.weight(1f))
+
+                        IconButton(
+                            onClick = {
+                                val pick = allAnime.randomOrNull()
+                                if (pick != null) onAnimeClick(pick.id)
+                                else Toast.makeText(context, "Populating anime catalog...", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.testTag("home_random_anime_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = "Random Anime",
+                                tint = themeAccent
+                            )
+                        }
+
+                        IconButton(
+                            onClick = onSearchClick,
+                            modifier = Modifier.testTag("home_search_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = "Search",
+                                tint = Color.White
+                            )
+                        }
+
+                        IconButton(
+                            onClick = onNotificationsClick,
+                            modifier = Modifier.testTag("home_notifications_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Notifications,
+                                contentDescription = "Notifications",
+                                tint = Color.White
+                            )
+                        }
+                    }
+                }
             }
         }
+    }
 
         if (selectedContinueProgress != null) {
             val prog = selectedContinueProgress!!

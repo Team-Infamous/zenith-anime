@@ -2,6 +2,7 @@ package com.example.data.network
 
 import com.example.data.model.Anime
 import com.example.data.model.AnimeRelation
+import com.example.data.model.CharacterVa
 import com.example.data.model.MalReview
 import com.example.data.util.SeasonLabeler
 import kotlinx.coroutines.Dispatchers
@@ -402,6 +403,94 @@ class AniListService {
             Pair(anime, labelled)
         } catch (e: Exception) {
             Pair(null, emptyList())
+        }
+    }
+
+    suspend fun getAnimeCharacters(animeId: String): List<CharacterVa> = withContext(Dispatchers.IO) {
+        try {
+            val aniId = animeId.removePrefix("mal_").toIntOrNull() ?: return@withContext emptyList()
+            val graphQL = """
+                query (${'$'}id: Int) {
+                  Media(id: ${'$'}id, type: ANIME) {
+                    characters(page: 1, perPage: 16, sort: [ROLE, RELEVANCE]) {
+                      edges {
+                        role
+                        node {
+                          id
+                          name {
+                            full
+                          }
+                          image {
+                            large
+                          }
+                        }
+                        voiceActors(language: JAPANESE) {
+                          name {
+                            full
+                          }
+                          image {
+                            large
+                          }
+                          languageV2
+                        }
+                      }
+                    }
+                  }
+                }
+            """.trimIndent()
+
+            val jsonBody = JSONObject().apply {
+                put("query", graphQL)
+                put("variables", JSONObject().apply {
+                    put("id", aniId)
+                })
+            }
+
+            val request = Request.Builder()
+                .url("https://graphql.anilist.co")
+                .post(jsonBody.toString().toRequestBody(jsonMediaType))
+                .header("Content-Type", "application/json")
+                .header("Accept", "application/json")
+                .build()
+
+            val response = client.newCall(request).execute()
+            val body = response.body?.string() ?: return@withContext emptyList()
+            val root = JSONObject(body)
+            val data = root.optJSONObject("data") ?: return@withContext emptyList()
+            val media = data.optJSONObject("Media") ?: return@withContext emptyList()
+            val charactersObj = media.optJSONObject("characters") ?: return@withContext emptyList()
+            val edges = charactersObj.optJSONArray("edges") ?: return@withContext emptyList()
+
+            val list = mutableListOf<CharacterVa>()
+            for (i in 0 until edges.length()) {
+                val edge = edges.optJSONObject(i) ?: continue
+                val role = edge.optString("role", "MAIN")
+                val node = edge.optJSONObject("node") ?: continue
+                val charId = node.optInt("id", i).toString()
+                val charName = node.optJSONObject("name")?.optString("full", "Character") ?: "Character"
+                val charImage = node.optJSONObject("image")?.optString("large", "") ?: ""
+
+                val vas = edge.optJSONArray("voiceActors")
+                val primaryVa = if (vas != null && vas.length() > 0) vas.optJSONObject(0) else null
+                val vaName = primaryVa?.optJSONObject("name")?.optString("full", "") ?: ""
+                val vaImage = primaryVa?.optJSONObject("image")?.optString("large", "") ?: ""
+                val vaLang = primaryVa?.optString("languageV2", "Japanese") ?: "Japanese"
+
+                list.add(
+                    CharacterVa(
+                        id = charId,
+                        characterName = charName,
+                        characterImage = charImage,
+                        role = role,
+                        vaName = vaName,
+                        vaImage = vaImage,
+                        vaLanguage = vaLang
+                    )
+                )
+            }
+            list
+        } catch (_: Exception) {
+            emptyList()
         }
     }
 

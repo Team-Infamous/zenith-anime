@@ -51,7 +51,11 @@ import com.example.ui.theme.TextSecondary
 
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
 
@@ -82,116 +86,135 @@ fun BottomNavBar(
         NavItem(Screen.Profile.route, "Profile", NavIcon.Vector(Icons.Filled.Person, Icons.Outlined.PersonOutline))
     )
 
-    Column(
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .background(DarkBackground)
             .navigationBarsPadding()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center
     ) {
-        androidx.compose.material3.HorizontalDivider(color = DarkBorder.copy(alpha = 0.5f), thickness = 0.5.dp)
-
-        Row(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(60.dp),
-            horizontalArrangement = Arrangement.SpaceAround,
-            verticalAlignment = Alignment.CenterVertically
+                .height(64.dp)
+                .shadow(
+                    elevation = 12.dp,
+                    shape = RoundedCornerShape(24.dp),
+                    ambientColor = themeAccent.copy(alpha = 0.25f),
+                    spotColor = themeAccent.copy(alpha = 0.35f)
+                )
+                .clip(RoundedCornerShape(24.dp))
+                .background(Color(0xEE121622))
+                .border(
+                    width = 0.5.dp,
+                    color = Color(0x33FFFFFF),
+                    shape = RoundedCornerShape(24.dp)
+                )
         ) {
-            items.forEach { item ->
-                val isSelected = currentRoute == item.route
-                val animatedColor by animateColorAsState(
-                    targetValue = if (isSelected) themeAccent else TextSecondary,
-                    animationSpec = tween(durationMillis = 200),
-                    label = "nav_color_${item.label}"
-                )
-                val iconScale by animateFloatAsState(
-                    targetValue = if (isSelected) 1.15f else 1.0f,
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessMedium
-                    ),
-                    label = "nav_scale_${item.label}"
-                )
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                items.forEach { item ->
+                    val isSelected = currentRoute == item.route
+                    val animatedColor by animateColorAsState(
+                        targetValue = if (isSelected) themeAccent else TextSecondary,
+                        animationSpec = tween(durationMillis = 200),
+                        label = "nav_color_${item.label}"
+                    )
+                    val iconScale by animateFloatAsState(
+                        targetValue = if (isSelected) 1.15f else 1.0f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessMedium
+                        ),
+                        label = "nav_scale_${item.label}"
+                    )
 
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) { onNavigate(item.route) }
-                        .padding(vertical = 4.dp)
-                        .testTag("nav_item_${item.label.lowercase().replace(" ", "_")}"),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Box(
+                    Column(
                         modifier = Modifier
-                            .size(26.dp)
-                            .scale(iconScale),
-                        contentAlignment = Alignment.Center
+                            .weight(1f)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) { onNavigate(item.route) }
+                            .padding(vertical = 4.dp)
+                            .testTag("nav_item_${item.label.lowercase().replace(" ", "_")}"),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
                     ) {
-                        if (item.route == Screen.Profile.route && avatarModel != null) {
-                            Box(
-                                modifier = Modifier
-                                    .size(24.dp)
-                                    .border(
-                                        width = if (isSelected) 1.5.dp else 0.dp,
-                                        color = if (isSelected) themeAccent else androidx.compose.ui.graphics.Color.Transparent,
-                                        shape = CircleShape
-                                    )
-                                    .padding(if (isSelected) 1.5.dp else 0.dp)
-                                    .clip(CircleShape)
-                            ) {
-                                AsyncImage(
-                                    model = avatarModel,
-                                    contentDescription = item.label,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            }
-                        } else {
-                            when (val icon = item.icon) {
-                                is NavIcon.Vector -> {
-                                    Icon(
-                                        imageVector = if (isSelected) icon.selected else icon.unselected,
+                        Box(
+                            modifier = Modifier
+                                .size(26.dp)
+                                .scale(iconScale),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (item.route == Screen.Profile.route && avatarModel != null) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .border(
+                                            width = if (isSelected) 1.5.dp else 0.dp,
+                                            color = if (isSelected) themeAccent else androidx.compose.ui.graphics.Color.Transparent,
+                                            shape = CircleShape
+                                        )
+                                        .padding(if (isSelected) 1.5.dp else 0.dp)
+                                        .clip(CircleShape)
+                                ) {
+                                    AsyncImage(
+                                        model = avatarModel,
                                         contentDescription = item.label,
-                                        tint = animatedColor,
-                                        modifier = Modifier.size(24.dp)
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
                                     )
                                 }
-                                is NavIcon.DrawableRes -> {
-                                    Icon(
-                                        painter = painterResource(id = if (isSelected) icon.selectedRes else icon.unselectedRes),
-                                        contentDescription = item.label,
-                                        tint = animatedColor,
-                                        modifier = Modifier.size(24.dp)
-                                    )
+                            } else {
+                                when (val icon = item.icon) {
+                                    is NavIcon.Vector -> {
+                                        Icon(
+                                            imageVector = if (isSelected) icon.selected else icon.unselected,
+                                            contentDescription = item.label,
+                                            tint = animatedColor,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
+                                    is NavIcon.DrawableRes -> {
+                                        Icon(
+                                            painter = painterResource(id = if (isSelected) icon.selectedRes else icon.unselectedRes),
+                                            contentDescription = item.label,
+                                            tint = animatedColor,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
+
+                        Spacer(modifier = Modifier.height(2.dp))
+
+                        Text(
+                            text = item.label,
+                            color = animatedColor,
+                            fontSize = 10.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                        )
+
+                        Spacer(modifier = Modifier.height(2.dp))
+
+                        // Modern luminous active glow pill
+                        Box(
+                            modifier = Modifier
+                                .width(if (isSelected) 16.dp else 0.dp)
+                                .height(3.dp)
+                                .clip(RoundedCornerShape(1.5.dp))
+                                .background(
+                                    if (isSelected) themeAccent else Color.Transparent
+                                )
+                        )
                     }
-
-                    Spacer(modifier = Modifier.height(2.dp))
-
-                    Text(
-                        text = item.label,
-                        color = animatedColor,
-                        fontSize = 10.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                    )
-
-                    Spacer(modifier = Modifier.height(2.dp))
-
-                    // Sleek active dot indicator
-                    Box(
-                        modifier = Modifier
-                            .size(4.dp)
-                            .background(
-                                color = if (isSelected) themeAccent else androidx.compose.ui.graphics.Color.Transparent,
-                                shape = CircleShape
-                            )
-                    )
                 }
             }
         }

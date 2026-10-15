@@ -117,3 +117,13 @@ data class AiringScheduleItem(
     val episode: Int,
     val anime: Anime
 )
+
+data class CharacterVa(
+    val id: String,
+    val characterName: String,
+    val characterImage: String,
+    val role: String = "MAIN",
+    val vaName: String = "",
+    val vaImage: String = "",
+    val vaLanguage: String = "Japanese"
+)

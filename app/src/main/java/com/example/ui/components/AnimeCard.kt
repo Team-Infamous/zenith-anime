@@ -28,8 +28,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.border
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -92,8 +94,19 @@ fun AnimeCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(0.7f)
-                .clip(RoundedCornerShape(12.dp))
+                .shadow(
+                    elevation = if (isPressed) 8.dp else 2.dp,
+                    shape = RoundedCornerShape(14.dp),
+                    ambientColor = themeAccent.copy(alpha = 0.25f),
+                    spotColor = themeAccent.copy(alpha = 0.2f)
+                )
+                .clip(RoundedCornerShape(14.dp))
                 .background(DarkSurfaceVariant)
+                .border(
+                    width = 0.5.dp,
+                    color = if (isPressed) themeAccent.copy(alpha = 0.6f) else Color(0x1FFFFFFF),
+                    shape = RoundedCornerShape(14.dp)
+                )
         ) {
             AsyncImage(
                 model = anime.coverImage,
@@ -132,11 +145,11 @@ fun AnimeCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(52.dp)
+                    .height(56.dp)
                     .align(Alignment.BottomCenter)
                     .background(
                         Brush.verticalGradient(
-                            listOf(Color.Transparent, Color(0xDD0B0E14))
+                            listOf(Color.Transparent, Color(0xE60B0E14))
                         )
                     )
             )
@@ -155,7 +168,9 @@ fun AnimeCard(
                 } else {
                     Box(
                         modifier = Modifier
-                            .background(Color(0xCC1E2436), RoundedCornerShape(4.dp))
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(Color(0x66000000))
+                            .border(0.5.dp, Color(0x33FFFFFF), RoundedCornerShape(6.dp))
                             .padding(horizontal = 6.dp, vertical = 2.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -170,14 +185,15 @@ fun AnimeCard(
             }
         }
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(7.dp))
 
         Text(
             text = anime.title,
             color = TextPrimary,
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
+            lineHeight = 16.sp,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
     }

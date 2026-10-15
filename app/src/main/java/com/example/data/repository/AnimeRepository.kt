@@ -182,6 +182,10 @@ class AnimeRepository(private val context: Context) {
         aniListService.getMalReviews(animeId, effectiveMalId)
     }
 
+    suspend fun getAnimeCharacters(animeId: String): List<com.example.data.model.CharacterVa> = withContext(Dispatchers.IO) {
+        aniListService.getAnimeCharacters(animeId)
+    }
+
     suspend fun importWatchlist(animeList: List<Anime>, eraseExisting: Boolean): Int = withContext(Dispatchers.IO) {
         if (eraseExisting) {
             animeDao.clearWatchlist()

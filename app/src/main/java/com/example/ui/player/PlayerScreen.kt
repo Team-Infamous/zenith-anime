@@ -39,8 +39,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.displayCutoutPadding
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -264,6 +266,11 @@ fun PlayerScreen(
     var holdSpeedTarget by remember { mutableFloatStateOf(1f) }
     var seekFeedbackText by remember { mutableStateOf<String?>(null) }
     var gestureFeedback by remember { mutableStateOf<String?>(null) }
+    var doubleTapSeekSide by remember { mutableStateOf<String?>(null) }
+    var doubleTapSeekAccumulated by remember { mutableIntStateOf(0) }
+    var doubleTapDismissJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    var gestureHudType by remember { mutableStateOf<String?>(null) }
+    var gestureHudLevel by remember { mutableFloatStateOf(1f) }
     var showServerSheet by remember { mutableStateOf(false) }
     var showSourceSheet by remember { mutableStateOf(false) }
     var showEpisodeSheet by remember { mutableStateOf(false) }
@@ -643,10 +650,10 @@ fun PlayerScreen(
 
     LaunchedEffect(currentTimeSec, durationSec, isReady) {
         if (!isReady || durationSec <= 0 || showAutoNextBanner || !savedSettings.autoNextEpisode) return@LaunchedEffect
-        if (currentTimeSec <= 5 || durationSec - currentTimeSec > 15) return@LaunchedEffect
+        if (currentTimeSec <= 5 || durationSec - currentTimeSec > 30) return@LaunchedEffect
         if (episodes.any { it.number == currentEpNumber + 1 }) {
             showAutoNextBanner = true
-            autoNextCountdown = savedSettings.autoNextCountdownSec.coerceAtLeast(3)
+            autoNextCountdown = 5
         }
     }
 
@@ -898,15 +905,37 @@ fun PlayerScreen(
 
     fun onDoubleTapAt(x: Float, width: Float) {
         if (!savedSettings.doubleTapSeekEnabled) return
-        val step = savedSettings.seekDurationSec.toLong()
+        val step = savedSettings.seekDurationSec.coerceAtLeast(10)
         when {
-            x < width * 0.4f -> {
-                seekBy(-step)
+            x < width * 0.45f -> {
+                if (doubleTapSeekSide != "left") {
+                    doubleTapSeekAccumulated = 0
+                }
+                doubleTapSeekSide = "left"
+                doubleTapSeekAccumulated += step
+                seekBy(-step.toLong())
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                doubleTapDismissJob?.cancel()
+                doubleTapDismissJob = scope.launch {
+                    delay(750L)
+                    doubleTapSeekSide = null
+                    doubleTapSeekAccumulated = 0
+                }
             }
-            x > width * 0.6f -> {
-                seekBy(step)
+            x > width * 0.55f -> {
+                if (doubleTapSeekSide != "right") {
+                    doubleTapSeekAccumulated = 0
+                }
+                doubleTapSeekSide = "right"
+                doubleTapSeekAccumulated += step
+                seekBy(step.toLong())
                 haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                doubleTapDismissJob?.cancel()
+                doubleTapDismissJob = scope.launch {
+                    delay(750L)
+                    doubleTapSeekSide = null
+                    doubleTapSeekAccumulated = 0
+                }
             }
             else -> showControls = !showControls
         }
@@ -1020,10 +1049,14 @@ fun PlayerScreen(
                             val next = (startVolume + vDelta).coerceIn(0f, 1f)
                             videoVolume = next
                             player.volume = next
+                            gestureHudType = "volume"
+                            gestureHudLevel = next
                             gestureFeedback = "Volume ${(next * 100).toInt()}%"
                         } else if (savedSettings.gestureBrightnessEnabled) {
-                            val next = (startBrightness + vDelta).coerceIn(0.1f, 1f)
+                            val next = (startBrightness + vDelta).coerceIn(0.05f, 1f)
                             brightness = next
+                            gestureHudType = "brightness"
+                            gestureHudLevel = next
                             gestureFeedback = "Brightness ${(next * 100).toInt()}%"
                         }
                     }
@@ -1333,12 +1366,87 @@ fun PlayerScreen(
                 )
             }
 
+            // YouTube-style dynamic double-tap seeking ripples (Left side)
+            if (doubleTapSeekSide == "left") {
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth(0.38f)
+                        .align(Alignment.CenterStart)
+                        .clip(RoundedCornerShape(topEnd = 160.dp, bottomEnd = 160.dp))
+                        .background(Color(0x66000000))
+                        .border(0.5.dp, themeAccent.copy(alpha = 0.5f), RoundedCornerShape(topEnd = 160.dp, bottomEnd = 160.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.FastRewind,
+                                contentDescription = null,
+                                tint = themeAccent,
+                                modifier = Modifier.size(34.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "-${doubleTapSeekAccumulated}s",
+                                color = Color.White,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Black
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text("Double-tap to seek", color = TextSecondary, fontSize = 10.sp)
+                    }
+                }
+            }
+
+            // YouTube-style dynamic double-tap seeking ripples (Right side)
+            if (doubleTapSeekSide == "right") {
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth(0.38f)
+                        .align(Alignment.CenterEnd)
+                        .clip(RoundedCornerShape(topStart = 160.dp, bottomStart = 160.dp))
+                        .background(Color(0x66000000))
+                        .border(0.5.dp, themeAccent.copy(alpha = 0.5f), RoundedCornerShape(topStart = 160.dp, bottomStart = 160.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = "+${doubleTapSeekAccumulated}s",
+                                color = Color.White,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Black
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                imageVector = Icons.Default.FastForward,
+                                contentDescription = null,
+                                tint = themeAccent,
+                                modifier = Modifier.size(34.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text("Double-tap to seek", color = TextSecondary, fontSize = 10.sp)
+                    }
+                }
+            }
+
             if (seekFeedbackText != null) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.Center)
                         .clip(RoundedCornerShape(24.dp))
                         .background(Color(0xCC000000))
+                        .border(0.5.dp, Color(0x33FFFFFF), RoundedCornerShape(24.dp))
                         .padding(horizontal = 20.dp, vertical = 10.dp)
                 ) {
                     Text(
@@ -1350,15 +1458,54 @@ fun PlayerScreen(
                 }
             }
 
+            // Sleek Minimalist Pill HUD Indicator for Volume & Brightness
             if (gestureFeedback != null) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.Center)
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(Color(0xCC000000))
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(Color(0xEE121622))
+                        .border(0.5.dp, Color(0x33FFFFFF), RoundedCornerShape(24.dp))
+                        .padding(horizontal = 18.dp, vertical = 10.dp)
                 ) {
-                    Text(gestureFeedback!!, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(
+                            imageVector = when {
+                                gestureHudType == "brightness" -> Icons.Default.Brightness6
+                                gestureHudLevel <= 0.05f -> Icons.AutoMirrored.Filled.VolumeOff
+                                else -> Icons.AutoMirrored.Filled.VolumeUp
+                            },
+                            contentDescription = null,
+                            tint = themeAccent,
+                            modifier = Modifier.size(20.dp)
+                        )
+
+                        Box(
+                            modifier = Modifier
+                                .width(70.dp)
+                                .height(5.dp)
+                                .clip(RoundedCornerShape(3.dp))
+                                .background(DarkSurfaceVariant)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .fillMaxWidth(gestureHudLevel.coerceIn(0f, 1f))
+                                    .clip(RoundedCornerShape(3.dp))
+                                    .background(themeAccent)
+                            )
+                        }
+
+                        Text(
+                            text = "${(gestureHudLevel * 100).toInt()}%",
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
 
@@ -1875,15 +2022,15 @@ fun PlayerScreen(
                                 .padding(end = 12.dp, bottom = 56.dp),
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            if (currentTimeSec in 0..(savedSettings.introSkipSeconds + 30).toLong()) {
+                            if (currentTimeSec in 0..(savedSettings.introSkipSeconds + 35).toLong()) {
                                 SkipChip(
-                                    label = "Skip Intro",
-                                    onClick = { seekBy(savedSettings.introSkipSeconds.toLong()) }
+                                    label = "+85s Auto-Skip OP",
+                                    onClick = { seekBy(85L) }
                                 )
                             }
                             if (durationSec > 0 && currentTimeSec > durationSec - 180) {
                                 SkipChip(
-                                    label = "Skip Outro",
+                                    label = "+85s Auto-Skip ED",
                                     onClick = {
                                         val target = durationSec - savedSettings.outroSkipSeconds
                                         seekTo(target.coerceAtLeast(0L))
@@ -1950,6 +2097,51 @@ fun PlayerScreen(
                             )
                         }
 
+                        // In-Player Quick Episode Drawer strip
+                        if (episodes.size > 1) {
+                            Spacer(modifier = Modifier.height(2.dp))
+                            LazyRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                item {
+                                    Text(
+                                        text = "Episodes:",
+                                        color = TextSecondary,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                items(episodes, key = { it.id }) { ep ->
+                                    val isCurrent = ep.number == currentEpNumber
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(if (isCurrent) playerAccent else Color(0x66000000))
+                                            .border(
+                                                width = if (isCurrent) 1.dp else 0.5.dp,
+                                                color = if (isCurrent) playerAccent else Color(0x33FFFFFF),
+                                                shape = RoundedCornerShape(8.dp)
+                                            )
+                                            .clickable {
+                                                if (!isCurrent) {
+                                                    playEpisode(ep.number)
+                                                }
+                                            }
+                                            .padding(horizontal = 9.dp, vertical = 4.dp)
+                                    ) {
+                                        Text(
+                                            text = "Ep ${ep.number}",
+                                            color = if (isCurrent) DarkBackground else Color.White,
+                                            fontSize = 11.sp,
+                                            fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
@@ -2000,38 +2192,57 @@ fun PlayerScreen(
             if (showAutoNextBanner) {
                 Box(
                     modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(top = 16.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(DarkSurface)
-                        .border(1.dp, themeAccent, RoundedCornerShape(12.dp))
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 16.dp, bottom = if (isLandscape) 72.dp else 24.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xF0121622))
+                        .border(1.dp, themeAccent.copy(alpha = 0.8f), RoundedCornerShape(16.dp))
+                        .padding(14.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(
+                        horizontalAlignment = Alignment.Start,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.SkipNext, contentDescription = null, tint = themeAccent, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Next: Episode ${currentEpNumber + 1}",
+                                color = TextPrimary,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                         Text(
-                            text = "Next episode in ${autoNextCountdown}s",
-                            color = TextPrimary,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = "Play now",
-                            color = themeAccent,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.clickable {
-                                showAutoNextBanner = false
-                                playEpisode(currentEpNumber + 1)
-                            }
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = "Cancel",
+                            text = "Autoplay in ${autoNextCountdown}s",
                             color = TextSecondary,
-                            fontSize = 11.sp,
-                            modifier = Modifier.clickable { showAutoNextBanner = false }
+                            fontSize = 11.sp
                         )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Button(
+                                onClick = {
+                                    showAutoNextBanner = false
+                                    playEpisode(currentEpNumber + 1)
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = themeAccent, contentColor = DarkBackground),
+                                shape = RoundedCornerShape(10.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Play Now", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            }
+
+                            TextButton(
+                                onClick = { showAutoNextBanner = false },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
+                            ) {
+                                Text("Cancel", color = TextSecondary, fontSize = 12.sp)
+                            }
+                        }
                     }
                 }
             }
@@ -2348,6 +2559,11 @@ fun PlayerScreen(
             onBackgroundColorChange = { bgName ->
                 scope.launch {
                     repository.settingsManager.update { it.copy(subtitleBackgroundColor = bgName) }
+                }
+            },
+            onToggleOutline = { outline ->
+                scope.launch {
+                    repository.settingsManager.update { it.copy(subtitleOutline = outline) }
                 }
             },
             onDismiss = { showSubtitleDialog = false }
@@ -4398,6 +4614,7 @@ private fun SubtitleSettingsSheet(
     onFontSizeChange: (Int) -> Unit,
     onTextColorChange: (String) -> Unit,
     onBackgroundColorChange: (String) -> Unit,
+    onToggleOutline: (Boolean) -> Unit,
     onDismiss: () -> Unit
 ) {
     val themeAccent = LocalThemeAccent.current
@@ -4537,6 +4754,30 @@ private fun SubtitleSettingsSheet(
                                 }
                             }
                         }
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(DarkSurfaceVariant)
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Text Outline", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text("High-contrast black outline around subtitles", color = TextSecondary, fontSize = 11.sp)
+                        }
+                        Switch(
+                            checked = settings.subtitleOutline,
+                            onCheckedChange = { onToggleOutline(it) },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = DarkBackground,
+                                checkedTrackColor = themeAccent,
+                                uncheckedThumbColor = TextSecondary,
+                                uncheckedTrackColor = DarkBorder
+                            )
+                        )
                     }
                 }
             }

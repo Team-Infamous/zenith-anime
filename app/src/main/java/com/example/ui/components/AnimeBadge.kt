@@ -25,17 +25,22 @@ import com.example.ui.theme.AccentCyan
 import com.example.ui.theme.AccentYellow
 import com.example.ui.theme.LocalThemeAccent
 
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.clip
+
 @Composable
 fun AgeRatingBadge(ageRating: String, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
-            .background(Color.White, RoundedCornerShape(4.dp))
+            .clip(RoundedCornerShape(6.dp))
+            .background(Color(0x66000000))
+            .border(0.5.dp, Color(0x33FFFFFF), RoundedCornerShape(6.dp))
             .padding(horizontal = 6.dp, vertical = 2.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = ageRating,
-            color = Color.Black,
+            color = Color.White,
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold
         )
@@ -47,13 +52,15 @@ fun QualityBadge(quality: String = "HD", modifier: Modifier = Modifier) {
     val themeAccent = LocalThemeAccent.current
     Box(
         modifier = modifier
-            .background(themeAccent, RoundedCornerShape(4.dp))
+            .clip(RoundedCornerShape(6.dp))
+            .background(Color(0x66000000))
+            .border(0.5.dp, themeAccent.copy(alpha = 0.6f), RoundedCornerShape(6.dp))
             .padding(horizontal = 6.dp, vertical = 2.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = quality,
-            color = Color.Black,
+            color = themeAccent,
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold
         )
@@ -63,11 +70,13 @@ fun QualityBadge(quality: String = "HD", modifier: Modifier = Modifier) {
 @Composable
 fun LanguageBadge(text: String, isSelected: Boolean = false, modifier: Modifier = Modifier) {
     val themeAccent = LocalThemeAccent.current
-    val bg = if (isSelected) themeAccent else Color(0xFF1E2436)
+    val bg = if (isSelected) themeAccent else Color(0x66000000)
     val textCol = if (isSelected) Color.Black else Color.White
     Box(
         modifier = modifier
-            .background(bg, RoundedCornerShape(4.dp))
+            .clip(RoundedCornerShape(6.dp))
+            .background(bg)
+            .border(0.5.dp, if (isSelected) themeAccent else Color(0x33FFFFFF), RoundedCornerShape(6.dp))
             .padding(horizontal = 8.dp, vertical = 3.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -84,13 +93,15 @@ fun LanguageBadge(text: String, isSelected: Boolean = false, modifier: Modifier 
 fun OfflineBadge(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
-            .background(AccentCyan, RoundedCornerShape(4.dp))
+            .clip(RoundedCornerShape(6.dp))
+            .background(Color(0x66000000))
+            .border(0.5.dp, AccentCyan.copy(alpha = 0.7f), RoundedCornerShape(6.dp))
             .padding(horizontal = 6.dp, vertical = 2.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = "OFFLINE",
-            color = Color.Black,
+            color = AccentCyan,
             fontSize = 9.sp,
             fontWeight = FontWeight.Bold
         )
@@ -101,7 +112,9 @@ fun OfflineBadge(modifier: Modifier = Modifier) {
 fun RatingStars(rating: Double, modifier: Modifier = Modifier) {
     Row(
         modifier = modifier
-            .background(Color(0xCC000000), RoundedCornerShape(4.dp))
+            .clip(RoundedCornerShape(6.dp))
+            .background(Color(0x66000000))
+            .border(0.5.dp, Color(0x33FFFFFF), RoundedCornerShape(6.dp))
             .padding(horizontal = 6.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -123,14 +136,17 @@ fun RatingStars(rating: Double, modifier: Modifier = Modifier) {
 
 @Composable
 fun EpisodeCountPill(count: Int, modifier: Modifier = Modifier) {
+    val themeAccent = LocalThemeAccent.current
     Box(
         modifier = modifier
-            .background(Color(0xCC1E2436), RoundedCornerShape(4.dp))
+            .clip(RoundedCornerShape(6.dp))
+            .background(Color(0x66000000))
+            .border(0.5.dp, Color(0x33FFFFFF), RoundedCornerShape(6.dp))
             .padding(horizontal = 6.dp, vertical = 2.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
-            text = "$count",
+            text = "$count EPS",
             color = Color.White,
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold
