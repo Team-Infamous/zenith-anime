@@ -8,6 +8,7 @@
 [![Platform](https://img.shields.io/badge/Platform-Android%208.0+-green.svg)](https://developer.android.com)
 [![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4.svg)](https://developer.android.com/jetpack/compose)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0+-7F52FF.svg)](https://kotlinlang.org)
+[![Build APK](https://github.com/gokuthug1/zenith-anime/actions/workflows/build-apk.yml/badge.svg)](https://github.com/gokuthug1/zenith-anime/actions/workflows/build-apk.yml)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/G9vh5kVcvC)
 
 </div>
