@@ -36,7 +36,7 @@
 
 Join our official community Discord for announcements, feedback, feature voting, bug reports, and discussion:
 
-**[Join the Zenith Anime Discord Server](https://discord.gg/zenithanime)** *(Server invite link)*
+**[Join the Zenith Anime Discord Server](https://discord.gg/G9vh5kVcvC)** *(Official Community)*
 
 ---
 

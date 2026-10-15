@@ -61,3 +61,10 @@ Zenith Anime is a modern, local-first, highly customizable anime streaming and o
 
 - Visual aesthetics, navigation paradigm, and player design heavily inspired by [Th3-Anime](https://github.com/Th3-Anime/Th3-Anime).
 - Licensed under the permissive [MIT License](LICENSE).
+
+---
+
+## 💬 Community & Discussion
+
+- **Official Discord Server:** [https://discord.gg/G9vh5kVcvC](https://discord.gg/G9vh5kVcvC)
+
