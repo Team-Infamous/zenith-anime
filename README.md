@@ -101,7 +101,7 @@ Join our official community Discord for announcements, feedback, feature voting,
   - Adjust transport button positioning (Center, Bottom, Split).
   - Switch timeline seekbar styles (Modern, Minimal, Thick).
   - Toggle between Modern and Legacy video player layouts.
-  - Choose accent color overrides (Emerald, Cyan, Sakura, Violet, Amber, Crimson).
+  - Choose accent color overrides (Emerald, Cyan, Sakura, Violet, Amber, Crimson, Indigo, Gold).
   - Live real-time preview of player and UI changes before applying.
 
 - **Remastered Continue Watching**
@@ -128,7 +128,7 @@ Pre-built APKs and distribution portals:
 
 - **Latest Release APK**: [`APK/zenith-anime-latest.apk`](APK/zenith-anime-latest.apk)
 - **Debug APK**: [`APK/app-debug.apk`](APK/app-debug.apk)
-- **GitHub Releases**: [Latest Release (v1.5.0)](https://github.com/gokuthug1/zenith-anime/releases/latest)
+- **GitHub Releases**: [Latest Release (v1.6.0)](https://github.com/gokuthug1/zenith-anime/releases/latest)
 - **Web App / Showcase**: [https://gokuthug1.github.io/zenith-anime/](https://gokuthug1.github.io/zenith-anime/)
 
 ### Requirements
