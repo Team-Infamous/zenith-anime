@@ -12,7 +12,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.Density
 import androidx.core.view.WindowCompat
 import com.example.data.model.AppSettings
 
@@ -68,6 +70,14 @@ fun MyApplicationTheme(
     val surfaceVarColor = if (amoled) Color(0xFF141414) else DarkSurfaceVariant
     val reducedMotion = rememberIsReducedMotion(appSettings.reduceAnimations)
 
+    val currentDensity = LocalDensity.current
+    val customDensity = remember(currentDensity, appSettings.fontScaleMultiplier) {
+        Density(
+            density = currentDensity.density,
+            fontScale = currentDensity.fontScale * appSettings.fontScaleMultiplier.coerceIn(0.85f, 1.25f)
+        )
+    }
+
     val colorScheme = darkColorScheme(
         primary = accentColor,
         onPrimary = bgColor,
@@ -104,7 +114,8 @@ fun MyApplicationTheme(
     CompositionLocalProvider(
         LocalThemeAccent provides accentColor,
         LocalAppSettings provides appSettings,
-        LocalReducedMotion provides reducedMotion
+        LocalReducedMotion provides reducedMotion,
+        LocalDensity provides customDensity
     ) {
         MaterialTheme(
             colorScheme = colorScheme,

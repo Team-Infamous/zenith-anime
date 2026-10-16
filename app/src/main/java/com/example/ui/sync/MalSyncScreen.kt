@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -24,6 +25,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -33,6 +36,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
@@ -83,13 +87,21 @@ fun MalSyncScreen(
     val settings by repository.settings.collectAsState(initial = repository.settingsManager.getSettings())
 
     var selectedTab by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Import", "Export")
+    val tabs = listOf("Import", "Export", "Tracker Scrobbler")
 
     var selectedProvider by remember { mutableStateOf("MyAnimeList") }
     val providers = listOf("MyAnimeList", "AniList")
 
     var usernameInput by remember(settings) {
         mutableStateOf(if (selectedProvider == "MyAnimeList") settings.malUsername else settings.anilistUsername)
+    }
+
+    var anilistTokenInput by remember(settings.anilistAuthToken) {
+        mutableStateOf(settings.anilistAuthToken)
+    }
+
+    var malTokenInput by remember(settings.malAuthToken) {
+        mutableStateOf(settings.malAuthToken)
     }
 
     var syncWatching by remember { mutableStateOf(true) }
@@ -105,7 +117,7 @@ fun MalSyncScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(DarkBackground)
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
     ) {
         // Top bar
@@ -133,7 +145,7 @@ fun MalSyncScreen(
 
         TabRow(
             selectedTabIndex = selectedTab,
-            containerColor = DarkSurface,
+            containerColor = MaterialTheme.colorScheme.surface,
             contentColor = themeAccent
         ) {
             tabs.forEachIndexed { index, title ->
@@ -156,6 +168,7 @@ fun MalSyncScreen(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
+                .navigationBarsPadding()
         ) {
             if (selectedTab == 0) {
                 // IMPORT TAB
@@ -362,7 +375,7 @@ fun MalSyncScreen(
                         )
                     }
                 }
-            } else {
+            } else if (selectedTab == 1) {
                 // EXPORT TAB
                 Text(
                     text = "Export Watchlist Data",
@@ -387,7 +400,7 @@ fun MalSyncScreen(
                             Toast.makeText(context, "Full Watchlist JSON copied to clipboard!", Toast.LENGTH_SHORT).show()
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = themeAccent, contentColor = DarkBackground),
+                    colors = ButtonDefaults.buttonColors(containerColor = themeAccent, contentColor = MaterialTheme.colorScheme.background),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -396,6 +409,163 @@ fun MalSyncScreen(
                     Icon(Icons.Default.CloudUpload, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text("Copy Export JSON to Clipboard", fontWeight = FontWeight.Bold)
+                }
+            } else {
+                // TRACKER SCROBBLER TAB
+                Text(
+                    text = "2-Way Tracker Sync & Scrobbler",
+                    color = TextPrimary,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "Automatically sync and update your watched episode progress to your AniList and MyAnimeList accounts as you watch.",
+                    color = TextSecondary,
+                    fontSize = 13.sp
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surface)
+                        .padding(horizontal = 14.dp, vertical = 6.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Enable 2-Way Tracker Sync", color = TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                            Text("Synchronize watching progress with online lists", color = TextSecondary, fontSize = 11.sp)
+                        }
+                        Switch(
+                            checked = settings.trackerSyncEnabled,
+                            onCheckedChange = { repository.settingsManager.update { s -> s.copy(trackerSyncEnabled = it) } },
+                            colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.background, checkedTrackColor = themeAccent)
+                        )
+                    }
+
+                    HorizontalDivider(color = DarkBorder, thickness = 0.5.dp)
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Auto-Scrobble Watched Episodes", color = TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                            Text("Mark episodes watched when reaching ${settings.scrobbleCompletionPercent}% threshold", color = TextSecondary, fontSize = 11.sp)
+                        }
+                        Switch(
+                            checked = settings.autoScrobbleEnabled,
+                            onCheckedChange = { repository.settingsManager.update { s -> s.copy(autoScrobbleEnabled = it) } },
+                            colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.background, checkedTrackColor = themeAccent)
+                        )
+                    }
+
+                    HorizontalDivider(color = DarkBorder, thickness = 0.5.dp)
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Auto-Sync on Launch", color = TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                            Text("Check for online list changes when the app opens", color = TextSecondary, fontSize = 11.sp)
+                        }
+                        Switch(
+                            checked = settings.autoSyncOnOpen,
+                            onCheckedChange = { repository.settingsManager.update { s -> s.copy(autoSyncOnOpen = it) } },
+                            colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.background, checkedTrackColor = themeAccent)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+
+                Text("AniList Personal Access Token", color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("Generate from AniList Settings > Developer > Create New Client", color = TextSecondary, fontSize = 11.sp)
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = anilistTokenInput,
+                        onValueChange = { anilistTokenInput = it },
+                        placeholder = { Text("Paste AniList Bearer token...", color = TextSecondary, fontSize = 12.sp) },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = themeAccent,
+                            unfocusedBorderColor = DarkBorder,
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary
+                        ),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.weight(1f)
+                    )
+                    Button(
+                        onClick = {
+                            repository.settingsManager.update { it.copy(anilistAuthToken = anilistTokenInput.trim()) }
+                            Toast.makeText(context, "AniList token saved!", Toast.LENGTH_SHORT).show()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = themeAccent, contentColor = MaterialTheme.colorScheme.background),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("Save", fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text("MyAnimeList OAuth Access Token", color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("Access token for MAL v2 API scrobbling", color = TextSecondary, fontSize = 11.sp)
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = malTokenInput,
+                        onValueChange = { malTokenInput = it },
+                        placeholder = { Text("Paste MAL API token...", color = TextSecondary, fontSize = 12.sp) },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = themeAccent,
+                            unfocusedBorderColor = DarkBorder,
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary
+                        ),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.weight(1f)
+                    )
+                    Button(
+                        onClick = {
+                            repository.settingsManager.update { it.copy(malAuthToken = malTokenInput.trim()) }
+                            Toast.makeText(context, "MAL token saved!", Toast.LENGTH_SHORT).show()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = themeAccent, contentColor = MaterialTheme.colorScheme.background),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("Save", fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }

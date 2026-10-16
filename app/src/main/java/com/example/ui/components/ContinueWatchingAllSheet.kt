@@ -37,10 +37,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -60,11 +58,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.example.data.model.Anime
 import com.example.data.model.WatchProgress
-import com.example.ui.theme.DarkBackground
 import com.example.ui.theme.DarkBorder
-import com.example.ui.theme.DarkSurface
-import com.example.ui.theme.DarkSurfaceVariant
+import com.example.ui.theme.LocalAppSettings
 import com.example.ui.theme.LocalThemeAccent
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
@@ -84,25 +81,35 @@ fun ContinueWatchingAllSheet(
     onDismissItem: (id: String) -> Unit,
     onAnimeClick: ((animeId: String) -> Unit)? = null,
     onClearAll: (() -> Unit)? = null,
+    animeCatalog: List<Anime> = emptyList(),
     onDismiss: () -> Unit
 ) {
     val themeAccent = LocalThemeAccent.current
+    val settings = LocalAppSettings.current
+    val surfaceColor = MaterialTheme.colorScheme.surface
+    val surfaceVarColor = MaterialTheme.colorScheme.surfaceVariant
+    val bgColor = MaterialTheme.colorScheme.background
     var searchQuery by remember { mutableStateOf("") }
     var showClearConfirm by remember { mutableStateOf(false) }
 
-    val filteredItems = remember(items, searchQuery) {
+    val animeById = remember(animeCatalog) { animeCatalog.associateBy { it.id } }
+
+    val filteredItems = remember(items, searchQuery, animeById, settings.titleLanguagePreference) {
         if (searchQuery.isBlank()) items else {
             val q = searchQuery.trim()
-            items.filter {
-                it.animeTitle.contains(q, ignoreCase = true) ||
-                    it.episodeTitle.contains(q, ignoreCase = true)
+            items.filter { item ->
+                val anime = animeById[item.animeId]
+                val dispTitle = anime?.displayTitle(settings.titleLanguagePreference) ?: item.animeTitle
+                dispTitle.contains(q, ignoreCase = true) ||
+                    item.animeTitle.contains(q, ignoreCase = true) ||
+                    item.episodeTitle.contains(q, ignoreCase = true)
             }
         }
     }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = DarkSurface,
+        containerColor = surfaceColor,
         scrimColor = Color.Black.copy(alpha = 0.7f),
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         dragHandle = {
@@ -162,7 +169,13 @@ fun ContinueWatchingAllSheet(
                 // Header actions
                 if (items.isNotEmpty() && onClearAll != null) {
                     IconButton(
-                        onClick = { showClearConfirm = true },
+                        onClick = {
+                            if (settings.confirmDestructiveActions) {
+                                showClearConfirm = true
+                            } else {
+                                onClearAll.invoke()
+                            }
+                        },
                         modifier = Modifier
                             .size(36.dp)
                             .testTag("continue_watching_clear_all_button")
@@ -197,7 +210,7 @@ fun ContinueWatchingAllSheet(
                         .fillMaxWidth()
                         .height(42.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(DarkSurfaceVariant)
+                        .background(surfaceVarColor)
                         .border(0.5.dp, if (searchQuery.isNotEmpty()) themeAccent.copy(alpha = 0.6f) else DarkBorder, RoundedCornerShape(12.dp))
                         .padding(horizontal = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -252,7 +265,7 @@ fun ContinueWatchingAllSheet(
                             modifier = Modifier
                                 .size(50.dp)
                                 .clip(CircleShape)
-                                .background(DarkSurfaceVariant),
+                                .background(surfaceVarColor),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -297,6 +310,8 @@ fun ContinueWatchingAllSheet(
                     modifier = Modifier.fillMaxHeight(0.78f)
                 ) {
                     items(filteredItems, key = { it.id }) { item ->
+                        val anime = animeById[item.animeId]
+                        val resolvedTitle = anime?.displayTitle(settings.titleLanguagePreference) ?: item.animeTitle
                         val remainingSec = (item.durationSec - item.currentTimeSec).coerceAtLeast(0L)
                         val remainingMin = (remainingSec / 60L).coerceAtLeast(1L)
                         val percent = (item.progressFraction * 100f).roundToInt().coerceIn(0, 100)
@@ -305,7 +320,7 @@ fun ContinueWatchingAllSheet(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(14.dp))
-                                .background(DarkSurfaceVariant.copy(alpha = 0.85f))
+                                .background(surfaceVarColor.copy(alpha = 0.85f))
                                 .border(0.5.dp, DarkBorder.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
                                 .clickable { onPlayClick(item.animeId, item.episodeNumber) }
                                 .padding(10.dp),
@@ -317,11 +332,11 @@ fun ContinueWatchingAllSheet(
                                     .width(112.dp)
                                     .height(66.dp)
                                     .clip(RoundedCornerShape(10.dp))
-                                    .background(DarkBackground)
+                                    .background(bgColor)
                             ) {
                                 AsyncImage(
                                     model = item.coverImage,
-                                    contentDescription = item.animeTitle,
+                                    contentDescription = resolvedTitle,
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier.fillMaxSize()
                                 )
@@ -382,7 +397,7 @@ fun ContinueWatchingAllSheet(
                                 ) {
                                     Text(
                                         text = "$percent%",
-                                        color = DarkBackground,
+                                        color = bgColor,
                                         fontSize = 8.sp,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -396,7 +411,7 @@ fun ContinueWatchingAllSheet(
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Text(
-                                    text = item.animeTitle,
+                                    text = resolvedTitle,
                                     color = TextPrimary,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
@@ -534,7 +549,7 @@ fun ContinueWatchingAllSheet(
                     Text("Cancel", color = TextSecondary, fontSize = 12.sp)
                 }
             },
-            containerColor = DarkSurface,
+            containerColor = surfaceColor,
             shape = RoundedCornerShape(16.dp)
         )
     }

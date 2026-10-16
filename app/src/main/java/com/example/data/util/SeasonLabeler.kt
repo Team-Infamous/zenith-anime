@@ -115,9 +115,18 @@ object SeasonLabeler {
             if (number > 0) return number
         }
 
-        // Trailing roman numerals such as "Overlord IV" or "Mushoku Tensei II". Only multi-character
-        // tokens qualify so that ordinary words ("Titan", "Family", the pronoun "I") never match.
-        for (token in lower.split(TOKEN_SPLIT_REGEX)) {
+        // Trailing roman numerals such as "Overlord IV" or "Mushoku Tensei II: Jobless Reincarnation".
+        // Only trailing tokens (or tokens immediately preceding a subtitle/cour/part) qualify so
+        // that ordinary words ("Titan", "Family", or Chinese pinyin "Xi") never match.
+        val tokens = lower.split(TOKEN_SPLIT_REGEX).filter { it.isNotBlank() }
+        val primarySegment = lower.substringBefore(':').substringBefore(" - ").substringBefore(" – ")
+        val primaryTokens = primarySegment.split(TOKEN_SPLIT_REGEX).filter { it.isNotBlank() }
+        val candidateTokens = listOfNotNull(
+            tokens.lastOrNull(),
+            tokens.dropLast(1).lastOrNull()?.takeIf { tokens.last() in listOf("part", "cour") },
+            primaryTokens.lastOrNull()
+        )
+        for (token in candidateTokens) {
             if (token.length < 2) continue
             val number = romanToInt(token)
             if (number in 2..12) return number

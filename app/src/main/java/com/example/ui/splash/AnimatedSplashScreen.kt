@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -44,24 +45,28 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
-import com.example.ui.theme.DarkBackground
+import com.example.ui.theme.LocalReducedMotion
+import com.example.ui.theme.LocalThemeAccent
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import kotlinx.coroutines.delay
 
 /**
  * Animated startup splash screen inspired by modern cinematic streaming apps,
- * featuring a breathing neon emblem, glowing emerald aura, and elegant entrance transitions.
+ * featuring a breathing neon emblem, glowing accent aura, and elegant entrance transitions.
  */
 @Composable
 fun AnimatedSplashScreen(
     onFinish: () -> Unit
 ) {
+    val bgColor = MaterialTheme.colorScheme.background
+    val surfaceColor = MaterialTheme.colorScheme.surface
+    val themeAccent = LocalThemeAccent.current
+    val reducedMotion = LocalReducedMotion.current
     var startAnimation by remember { mutableStateOf(false) }
 
     val scale by animateFloatAsState(
@@ -97,7 +102,11 @@ fun AnimatedSplashScreen(
         label = "ring_scale"
     )
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(reducedMotion) {
+        if (reducedMotion) {
+            onFinish()
+            return@LaunchedEffect
+        }
         startAnimation = true
         delay(1250L)
         onFinish()
@@ -106,7 +115,7 @@ fun AnimatedSplashScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(DarkBackground),
+            .background(bgColor),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -129,7 +138,7 @@ fun AnimatedSplashScreen(
                         .clip(CircleShape)
                         .border(
                             width = 1.5.dp,
-                            color = Color(0xFF00DC82).copy(alpha = pulseGlow * 0.45f),
+                            color = themeAccent.copy(alpha = pulseGlow * 0.45f),
                             shape = CircleShape
                         )
                 )
@@ -142,7 +151,7 @@ fun AnimatedSplashScreen(
                         .background(
                             Brush.radialGradient(
                                 colors = listOf(
-                                    Color(0xFF00DC82).copy(alpha = pulseGlow * 0.28f),
+                                    themeAccent.copy(alpha = pulseGlow * 0.28f),
                                     Color.Transparent
                                 )
                             )
@@ -154,9 +163,9 @@ fun AnimatedSplashScreen(
                     modifier = Modifier
                         .size(88.dp)
                         .clip(RoundedCornerShape(24.dp))
-                        .background(Color(0xFF161B26))
-                        .border(1.dp, Color(0xFF00DC82).copy(alpha = 0.5f), RoundedCornerShape(24.dp))
-                        .shadow(12.dp, RoundedCornerShape(24.dp), ambientColor = Color(0xFF00DC82)),
+                        .background(surfaceColor)
+                        .border(1.dp, themeAccent.copy(alpha = 0.5f), RoundedCornerShape(24.dp))
+                        .shadow(12.dp, RoundedCornerShape(24.dp), ambientColor = themeAccent),
                     contentAlignment = Alignment.Center
                 ) {
                     Image(
@@ -184,7 +193,7 @@ fun AnimatedSplashScreen(
                 )
                 Text(
                     text = "ANIME",
-                    color = Color(0xFF00DC82),
+                    color = themeAccent,
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Black,
                     letterSpacing = 3.sp
@@ -218,7 +227,7 @@ fun AnimatedSplashScreen(
                     .width(42.dp)
                     .height(3.dp)
                     .clip(RoundedCornerShape(1.5.dp))
-                    .background(Color(0xFF242C3D))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 Box(
                     modifier = Modifier
@@ -226,7 +235,7 @@ fun AnimatedSplashScreen(
                         .height(3.dp)
                         .scale(ringScale)
                         .clip(RoundedCornerShape(1.5.dp))
-                        .background(Color(0xFF00DC82))
+                        .background(themeAccent)
                 )
             }
 

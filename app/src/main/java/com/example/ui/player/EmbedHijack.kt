@@ -218,7 +218,7 @@ object EmbedHijack {
   window.__zenithInstalled = true;
 
   var AD_CSS = 'div[id*="ad"],div[class*="ad-"],div[class*="banner"],div[id*="pop"],iframe[src*="ad"]{display:none!important;opacity:0!important;pointer-events:none!important;}';
-  var MEDIA_CSS = 'video::-webkit-media-controls{display:none!important;video::-webkit-media-controls-enclosure{display:none!important;}}';
+  var MEDIA_CSS = 'video::-webkit-media-controls{display:none!important;}video::-webkit-media-controls-enclosure{display:none!important;}';
   var CHROME_SELECTORS = [
     '.jw-controls', '.jw-overlays', '.jw-display-icon-container', '.vjs-control-bar', '.vjs-big-play-button',
     '.plyr__controls', '.plyr__control', '.plyr__overlay',
@@ -374,12 +374,19 @@ object EmbedHijack {
       } else if (name === 'setRate') {
         video.playbackRate = Math.max(0.25, Math.min(4, Number(arg) || 1));
       } else if (name === 'setFit') {
-        currentFit = (arg === 'cover' || arg === 'fill' || arg === 'zoom') ? arg : 'contain';
+        var f = String(arg || 'fit').toLowerCase();
+        if (f === 'stretch' || f === 'fill') { currentFit = 'fill'; }
+        else if (f === 'cover') { currentFit = 'cover'; }
+        else if (f === 'zoom') { currentFit = 'zoom'; }
+        else { currentFit = 'contain'; }
         video.style.setProperty('object-fit', (currentFit === 'zoom') ? 'contain' : currentFit, 'important');
         video.style.setProperty('width', '100%', 'important');
         video.style.setProperty('height', '100%', 'important');
         video.style.setProperty('transform', (currentFit === 'zoom') ? 'scale(1.14)' : 'none', 'important');
         video.style.setProperty('transform-origin', 'center center', 'important');
+        if (f === '16:9') { video.style.setProperty('aspect-ratio', '16 / 9', 'important'); }
+        else if (f === '4:3') { video.style.setProperty('aspect-ratio', '4 / 3', 'important'); }
+        else { video.style.removeProperty('aspect-ratio'); }
       }
     } catch (e) {}
     var hasVideo = !!(video && video.isConnected);

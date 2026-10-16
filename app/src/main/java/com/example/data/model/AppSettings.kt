@@ -209,7 +209,9 @@ data class AppSettings(
     val discordWebhookUrl: String = "",
 
     // ---- Audio & Background mode ----
-    val audioOnlyBackgroundEnabled: Boolean = false
+    val audioOnlyBackgroundEnabled: Boolean = false,
+    /** Comma-separated anime IDs for which the user enabled airing reminders on the Schedule screen. */
+    val airingReminderIds: String = ""
 ) {
     companion object {
         /** Sane values used by the "Reset player preferences" action. */

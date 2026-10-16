@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -34,6 +35,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.Audiotrack
 import androidx.compose.material.icons.filled.Bookmark
@@ -47,8 +49,10 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -60,6 +64,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
@@ -113,6 +118,7 @@ import androidx.compose.material.icons.filled.GridView
 import androidx.compose.runtime.mutableIntStateOf
 import com.example.data.util.SeasonLabeler
 import com.example.ui.theme.LocalThemeAccent
+import com.example.ui.theme.LocalAppSettings
 import com.example.ui.theme.AccentYellow
 import com.example.ui.theme.DarkBackground
 import com.example.ui.theme.DarkBorder
@@ -168,11 +174,11 @@ fun AnimeDetailsScreen(
     val themeAccent = LocalThemeAccent.current
     val detailsSettings by repository.settings.collectAsState(initial = repository.settingsManager.getSettings())
 
-    var selectedAudioTrack by remember { mutableStateOf("sub") }
+    var selectedAudioTrack by remember(detailsSettings.defaultLanguage) { mutableStateOf(detailsSettings.defaultLanguage.ifBlank { "sub" }) }
     var isExpandedSynopsis by remember { mutableStateOf(false) }
     var activeEpisodeForActions by remember { mutableStateOf<Episode?>(null) }
     var longPressedAnimeForActions by remember { mutableStateOf<com.example.data.model.Anime?>(null) }
-    var selectedRangeIndex by remember { mutableStateOf(0) }
+    var selectedRangeIndex by remember { mutableIntStateOf(0) }
 
     // Episode presentation is a persisted preference, so the choice survives visits and stays in
     // sync with the setting shown in Library & Series settings.
@@ -235,13 +241,21 @@ fun AnimeDetailsScreen(
         } else displayedEpisodes
     }
 
-    val relatedAnime = allAnime.filter { it.id != animeId }.take(6)
+    val currentGenres = anime?.genreList?.map { it.lowercase() }?.toSet().orEmpty()
+    val relatedAnime = remember(allAnime, anime) {
+        allAnime.filter { it.id != animeId }
+            .sortedWith(
+                compareByDescending<Anime> { it.genreList.count { g -> currentGenres.contains(g.lowercase()) } }
+                    .thenByDescending { it.rating }
+            )
+            .take(8)
+    }
 
     if (anime == null) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(DarkBackground),
+                .background(MaterialTheme.colorScheme.background),
             contentAlignment = Alignment.Center
         ) {
             Text("Loading anime details...", color = TextSecondary)
@@ -314,7 +328,13 @@ fun AnimeDetailsScreen(
                 }
             },
             onShare = {
-                Toast.makeText(context, "Sharing is coming soon!", Toast.LENGTH_SHORT).show()
+                val shareTitle = item.displayTitle(detailsSettings.titleLanguagePreference)
+                val sendIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(android.content.Intent.EXTRA_SUBJECT, shareTitle)
+                    putExtra(android.content.Intent.EXTRA_TEXT, "Watch $shareTitle on Zenith Anime!\nhttps://anilist.co/anime/${item.id.removePrefix("mal_")}")
+                }
+                context.startActivity(android.content.Intent.createChooser(sendIntent, "Share $shareTitle"))
             }
         )
     }
@@ -322,10 +342,12 @@ fun AnimeDetailsScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(DarkBackground)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         LazyColumn(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .navigationBarsPadding()
         ) {
         item {
             Box(
@@ -382,40 +404,45 @@ fun AnimeDetailsScreen(
                             .background(Color(0x88000000))
                             .border(0.5.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(20.dp))
                             .clickable {
-                                Toast.makeText(context, "Sharing is coming soon!", Toast.LENGTH_SHORT).show()
+                                val shareTitle = currentAnime.displayTitle(detailsSettings.titleLanguagePreference)
+                                val shareText = buildString {
+                                    append("Watch $shareTitle on Zenith Anime!\n")
+                                    if (currentAnime.rating > 0) append("⭐ Rating: ${currentAnime.rating}/10\n")
+                                    if (currentAnime.synopsis.isNotBlank()) {
+                                        append("\n${currentAnime.synopsis.take(200).trim()}...\n\n")
+                                    }
+                                    if (currentAnime.malId.isNotBlank() && currentAnime.malId != "0") {
+                                        append("https://myanimelist.net/anime/${currentAnime.malId}")
+                                    } else {
+                                        append("https://anilist.co/anime/${currentAnime.id.removePrefix("mal_")}")
+                                    }
+                                }
+                                val sendIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(android.content.Intent.EXTRA_SUBJECT, shareTitle)
+                                    putExtra(android.content.Intent.EXTRA_TEXT, shareText)
+                                }
+                                context.startActivity(android.content.Intent.createChooser(sendIntent, "Share $shareTitle"))
                             }
-                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
                             .testTag("details_share_button")
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(5.dp)
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Share,
-                                contentDescription = "Share (Coming Soon)",
+                                contentDescription = "Share Anime",
                                 tint = Color.White,
                                 modifier = Modifier.size(15.dp)
                             )
                             Text(
                                 text = "Share",
                                 color = Color.White,
-                                fontSize = 11.sp,
+                                fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(themeAccent.copy(alpha = 0.25f))
-                                    .padding(horizontal = 5.dp, vertical = 1.dp)
-                            ) {
-                                Text(
-                                    text = "Soon",
-                                    color = themeAccent,
-                                    fontSize = 9.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
                         }
                     }
                 }
@@ -525,7 +552,7 @@ fun AnimeDetailsScreen(
                                     }
                                 )
                             }
-                            Divider(color = DarkBorder, thickness = 0.5.dp)
+                            HorizontalDivider(color = DarkBorder, thickness = 0.5.dp)
                             DropdownMenuItem(
                                 text = {
                                     Text(
@@ -754,9 +781,14 @@ fun AnimeDetailsScreen(
                         Spacer(modifier = Modifier.weight(1f))
 
                         if (episodes.isNotEmpty()) {
-                            // View Switcher (Detailed List vs Compact Grid)
+                            // View Switcher (Detailed Cards vs Grid vs Numbers)
+                            val nextMode = when (episodeLayout) {
+                                "Cards" -> "Grid"
+                                "Grid" -> "Numbers"
+                                else -> "Cards"
+                            }
                             IconButton(
-                                onClick = { isCompactGridMode = !isCompactGridMode },
+                                onClick = { setEpisodeLayout(nextMode) },
                                 modifier = Modifier
                                     .size(34.dp)
                                     .clip(RoundedCornerShape(8.dp))
@@ -764,8 +796,12 @@ fun AnimeDetailsScreen(
                                     .testTag("episode_layout_toggle")
                             ) {
                                 Icon(
-                                    imageVector = if (isCompactGridMode) Icons.AutoMirrored.Filled.ViewList else Icons.Default.GridView,
-                                    contentDescription = if (isCompactGridMode) "Switch to detailed list" else "Switch to compact grid",
+                                    imageVector = when (episodeLayout) {
+                                        "Grid" -> Icons.Default.GridView
+                                        "Numbers" -> Icons.AutoMirrored.Filled.List
+                                        else -> Icons.AutoMirrored.Filled.ViewList
+                                    },
+                                    contentDescription = "Switch layout (current: $episodeLayout)",
                                     tint = themeAccent,
                                     modifier = Modifier.size(18.dp)
                                 )
@@ -874,8 +910,9 @@ fun AnimeDetailsScreen(
                             Spacer(modifier = Modifier.height(10.dp))
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 items(episodeChunks.indices.toList()) { idx ->
-                                    val startEp = idx * pageSize + 1
-                                    val endEp = minOf((idx + 1) * pageSize, episodes.size)
+                                    val chunk = episodeChunks[idx]
+                                    val startEp = chunk.firstOrNull()?.number ?: (idx * pageSize + 1)
+                                    val endEp = chunk.lastOrNull()?.number ?: startEp
                                     val isSel = selectedRangeIndex == idx
                                     Box(
                                         modifier = Modifier
@@ -935,95 +972,147 @@ fun AnimeDetailsScreen(
                             )
                         }
                     }
-                } else if (isCompactGridMode) {
-                    // Compact Grid Mode: Clean numbered squares [ 1 ], [ 2 ], [ 3 ]
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        currentChunkEpisodes.chunked(6).forEach { rowEpisodes ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                rowEpisodes.forEach { ep ->
-                                    val epProgress = allProgress.firstOrNull { it.id == "${currentAnime.id}_${ep.number}" }
-                                    val isWatched = epProgress?.completed == true
-                                    val inProgress = epProgress != null && epProgress.currentTimeSec > 0 && !isWatched
-                                    Box(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .height(44.dp)
-                                            .clip(RoundedCornerShape(10.dp))
-                                            .background(if (isWatched) themeAccent.copy(alpha = 0.22f) else DarkSurfaceVariant)
-                                            .border(
-                                                width = if (isWatched) 1.2.dp else 0.5.dp,
-                                                color = if (isWatched) themeAccent else DarkBorder,
-                                                shape = RoundedCornerShape(10.dp)
+                } else {
+                    if (detailsSettings.showEpisodeLayoutHint) {
+                        val hintLabel = when (episodeLayout) {
+                            "Grid" -> "Thumbnail Grid"
+                            "Numbers" -> "Compact Numbers"
+                            else -> "Detailed Cards"
+                        }
+                        Text(
+                            text = "Episode Layout: $hintLabel",
+                            color = TextSecondary,
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                    }
+
+                    if (episodeLayout == "Numbers") {
+                        // Compact Grid Mode: Clean numbered squares [ 1 ], [ 2 ], [ 3 ]
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            currentChunkEpisodes.chunked(6).forEach { rowEpisodes ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    rowEpisodes.forEach { ep ->
+                                        val epProgress = allProgress.firstOrNull { it.id == "${currentAnime.id}_${ep.number}" }
+                                        val isWatched = epProgress?.completed == true
+                                        val inProgress = epProgress != null && epProgress.currentTimeSec > 0 && !isWatched
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .height(44.dp)
+                                                .clip(RoundedCornerShape(10.dp))
+                                                .background(if (isWatched) themeAccent.copy(alpha = 0.22f) else DarkSurfaceVariant)
+                                                .border(
+                                                    width = if (isWatched) 1.2.dp else 0.5.dp,
+                                                    color = if (isWatched) themeAccent else DarkBorder,
+                                                    shape = RoundedCornerShape(10.dp)
+                                                )
+                                                .combinedClickable(
+                                                    onClick = { onPlayEpisode(currentAnime.id, ep.number, selectedAudioTrack) },
+                                                    onLongClick = {
+                                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                        activeEpisodeForActions = ep
+                                                    }
+                                                ),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = "${ep.number}",
+                                                color = if (isWatched) themeAccent else TextPrimary,
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Bold
                                             )
-                                            .combinedClickable(
+                                            if (inProgress && epProgress.durationSec > 0) {
+                                                val frac = (epProgress.currentTimeSec.toFloat() / epProgress.durationSec.toFloat()).coerceIn(0f, 1f)
+                                                LinearProgressIndicator(
+                                                    progress = { frac },
+                                                    color = themeAccent,
+                                                    trackColor = Color.Transparent,
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .height(2.5.dp)
+                                                        .align(Alignment.BottomCenter)
+                                                )
+                                            }
+                                        }
+                                    }
+                                    repeat(6 - rowEpisodes.size) {
+                                        Spacer(modifier = Modifier.weight(1f))
+                                    }
+                                }
+                            }
+                        }
+                    } else if (episodeLayout == "Grid") {
+                        // 3-Column Grid Mode with Thumbnails
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            currentChunkEpisodes.chunked(3).forEach { rowEpisodes ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    rowEpisodes.forEach { ep ->
+                                        val epProgress = allProgress.firstOrNull { it.id == "${currentAnime.id}_${ep.number}" }
+                                        Box(modifier = Modifier.weight(1f)) {
+                                            EpisodeGridTile(
+                                                episode = ep,
                                                 onClick = { onPlayEpisode(currentAnime.id, ep.number, selectedAudioTrack) },
                                                 onLongClick = {
                                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                                     activeEpisodeForActions = ep
-                                                }
-                                            ),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = "${ep.number}",
-                                            color = if (isWatched) themeAccent else TextPrimary,
-                                            fontSize = 13.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                        if (inProgress && epProgress.durationSec > 0) {
-                                            val frac = (epProgress.currentTimeSec.toFloat() / epProgress.durationSec.toFloat()).coerceIn(0f, 1f)
-                                            LinearProgressIndicator(
-                                                progress = { frac },
-                                                color = themeAccent,
-                                                trackColor = Color.Transparent,
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .height(2.5.dp)
-                                                    .align(Alignment.BottomCenter)
+                                                },
+                                                progress = epProgress,
+                                                themeAccent = themeAccent
                                             )
                                         }
                                     }
-                                }
-                                repeat(6 - rowEpisodes.size) {
-                                    Spacer(modifier = Modifier.weight(1f))
+                                    repeat(3 - rowEpisodes.size) {
+                                        Spacer(modifier = Modifier.weight(1f))
+                                    }
                                 }
                             }
                         }
-                    }
-                } else {
-                    // Detailed List Mode: Rich 16:9 thumbnails, episode titles, duration, progress bar, watched checkmark
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        currentChunkEpisodes.forEach { ep ->
-                            val epProgress = allProgress.firstOrNull { it.id == "${currentAnime.id}_${ep.number}" }
-                            EpisodeDetailedListItem(
-                                episode = ep,
-                                progress = epProgress,
-                                themeAccent = themeAccent,
-                                onClick = { onPlayEpisode(currentAnime.id, ep.number, selectedAudioTrack) },
-                                onLongClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    activeEpisodeForActions = ep
-                                },
-                                onDownload = {
-                                    scope.launch {
-                                        repository.addDownload(currentAnime, ep)
-                                        Toast.makeText(context, "Saved Episode ${ep.number} for offline", Toast.LENGTH_SHORT).show()
+                    } else {
+                        // Detailed List Mode: Rich 16:9 thumbnails, episode titles, duration, progress bar
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            currentChunkEpisodes.forEach { ep ->
+                                val epProgress = allProgress.firstOrNull { it.id == "${currentAnime.id}_${ep.number}" }
+                                EpisodeDetailedListItem(
+                                    episode = ep,
+                                    progress = epProgress,
+                                    themeAccent = themeAccent,
+                                    onClick = { onPlayEpisode(currentAnime.id, ep.number, selectedAudioTrack) },
+                                    onLongClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        activeEpisodeForActions = ep
+                                    },
+                                    onDownload = {
+                                        scope.launch {
+                                            repository.addDownload(currentAnime, ep)
+                                            Toast.makeText(context, "Saved Episode ${ep.number} for offline", Toast.LENGTH_SHORT).show()
+                                        }
                                     }
-                                }
-                            )
+                                )
+                            }
                         }
                     }
                 }
@@ -1345,7 +1434,9 @@ fun AnimeDetailsScreen(
                 themeAccent = themeAccent,
                 onDownloadCount = { count ->
                     showBatchDownloadDialog = false
-                    val toDownload = episodes.take(count)
+                    val watchedEpNumbers = allProgress.filter { it.completed }.map { it.episodeNumber }.toSet()
+                    val unwatched = episodes.filter { !watchedEpNumbers.contains(it.number) }.ifEmpty { episodes }
+                    val toDownload = unwatched.take(count)
                     scope.launch {
                         toDownload.forEach { ep ->
                             repository.addDownload(currentAnime, ep)
@@ -1799,11 +1890,14 @@ fun EpisodeGridTile(
             )
             .testTag("episode_tile_${episode.number}")
     ) {
+        val appSettings = LocalAppSettings.current
         AsyncImage(
             model = episode.thumbnail,
             contentDescription = episode.title,
             contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .then(if (appSettings.spoilerBlurCovers && progress?.completed != true) Modifier.blur(14.dp) else Modifier)
         )
 
         Box(
@@ -1906,7 +2000,9 @@ fun EpisodeDetailedListItem(
                 model = episode.thumbnail,
                 contentDescription = episode.title,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(if (LocalAppSettings.current.spoilerBlurCovers && !isWatched) Modifier.blur(14.dp) else Modifier)
             )
 
             Box(

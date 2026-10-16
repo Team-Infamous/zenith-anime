@@ -44,7 +44,7 @@ interface AnimeDao {
     @Query("UPDATE anime SET watchStatus = :status WHERE id = :id")
     suspend fun updateWatchStatus(id: String, status: String)
 
-    @Query("DELETE FROM anime WHERE isInWatchlist = 1")
+    @Query("UPDATE anime SET isInWatchlist = 0 WHERE isInWatchlist = 1")
     suspend fun clearWatchlist()
 
     @Query("SELECT * FROM anime WHERE isCompleted = 1 ORDER BY title COLLATE NOCASE ASC")
@@ -76,6 +76,9 @@ interface AnimeDao {
 
     @Query("SELECT * FROM episodes WHERE animeId = :animeId ORDER BY number ASC")
     fun getEpisodesForAnime(animeId: String): Flow<List<Episode>>
+
+    @Query("SELECT * FROM episodes WHERE animeId = :animeId ORDER BY number ASC")
+    suspend fun getEpisodesForAnimeSync(animeId: String): List<Episode>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertEpisodes(episodes: List<Episode>)

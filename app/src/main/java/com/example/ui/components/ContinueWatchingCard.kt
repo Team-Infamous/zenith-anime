@@ -27,19 +27,17 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
@@ -49,7 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.model.WatchProgress
-import com.example.ui.theme.DarkSurfaceVariant
+import com.example.ui.theme.LocalReducedMotion
 import com.example.ui.theme.LocalThemeAccent
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
@@ -67,11 +65,12 @@ fun ContinueWatchingCard(
 ) {
     val haptic = LocalHapticFeedback.current
     val themeAccent = LocalThemeAccent.current
+    val reducedMotion = LocalReducedMotion.current
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
     val scaleAnim by animateFloatAsState(
-        targetValue = if (isPressed) 0.94f else 1f,
+        targetValue = if (isPressed && !reducedMotion) 0.94f else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessLow
@@ -99,11 +98,11 @@ fun ContinueWatchingCard(
                 .fillMaxWidth()
                 .height(130.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(DarkSurfaceVariant)
+                .background(MaterialTheme.colorScheme.surface)
         ) {
             AsyncImage(
                 model = progress.coverImage,
-                contentDescription = progress.animeTitle,
+                contentDescription = displayTitle ?: progress.animeTitle,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
@@ -117,6 +116,7 @@ fun ContinueWatchingCard(
                 Box(
                     modifier = Modifier
                         .size(26.dp)
+                        .clip(CircleShape)
                         .background(Color(0x99000000), CircleShape)
                         .combinedClickable(
                             onClick = { onInfoClick?.invoke() ?: onLongClick?.invoke() }
@@ -137,6 +137,7 @@ fun ContinueWatchingCard(
                 Box(
                     modifier = Modifier
                         .size(26.dp)
+                        .clip(CircleShape)
                         .background(Color(0x99000000), CircleShape)
                         .combinedClickable(onClick = onDismissClick)
                         .testTag("continue_card_remove_${progress.id}"),

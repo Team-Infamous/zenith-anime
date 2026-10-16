@@ -26,6 +26,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Slider
@@ -66,7 +67,7 @@ fun SettingsScaffold(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(DarkBackground)
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
     ) {
         Row(
@@ -128,7 +129,7 @@ fun SettingsSection(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(14.dp))
-                .background(DarkSurface)
+                .background(MaterialTheme.colorScheme.surface)
                 .padding(horizontal = 14.dp, vertical = 6.dp)
         ) {
             content()
@@ -163,7 +164,7 @@ fun SettingSwitchRow(
             checked = checked,
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
-                checkedThumbColor = DarkBackground,
+                checkedThumbColor = MaterialTheme.colorScheme.background,
                 checkedTrackColor = themeAccent,
                 uncheckedTrackColor = DarkSurfaceVariant
             )
@@ -214,7 +215,7 @@ fun SettingChoiceRow(
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
-            containerColor = DarkSurface,
+            containerColor = MaterialTheme.colorScheme.surface,
             title = { Text(title, color = TextPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -371,7 +372,7 @@ fun SettingTextRow(
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
-            containerColor = DarkSurface,
+            containerColor = MaterialTheme.colorScheme.surface,
             title = { Text(title, color = TextPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 OutlinedTextField(

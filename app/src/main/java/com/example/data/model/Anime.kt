@@ -36,10 +36,13 @@ data class Anime(
     val lastUpdated: Long = System.currentTimeMillis()
 ) {
     fun displayTitle(preference: String = "English"): String {
-        return if (preference.equals("Japanese", ignoreCase = true) || preference.equals("Romaji", ignoreCase = true)) {
-            romajiTitle.ifBlank { nativeTitle }.ifBlank { title }
-        } else {
-            englishTitle.ifBlank { title }.ifBlank { romajiTitle }
+        return when {
+            preference.equals("Native", ignoreCase = true) ->
+                nativeTitle.ifBlank { romajiTitle }.ifBlank { englishTitle }.ifBlank { title }
+            preference.equals("Romaji", ignoreCase = true) || preference.equals("Japanese", ignoreCase = true) ->
+                romajiTitle.ifBlank { englishTitle }.ifBlank { nativeTitle }.ifBlank { title }
+            else ->
+                englishTitle.ifBlank { title }.ifBlank { romajiTitle }.ifBlank { nativeTitle }
         }
     }
 
@@ -65,12 +68,11 @@ data class Anime(
         get() {
             if (isUpcoming) return 0
             if (isAiring) {
-                val nextEp = nextAiringEpisode
-                if (nextEp != null) {
-                    val aired = (nextEp - 1).coerceAtLeast(0)
-                    return if (totalEpisodes > 0) minOf(aired, totalEpisodes) else aired
+                return if (nextAiringEpisode != null) {
+                    (nextAiringEpisode - 1).coerceAtLeast(0)
+                } else {
+                    totalEpisodes.coerceAtLeast(0)
                 }
-                return if (totalEpisodes > 0) totalEpisodes else 0
             }
             if (type.equals("Movie", ignoreCase = true)) return 1
             return totalEpisodes.coerceAtLeast(0)

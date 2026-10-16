@@ -47,7 +47,7 @@ class SettingsManager(context: Context) {
             autoplay = prefs.getBoolean("autoplay", true),
             autoSkipIntro = prefs.getBoolean("auto_skip_intro", false),
             autoNextEpisode = prefs.getBoolean("auto_next_episode", true),
-            saveProgressIntervalSec = prefs.getInt("save_progress_interval", 5),
+            saveProgressIntervalSec = prefs.getInt("save_progress_interval", 1),
             username = prefs.getString("username", "ZenithWatcher") ?: "ZenithWatcher",
             avatarPath = prefs.getString("avatar_path", null),
             themeAccent = prefs.getString("theme_accent", "Emerald") ?: "Emerald",
@@ -81,17 +81,20 @@ class SettingsManager(context: Context) {
     fun getSettings(): AppSettings = _settings.value
 
     /** The one write path: mutate a copy, persist it, publish it. */
+    @Synchronized
     fun update(transform: (AppSettings) -> AppSettings) {
         val next = transform(_settings.value)
         persist(next)
         _settings.value = next
     }
 
+    @Synchronized
     fun setAll(value: AppSettings) {
         persist(value)
         _settings.value = value
     }
 
+    @Synchronized
     fun resetSettings() {
         prefs.edit().clear().apply()
         _settings.value = AppSettings()
@@ -100,54 +103,143 @@ class SettingsManager(context: Context) {
 
     /** Resets only player/playback preferences, leaving library, downloads and profile intact. */
     fun resetPlayerPreferences() {
+        val def = AppSettings.DEFAULT
         update { current ->
             current.copy(
-                defaultServer = AppSettings().defaultServer,
-                defaultLanguage = AppSettings().defaultLanguage,
-                playbackQuality = AppSettings().playbackQuality,
-                defaultPlaybackSpeed = AppSettings().defaultPlaybackSpeed,
-                autoplay = AppSettings().autoplay,
-                autoNextEpisode = AppSettings().autoNextEpisode,
-                autoSkipIntro = AppSettings().autoSkipIntro,
-                autoSkipOutro = AppSettings().autoSkipOutro,
-                holdToSpeedEnabled = AppSettings().holdToSpeedEnabled,
-                holdToSpeedMultiplier = AppSettings().holdToSpeedMultiplier,
-                holdToSpeedHaptic = AppSettings().holdToSpeedHaptic,
-                doubleTapSeekEnabled = AppSettings().doubleTapSeekEnabled,
-                seekDurationSec = AppSettings().seekDurationSec,
-                orientationLockMode = AppSettings().orientationLockMode,
-                subtitlesEnabled = AppSettings().subtitlesEnabled,
-                subtitleFontSizeSp = AppSettings().subtitleFontSizeSp,
-                subtitleTextColor = AppSettings().subtitleTextColor,
-                subtitleBackgroundColor = AppSettings().subtitleBackgroundColor,
-                lockButtonSide = AppSettings().lockButtonSide,
-                useLegacyPlayerLayout = AppSettings().useLegacyPlayerLayout,
-                playerTopBarOrder = AppSettings().playerTopBarOrder,
-                playerHiddenControls = AppSettings().playerHiddenControls,
-                playerTransportPosition = AppSettings().playerTransportPosition,
-                playerControlSize = AppSettings().playerControlSize,
-                playerAccentOverride = AppSettings().playerAccentOverride,
-                playerOverlayDimAlpha = AppSettings().playerOverlayDimAlpha,
-                playerSeekbarStyle = AppSettings().playerSeekbarStyle
+                // Streams & servers
+                defaultServer = def.defaultServer,
+                defaultLanguage = def.defaultLanguage,
+                playbackQuality = def.playbackQuality,
+                autoFailover = def.autoFailover,
+                failoverServerCount = def.failoverServerCount,
+                // Playback behaviour
+                autoplay = def.autoplay,
+                autoNextEpisode = def.autoNextEpisode,
+                autoNextCountdownSec = def.autoNextCountdownSec,
+                defaultPlaybackSpeed = def.defaultPlaybackSpeed,
+                autoSkipIntro = def.autoSkipIntro,
+                autoSkipOutro = def.autoSkipOutro,
+                introSkipSeconds = def.introSkipSeconds,
+                outroSkipSeconds = def.outroSkipSeconds,
+                showSkipButtons = def.showSkipButtons,
+                saveProgressEverySecond = def.saveProgressEverySecond,
+                saveProgressIntervalSec = def.saveProgressIntervalSec,
+                resumeThresholdSec = def.resumeThresholdSec,
+                resumePromptEnabled = def.resumePromptEnabled,
+                // Gestures
+                doubleTapSeekEnabled = def.doubleTapSeekEnabled,
+                seekDurationSec = def.seekDurationSec,
+                gestureVolumeEnabled = def.gestureVolumeEnabled,
+                gestureBrightnessEnabled = def.gestureBrightnessEnabled,
+                gestureHorizontalSeekEnabled = def.gestureHorizontalSeekEnabled,
+                singleTapTogglesControls = def.singleTapTogglesControls,
+                controlsAutoHideSec = def.controlsAutoHideSec,
+                swipeUpDownOpensSettings = def.swipeUpDownOpensSettings,
+                // Hold to speed
+                holdToSpeedEnabled = def.holdToSpeedEnabled,
+                holdToSpeedMultiplier = def.holdToSpeedMultiplier,
+                holdToSpeedHaptic = def.holdToSpeedHaptic,
+                holdToSpeedShowBadge = def.holdToSpeedShowBadge,
+                holdToSpeedZone = def.holdToSpeedZone,
+                holdToSpeedSlowDown = def.holdToSpeedSlowDown,
+                holdToSpeedSlowMultiplier = def.holdToSpeedSlowMultiplier,
+                holdToSpeedRampUp = def.holdToSpeedRampUp,
+                holdToSpeedBadgePosition = def.holdToSpeedBadgePosition,
+                holdToSpeedKeepAfterRelease = def.holdToSpeedKeepAfterRelease,
+                // Video output
+                videoFitMode = def.videoFitMode,
+                keepScreenOn = def.keepScreenOn,
+                backgroundPlayback = def.backgroundPlayback,
+                pipEnabled = def.pipEnabled,
+                loudnessNormalization = def.loudnessNormalization,
+                // Player lock
+                lockButtonEnabled = def.lockButtonEnabled,
+                autoLockEnabled = def.autoLockEnabled,
+                autoLockDelaySec = def.autoLockDelaySec,
+                lockBlocksTouches = def.lockBlocksTouches,
+                lockHapticFeedback = def.lockHapticFeedback,
+                orientationLockMode = def.orientationLockMode,
+                showLockedBadge = def.showLockedBadge,
+                lockButtonSide = def.lockButtonSide,
+                useLegacyPlayerLayout = def.useLegacyPlayerLayout,
+                // Player layout playground
+                playerTopBarOrder = def.playerTopBarOrder,
+                playerHiddenControls = def.playerHiddenControls,
+                playerTransportPosition = def.playerTransportPosition,
+                playerControlSize = def.playerControlSize,
+                playerAccentOverride = def.playerAccentOverride,
+                playerOverlayDimAlpha = def.playerOverlayDimAlpha,
+                playerSeekbarStyle = def.playerSeekbarStyle,
+                // Subtitles
+                subtitlesEnabled = def.subtitlesEnabled,
+                subtitleLanguage = def.subtitleLanguage,
+                subtitleFetchEnabled = def.subtitleFetchEnabled,
+                subtitleAutoMatch = def.subtitleAutoMatch,
+                subtitleFontSizeSp = def.subtitleFontSizeSp,
+                subtitleTextColor = def.subtitleTextColor,
+                subtitleBackgroundColor = def.subtitleBackgroundColor,
+                subtitleOutline = def.subtitleOutline,
+                subtitleBold = def.subtitleBold,
+                subtitlePosition = def.subtitlePosition,
+                subtitleDelayMs = def.subtitleDelayMs,
+                // Audio & background mode
+                audioOnlyBackgroundEnabled = def.audioOnlyBackgroundEnabled
             )
         }
     }
 
     /** Restores only the player layout playground customizations to defaults. */
     fun resetPlayerLayoutPlayground() {
+        val def = AppSettings.DEFAULT
         update { current ->
             current.copy(
-                playerTopBarOrder = AppSettings().playerTopBarOrder,
-                playerHiddenControls = AppSettings().playerHiddenControls,
-                playerTransportPosition = AppSettings().playerTransportPosition,
-                playerControlSize = AppSettings().playerControlSize,
-                playerAccentOverride = AppSettings().playerAccentOverride,
-                playerOverlayDimAlpha = AppSettings().playerOverlayDimAlpha,
-                playerSeekbarStyle = AppSettings().playerSeekbarStyle,
-                lockButtonSide = AppSettings().lockButtonSide,
+                playerTopBarOrder = def.playerTopBarOrder,
+                playerHiddenControls = def.playerHiddenControls,
+                playerTransportPosition = def.playerTransportPosition,
+                playerControlSize = def.playerControlSize,
+                playerAccentOverride = def.playerAccentOverride,
+                playerOverlayDimAlpha = def.playerOverlayDimAlpha,
+                playerSeekbarStyle = def.playerSeekbarStyle,
+                lockButtonSide = def.lockButtonSide,
                 useLegacyPlayerLayout = false
             )
         }
+    }
+
+    /**
+     * Toggles [animeId] in the comma-separated [AppSettings.airingReminderIds] preference.
+     * @return `true` if the reminder is now enabled, `false` if it was removed.
+     */
+    @Synchronized
+    fun toggleAiringReminder(animeId: String): Boolean {
+        val trimmed = animeId.trim()
+        if (trimmed.isEmpty()) return false
+        var enabled = false
+        update { current ->
+            val set = current.airingReminderIds
+                .split(",")
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .toMutableSet()
+            enabled = if (trimmed in set) {
+                set.remove(trimmed)
+                false
+            } else {
+                set.add(trimmed)
+                true
+            }
+            current.copy(airingReminderIds = set.joinToString(","))
+        }
+        return enabled
+    }
+
+    /** Returns `true` when [animeId] has an active airing reminder. */
+    fun hasAiringReminder(animeId: String): Boolean {
+        val trimmed = animeId.trim()
+        if (trimmed.isEmpty()) return false
+        return _settings.value.airingReminderIds
+            .split(",")
+            .any { it.trim() == trimmed }
     }
 
     // ---------------------------------------------------------------------------------------------

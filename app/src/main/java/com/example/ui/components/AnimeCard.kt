@@ -20,12 +20,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.border
@@ -35,7 +34,6 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
@@ -45,7 +43,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.model.Anime
-import com.example.ui.theme.DarkSurfaceVariant
+import com.example.ui.theme.LocalAppSettings
+import com.example.ui.theme.LocalReducedMotion
 import com.example.ui.theme.LocalThemeAccent
 import com.example.ui.theme.TextPrimary
 
@@ -58,15 +57,19 @@ fun AnimeCard(
     modifier: Modifier = Modifier,
     cardWidth: Float? = null,
     rank: Int? = null,
-    titlePreference: String = "English"
+    titlePreference: String = LocalAppSettings.current.titleLanguagePreference
 ) {
     val haptic = LocalHapticFeedback.current
     val themeAccent = LocalThemeAccent.current
+    val appSettings = LocalAppSettings.current
+    val reducedMotion = LocalReducedMotion.current
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
+    val cornerShape = RoundedCornerShape(appSettings.cardCornerRadiusDp.coerceIn(4, 28).dp)
+
     val scaleAnim by animateFloatAsState(
-        targetValue = if (isPressed) 0.94f else 1f,
+        targetValue = if (isPressed && !reducedMotion) 0.94f else 1f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessLow
@@ -97,90 +100,100 @@ fun AnimeCard(
                 .aspectRatio(0.7f)
                 .shadow(
                     elevation = if (isPressed) 8.dp else 2.dp,
-                    shape = RoundedCornerShape(14.dp),
+                    shape = cornerShape,
                     ambientColor = themeAccent.copy(alpha = 0.25f),
                     spotColor = themeAccent.copy(alpha = 0.2f)
                 )
-                .clip(RoundedCornerShape(14.dp))
-                .background(DarkSurfaceVariant)
+                .clip(cornerShape)
+                .background(MaterialTheme.colorScheme.surface)
                 .border(
                     width = 0.5.dp,
                     color = if (isPressed) themeAccent.copy(alpha = 0.6f) else Color(0x1FFFFFFF),
-                    shape = RoundedCornerShape(14.dp)
+                    shape = cornerShape
                 )
         ) {
             AsyncImage(
                 model = anime.coverImage,
-                contentDescription = anime.title,
+                contentDescription = anime.displayTitle(titlePreference),
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (rank != null) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(themeAccent)
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = "#$rank",
-                            color = com.example.ui.theme.DarkBackground,
-                            fontWeight = FontWeight.Black,
-                            fontSize = 11.sp
-                        )
+            if (rank != null || appSettings.showQualityBadgesOnCards) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (rank != null) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(themeAccent)
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "#$rank",
+                                color = MaterialTheme.colorScheme.background,
+                                fontWeight = FontWeight.Black,
+                                fontSize = 11.sp
+                            )
+                        }
+                    } else if (appSettings.showQualityBadgesOnCards) {
+                        AgeRatingBadge(ageRating = anime.ageRating)
                     }
-                } else {
-                    AgeRatingBadge(ageRating = anime.ageRating)
+                    Spacer(modifier = Modifier.weight(1f))
+                    if (appSettings.showQualityBadgesOnCards) {
+                        QualityBadge(quality = anime.quality)
+                    }
                 }
-                Spacer(modifier = Modifier.weight(1f))
-                QualityBadge(quality = anime.quality)
             }
 
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .align(Alignment.BottomCenter)
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(Color.Transparent, Color(0xE60B0E14))
+            if (appSettings.showRatingBadgesOnCards || appSettings.showEpisodeBadgesOnCards) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .align(Alignment.BottomCenter)
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(Color.Transparent, Color(0xE60B0E14))
+                            )
                         )
-                    )
-            )
+                )
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .padding(6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                RatingStars(rating = anime.rating)
-                Spacer(modifier = Modifier.weight(1f))
-                if (anime.availableEpisodes > 0) {
-                    EpisodeCountPill(count = anime.availableEpisodes)
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(Color(0x66000000))
-                            .border(0.5.dp, Color(0x33FFFFFF), RoundedCornerShape(6.dp))
-                            .padding(horizontal = 6.dp, vertical = 2.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "TBA",
-                            color = Color.White,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .padding(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (appSettings.showRatingBadgesOnCards) {
+                        RatingStars(rating = anime.rating)
+                    }
+                    Spacer(modifier = Modifier.weight(1f))
+                    if (appSettings.showEpisodeBadgesOnCards) {
+                        if (anime.availableEpisodes > 0) {
+                            EpisodeCountPill(count = anime.availableEpisodes)
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color(0x66000000))
+                                    .border(0.5.dp, Color(0x33FFFFFF), RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "TBA",
+                                    color = Color.White,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
                     }
                 }
             }

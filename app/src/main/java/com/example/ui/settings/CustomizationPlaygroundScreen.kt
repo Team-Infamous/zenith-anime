@@ -63,6 +63,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -79,6 +80,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -195,21 +197,46 @@ fun CustomizationPlaygroundScreen(
     var draftContinueWatchingLimit by remember(savedSettings.continueWatchingLimit) {
         mutableStateOf(savedSettings.continueWatchingLimit)
     }
+    var draftNavBarStyle by remember(savedSettings.navBarStyle) {
+        mutableStateOf(savedSettings.navBarStyle)
+    }
+    var draftGridColumns by remember(savedSettings.gridColumnsCount) {
+        mutableIntStateOf(savedSettings.gridColumnsCount)
+    }
+    var draftCardCornerRadius by remember(savedSettings.cardCornerRadiusDp) {
+        mutableIntStateOf(savedSettings.cardCornerRadiusDp)
+    }
+    var draftFontScale by remember(savedSettings.fontScaleMultiplier) {
+        mutableFloatStateOf(savedSettings.fontScaleMultiplier)
+    }
+    var draftShowRatingBadges by remember(savedSettings.showRatingBadgesOnCards) {
+        mutableStateOf(savedSettings.showRatingBadgesOnCards)
+    }
+    var draftShowEpisodeBadges by remember(savedSettings.showEpisodeBadgesOnCards) {
+        mutableStateOf(savedSettings.showEpisodeBadgesOnCards)
+    }
+    var draftShowQualityBadges by remember(savedSettings.showQualityBadgesOnCards) {
+        mutableStateOf(savedSettings.showQualityBadgesOnCards)
+    }
 
     val activeAccentColor = when (draftAccentOverride) {
         "Crimson" -> Color(0xFFFF5252)
         "Cyan" -> Color(0xFF00E5FF)
-        "Emerald" -> Color(0xFF00D26A)
+        "Emerald" -> Color(0xFF06C149)
         "Sakura" -> Color(0xFFFF4081)
         "Amber" -> Color(0xFFFFB300)
         "Violet" -> Color(0xFFB388FF)
+        "Indigo" -> Color(0xFF536DFE)
+        "Gold" -> Color(0xFFFFD54F)
         else -> when (draftThemeAccent) {
             "Cyan" -> Color(0xFF00E5FF)
             "Sakura" -> Color(0xFFFF4081)
             "Violet" -> Color(0xFFB388FF)
             "Amber" -> Color(0xFFFFB300)
             "Crimson" -> Color(0xFFFF5252)
-            else -> Color(0xFF00D26A)
+            "Indigo" -> Color(0xFF536DFE)
+            "Gold" -> Color(0xFFFFD54F)
+            else -> Color(0xFF06C149)
         }
     }
 
@@ -231,7 +258,14 @@ fun CustomizationPlaygroundScreen(
                     amoledMode = draftAmoled,
                     reduceAnimations = draftReduceAnimations,
                     continueWatchingOneCard = draftContinueWatchingOneCard,
-                    continueWatchingLimit = draftContinueWatchingLimit
+                    continueWatchingLimit = draftContinueWatchingLimit,
+                    navBarStyle = draftNavBarStyle,
+                    gridColumnsCount = draftGridColumns,
+                    cardCornerRadiusDp = draftCardCornerRadius,
+                    fontScaleMultiplier = draftFontScale,
+                    showRatingBadgesOnCards = draftShowRatingBadges,
+                    showEpisodeBadgesOnCards = draftShowEpisodeBadges,
+                    showQualityBadgesOnCards = draftShowQualityBadges
                 )
             }
             Toast.makeText(context, "Customization settings applied successfully!", Toast.LENGTH_SHORT).show()
@@ -258,6 +292,13 @@ fun CustomizationPlaygroundScreen(
             draftReduceAnimations = def.reduceAnimations
             draftContinueWatchingOneCard = def.continueWatchingOneCard
             draftContinueWatchingLimit = def.continueWatchingLimit
+            draftNavBarStyle = def.navBarStyle
+            draftGridColumns = def.gridColumnsCount
+            draftCardCornerRadius = def.cardCornerRadiusDp
+            draftFontScale = def.fontScaleMultiplier
+            draftShowRatingBadges = def.showRatingBadgesOnCards
+            draftShowEpisodeBadges = def.showEpisodeBadgesOnCards
+            draftShowQualityBadges = def.showQualityBadgesOnCards
             Toast.makeText(context, "UI options reset to defaults", Toast.LENGTH_SHORT).show()
         }
     }
@@ -265,7 +306,7 @@ fun CustomizationPlaygroundScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(DarkBackground)
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .testTag("customization_playground_screen")
     ) {
@@ -522,7 +563,7 @@ fun CustomizationPlaygroundScreen(
                     modifier = Modifier.horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    listOf("Theme", "Emerald", "Cyan", "Sakura", "Violet", "Amber", "Crimson").forEach { colName ->
+                    listOf("Theme", "Emerald", "Cyan", "Sakura", "Violet", "Amber", "Crimson", "Indigo", "Gold").forEach { colName ->
                         val isSel = draftAccentOverride.equals(colName, ignoreCase = true)
                         Box(
                             modifier = Modifier
@@ -532,7 +573,7 @@ fun CustomizationPlaygroundScreen(
                                 .padding(horizontal = 12.dp, vertical = 7.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(colName, color = if (isSel) DarkBackground else TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text(colName, color = if (isSel) MaterialTheme.colorScheme.background else TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -546,7 +587,7 @@ fun CustomizationPlaygroundScreen(
                     Switch(
                         checked = draftLegacyLayout,
                         onCheckedChange = { draftLegacyLayout = it },
-                        colors = SwitchDefaults.colors(checkedThumbColor = DarkBackground, checkedTrackColor = activeAccentColor)
+                        colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.background, checkedTrackColor = activeAccentColor)
                     )
                 }
             } else {
@@ -557,7 +598,7 @@ fun CustomizationPlaygroundScreen(
                     modifier = Modifier.horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    listOf("Emerald", "Cyan", "Sakura", "Violet", "Amber", "Crimson").forEach { colorName ->
+                    listOf("Emerald", "Cyan", "Sakura", "Violet", "Amber", "Crimson", "Indigo", "Gold").forEach { colorName ->
                         val isSel = draftThemeAccent.equals(colorName, ignoreCase = true)
                         Box(
                             modifier = Modifier
@@ -567,10 +608,74 @@ fun CustomizationPlaygroundScreen(
                                 .padding(horizontal = 14.dp, vertical = 8.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(colorName, color = if (isSel) DarkBackground else TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text(colorName, color = if (isSel) MaterialTheme.colorScheme.background else TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("NAVIGATION BAR STYLE", color = activeAccentColor, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("Standard", "Compact", "Floating").forEach { style ->
+                        val isSel = draftNavBarStyle.equals(style, ignoreCase = true)
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSel) activeAccentColor else DarkSurfaceVariant)
+                                .clickable { draftNavBarStyle = style }
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(style, color = if (isSel) MaterialTheme.colorScheme.background else TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                Text("GRID COLUMNS COUNT", color = activeAccentColor, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(2 to "2 Columns", 3 to "3 Columns").forEach { (cols, label) ->
+                        val isSel = draftGridColumns == cols
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (isSel) activeAccentColor else DarkSurfaceVariant)
+                                .clickable { draftGridColumns = cols }
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(label, color = if (isSel) MaterialTheme.colorScheme.background else TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("CARD CORNER RADIUS: ${draftCardCornerRadius}dp", color = activeAccentColor, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                }
+                Slider(
+                    value = draftCardCornerRadius.toFloat(),
+                    onValueChange = { draftCardCornerRadius = it.toInt() },
+                    valueRange = 4f..24f,
+                    steps = 10,
+                    colors = SliderDefaults.colors(thumbColor = activeAccentColor, activeTrackColor = activeAccentColor)
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("FONT SCALE MULTIPLIER: ${String.format(java.util.Locale.US, "%.2fx", draftFontScale)}", color = activeAccentColor, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                }
+                Slider(
+                    value = draftFontScale,
+                    onValueChange = { draftFontScale = it },
+                    valueRange = 0.85f..1.25f,
+                    steps = 8,
+                    colors = SliderDefaults.colors(thumbColor = activeAccentColor, activeTrackColor = activeAccentColor)
+                )
 
                 Spacer(modifier = Modifier.height(16.dp))
                 Text("SERIES EPISODES PRESENTATION", color = activeAccentColor, fontSize = 11.sp, fontWeight = FontWeight.Bold)
@@ -587,7 +692,7 @@ fun CustomizationPlaygroundScreen(
                                 .padding(vertical = 8.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(epLayout, color = if (isSel) DarkBackground else TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text(epLayout, color = if (isSel) MaterialTheme.colorScheme.background else TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -601,7 +706,46 @@ fun CustomizationPlaygroundScreen(
                     Switch(
                         checked = draftAmoled,
                         onCheckedChange = { draftAmoled = it },
-                        colors = SwitchDefaults.colors(checkedThumbColor = DarkBackground, checkedTrackColor = activeAccentColor)
+                        colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.background, checkedTrackColor = activeAccentColor)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Show Rating Badges on Cards", color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Text("Display score pill in top corner of cards", color = TextSecondary, fontSize = 11.sp)
+                    }
+                    Switch(
+                        checked = draftShowRatingBadges,
+                        onCheckedChange = { draftShowRatingBadges = it },
+                        colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.background, checkedTrackColor = activeAccentColor)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Show Episode Badges on Cards", color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Text("Display total available episode count on posters", color = TextSecondary, fontSize = 11.sp)
+                    }
+                    Switch(
+                        checked = draftShowEpisodeBadges,
+                        onCheckedChange = { draftShowEpisodeBadges = it },
+                        colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.background, checkedTrackColor = activeAccentColor)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Show Quality Badges on Cards", color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Text("Display HD / Quality badge on posters", color = TextSecondary, fontSize = 11.sp)
+                    }
+                    Switch(
+                        checked = draftShowQualityBadges,
+                        onCheckedChange = { draftShowQualityBadges = it },
+                        colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.background, checkedTrackColor = activeAccentColor)
                     )
                 }
 
@@ -614,7 +758,7 @@ fun CustomizationPlaygroundScreen(
                     Switch(
                         checked = draftContinueWatchingOneCard,
                         onCheckedChange = { draftContinueWatchingOneCard = it },
-                        colors = SwitchDefaults.colors(checkedThumbColor = DarkBackground, checkedTrackColor = activeAccentColor)
+                        colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.background, checkedTrackColor = activeAccentColor)
                     )
                 }
 
@@ -627,7 +771,7 @@ fun CustomizationPlaygroundScreen(
                     Switch(
                         checked = draftReduceAnimations,
                         onCheckedChange = { draftReduceAnimations = it },
-                        colors = SwitchDefaults.colors(checkedThumbColor = DarkBackground, checkedTrackColor = activeAccentColor)
+                        colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.background, checkedTrackColor = activeAccentColor)
                     )
                 }
             }
@@ -637,7 +781,7 @@ fun CustomizationPlaygroundScreen(
 
         // Bottom action bar
         Surface(
-            color = DarkSurface,
+            color = MaterialTheme.colorScheme.surface,
             shadowElevation = 8.dp,
             modifier = Modifier
                 .fillMaxWidth()

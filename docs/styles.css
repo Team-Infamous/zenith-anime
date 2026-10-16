@@ -111,6 +111,20 @@
   --color-accent-border: rgba(239, 68, 68, 0.35);
 }
 
+[data-accent="indigo"] {
+  --color-accent: #536dfe;
+  --color-accent-hover: #3d5afe;
+  --color-accent-subtle: rgba(83, 109, 254, 0.12);
+  --color-accent-border: rgba(83, 109, 254, 0.35);
+}
+
+[data-accent="gold"] {
+  --color-accent: #ffd54f;
+  --color-accent-hover: #ffca28;
+  --color-accent-subtle: rgba(255, 213, 79, 0.12);
+  --color-accent-border: rgba(255, 213, 79, 0.35);
+}
+
 /* Reset & Base */
 *, *::before, *::after {
   box-sizing: border-box;
@@ -1080,6 +1094,23 @@ input:checked + .slider-round:before {
 
   .nav-links {
     display: none;
+  }
+
+  .nav-links.mobile-open {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background-color: rgba(14, 18, 27, 0.98);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--color-border);
+    padding: var(--space-4) var(--space-6);
+    gap: var(--space-4);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    z-index: 100;
   }
 
   .mobile-menu-toggle {

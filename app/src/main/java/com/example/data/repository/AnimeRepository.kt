@@ -292,6 +292,11 @@ class AnimeRepository(private val context: Context) {
         }
     }
 
+    private val dismissedContinueWatchingAnimeIds = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    private val dismissedProgressIds = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+    private val scrobbledEpisodes = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
+    private val lastDiscordRpcAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
     suspend fun ensureEpisodesGenerated(anime: Anime) = withContext(Dispatchers.IO) {
         val availableCount = anime.availableEpisodes
         if (availableCount <= 0) {
@@ -302,8 +307,14 @@ class AnimeRepository(private val context: Context) {
         // Clean up any phantom episodes beyond availableCount
         animeDao.deleteEpisodesAboveNumber(anime.id, availableCount)
 
+        val existing = animeDao.getEpisodesForAnimeSync(anime.id)
+        if (existing.size == availableCount) {
+            return@withContext
+        }
+        val existingByNumber = existing.associateBy { it.number }
+
         val episodes = (1..availableCount).map { num ->
-            Episode(
+            existingByNumber[num] ?: Episode(
                 id = "${anime.id}_$num",
                 animeId = anime.id,
                 number = num,
@@ -385,27 +396,34 @@ class AnimeRepository(private val context: Context) {
     }
 
     suspend fun selfHealWatchProgress() = withContext(Dispatchers.IO) {
+        if (!settingsManager.getSettings().continueWatchingShowNextEpisode) return@withContext
         try {
             val allProg = watchProgressDao.getAllProgress().first()
             val byAnime = allProg.groupBy { it.animeId }
             for ((animeId, list) in byAnime) {
+                if (animeId in dismissedContinueWatchingAnimeIds) continue
                 val hasUnfinished = list.any { !it.completed }
                 if (!hasUnfinished && list.isNotEmpty()) {
+                    val anime = animeDao.getAnimeByIdOnce(animeId) ?: continue
+                    if (anime.isCompleted || WatchStatus.fromRaw(anime.watchStatus) != WatchStatus.WATCHING) {
+                        continue
+                    }
                     val maxEp = list.maxOfOrNull { it.episodeNumber } ?: 0
-                    val anime = animeDao.getAnimeById(animeId).first()
-                    val availableEps = anime?.availableEpisodes ?: (anime?.totalEpisodes ?: 0)
-                    if (maxEp < availableEps) {
+                    val availableEps = anime.availableEpisodes
+                    if (maxEp in 1 until availableEps) {
                         val nextEpNum = maxEp + 1
-                        val existing = watchProgressDao.getProgressById("${animeId}_$nextEpNum")
+                        val nextId = "${animeId}_$nextEpNum"
+                        if (nextId in dismissedProgressIds) continue
+                        val existing = watchProgressDao.getProgressById(nextId)
                         if (existing == null) {
                             val sample = list.first()
                             val nextProg = WatchProgress(
-                                id = "${animeId}_$nextEpNum",
+                                id = nextId,
                                 animeId = animeId,
                                 episodeNumber = nextEpNum,
                                 episodeTitle = "Episode $nextEpNum",
-                                animeTitle = anime?.title ?: sample.animeTitle,
-                                coverImage = anime?.coverImage ?: sample.coverImage,
+                                animeTitle = anime.title.ifBlank { sample.animeTitle },
+                                coverImage = anime.coverImage.ifBlank { sample.coverImage },
                                 currentTimeSec = 0L,
                                 durationSec = 1440L,
                                 language = sample.language,
@@ -428,11 +446,16 @@ class AnimeRepository(private val context: Context) {
         language: String,
         completed: Boolean
     ) = withContext(Dispatchers.IO) {
-        if (settingsManager.getSettings().incognitoMode) return@withContext
+        val currentSettings = settingsManager.getSettings()
+        if (currentSettings.incognitoMode) return@withContext
         val now = System.currentTimeMillis()
         val effectiveDuration = if (durationSec > 0) durationSec else 1440L
+        val epKey = "${anime.id}_${episode.number}"
+        dismissedContinueWatchingAnimeIds.remove(anime.id)
+        dismissedProgressIds.remove(epKey)
+
         val progress = WatchProgress(
-            id = "${anime.id}_${episode.number}",
+            id = epKey,
             animeId = anime.id,
             episodeNumber = episode.number,
             episodeTitle = episode.title,
@@ -449,7 +472,7 @@ class AnimeRepository(private val context: Context) {
         // Ensure anime is saved in local DB without clobbering watchlist/favorite flags
         try {
             val savedAnime = upsertPreservingLocalState(anime)
-            if (settingsManager.getSettings().autoAddToMyListOnWatch && !savedAnime.isInWatchlist) {
+            if (currentSettings.autoAddToMyListOnWatch && !savedAnime.isInWatchlist) {
                 animeDao.updateWatchStatusFull(
                     id = savedAnime.id,
                     status = WatchStatus.WATCHING.name,
@@ -460,76 +483,108 @@ class AnimeRepository(private val context: Context) {
             }
         } catch (_: Exception) {}
 
+        val isSeriesCompleted = completed &&
+            !anime.isAiring &&
+            !anime.isUpcoming &&
+            anime.totalEpisodes > 0 &&
+            episode.number >= anime.totalEpisodes
+
         if (completed) {
             val availableEps = anime.availableEpisodes
             if (episode.number < availableEps) {
-                val nextEpNum = episode.number + 1
-                val existingNext = watchProgressDao.getProgressById("${anime.id}_$nextEpNum")
-                if (existingNext == null) {
-                    val nextProgress = WatchProgress(
-                        id = "${anime.id}_$nextEpNum",
-                        animeId = anime.id,
-                        episodeNumber = nextEpNum,
-                        episodeTitle = "Episode $nextEpNum",
-                        animeTitle = anime.title,
-                        coverImage = anime.coverImage,
-                        currentTimeSec = 0L,
-                        durationSec = effectiveDuration,
-                        language = language,
-                        completed = false,
-                        lastWatchedAt = now + 10L
-                    )
-                    watchProgressDao.saveProgress(nextProgress)
+                if (currentSettings.continueWatchingShowNextEpisode) {
+                    val nextEpNum = episode.number + 1
+                    val nextKey = "${anime.id}_$nextEpNum"
+                    dismissedProgressIds.remove(nextKey)
+                    val existingNext = watchProgressDao.getProgressById(nextKey)
+                    if (existingNext == null) {
+                        val nextProgress = WatchProgress(
+                            id = nextKey,
+                            animeId = anime.id,
+                            episodeNumber = nextEpNum,
+                            episodeTitle = "Episode $nextEpNum",
+                            animeTitle = anime.title,
+                            coverImage = anime.coverImage,
+                            currentTimeSec = 0L,
+                            durationSec = effectiveDuration,
+                            language = language,
+                            completed = false,
+                            lastWatchedAt = now + 10L
+                        )
+                        watchProgressDao.saveProgress(nextProgress)
+                    }
                 }
-            } else {
+            } else if (isSeriesCompleted) {
                 animeDao.updateCompleted(anime.id, true)
                 animeDao.updateWatchStatus(anime.id, WatchStatus.COMPLETED.name)
             }
         }
 
         // Optional housekeeping: remove the offline file once the episode has been finished.
-        val currentSettings = settingsManager.getSettings()
         if (completed && currentSettings.downloadAutoDeleteWatched) {
             downloadManager.deleteByEpisode(anime.id, episode.number)
         }
 
-        // 2-Way Tracker Sync & Auto-Scrobbler (AniList & MAL)
+        // 2-Way Tracker Sync & Auto-Scrobbler (AniList & MAL) - fire once per (anime, episode, seriesCompleted)
         val percentWatched = if (effectiveDuration > 0) ((currentTimeSec.toFloat() / effectiveDuration.toFloat()) * 100f).toInt() else 0
         if (completed || percentWatched >= currentSettings.scrobbleCompletionPercent) {
-            try {
-                trackerSyncManager.autoScrobble(
-                    anime = anime,
-                    episodeNumber = episode.number,
-                    isCompleted = completed,
-                    settings = currentSettings
-                )
-            } catch (_: Exception) {}
+            val scrobbleKey = "${anime.id}:${episode.number}:$isSeriesCompleted"
+            if (scrobbledEpisodes.putIfAbsent(scrobbleKey, true) == null) {
+                try {
+                    val ok = trackerSyncManager.autoScrobble(
+                        anime = anime,
+                        episodeNumber = episode.number,
+                        isCompleted = isSeriesCompleted,
+                        settings = currentSettings
+                    )
+                    if (!ok) {
+                        scrobbledEpisodes.remove(scrobbleKey)
+                    }
+                } catch (_: Exception) {
+                    scrobbledEpisodes.remove(scrobbleKey)
+                }
+            }
         }
 
-        // Discord Rich Presence status update
+        // Discord Rich Presence status update - rate-limited to at most once per 30s per episode
         if (currentSettings.discordRpcEnabled) {
-            try {
-                discordRpcService.updatePresence(
-                    animeTitle = anime.title,
-                    episodeNumber = episode.number,
-                    currentTimeSec = currentTimeSec,
-                    durationSec = effectiveDuration,
-                    coverImage = anime.coverImage,
-                    settings = currentSettings
-                )
-            } catch (_: Exception) {}
+            val rpcKey = "${anime.id}:${episode.number}"
+            val lastSent = lastDiscordRpcAt[rpcKey] ?: 0L
+            if (completed || now - lastSent >= 30_000L) {
+                lastDiscordRpcAt[rpcKey] = now
+                try {
+                    discordRpcService.updatePresence(
+                        animeTitle = anime.title,
+                        episodeNumber = episode.number,
+                        currentTimeSec = currentTimeSec,
+                        durationSec = effectiveDuration,
+                        coverImage = anime.coverImage,
+                        settings = currentSettings
+                    )
+                } catch (_: Exception) {}
+            }
         }
     }
 
     suspend fun deleteProgress(progressId: String) = withContext(Dispatchers.IO) {
+        dismissedProgressIds.add(progressId)
+        val existing = watchProgressDao.getProgressById(progressId)
+        if (existing != null) {
+            dismissedContinueWatchingAnimeIds.add(existing.animeId)
+        } else if (progressId.contains("_")) {
+            dismissedContinueWatchingAnimeIds.add(progressId.substringBeforeLast("_"))
+        }
         watchProgressDao.deleteProgress(progressId)
     }
 
     suspend fun deleteProgressByAnime(animeId: String) = withContext(Dispatchers.IO) {
+        dismissedContinueWatchingAnimeIds.add(animeId)
         watchProgressDao.deleteProgressByAnimeId(animeId)
     }
 
     suspend fun clearHistory() = withContext(Dispatchers.IO) {
+        dismissedContinueWatchingAnimeIds.clear()
+        dismissedProgressIds.clear()
         watchProgressDao.clearAllHistory()
     }
 
@@ -563,7 +618,7 @@ class AnimeRepository(private val context: Context) {
                 autoFailover = settings.autoFailover,
                 maxAttempts = settings.failoverServerCount.coerceAtLeast(1)
             )
-            val best = StreamResolverRegistry.pickForDownload(result.sources, settings.downloadQuality)
+            val best = StreamResolverRegistry.pickForDownload(result.sources, effectiveQuality)
             if (best == null) {
                 return@withContext DownloadStart(false, result.failureSummary())
             }
@@ -597,12 +652,51 @@ class AnimeRepository(private val context: Context) {
         if (item.filePath.isBlank()) return@withContext false
         val file = java.io.File(item.filePath)
         if (!file.exists()) return@withContext false
-        val safeTitle = item.animeTitle.replace(Regex("[^a-zA-Z0-9.-]"), "_").take(40)
         downloadManager.copyToSafFolder(file, treeUri)
     }
 
     suspend fun clearDownloads() = withContext(Dispatchers.IO) {
+        downloadManager.clearAllDownloadFiles()
         downloadDao.clearDownloads()
+    }
+
+    suspend fun addNotification(notification: AppNotification) = withContext(Dispatchers.IO) {
+        notificationDao.insert(notification)
+    }
+
+    suspend fun addNotification(
+        title: String,
+        message: String,
+        animeThumbnail: String = "",
+        tag: String = "AIRING",
+        animeId: String = "",
+        animeTitle: String = "",
+        coverImage: String = "",
+        episodeNumber: Int = 1
+    ) = withContext(Dispatchers.IO) {
+        val notif = AppNotification(
+            id = "notif_${System.currentTimeMillis()}_${java.util.UUID.randomUUID().toString().take(6)}",
+            title = title,
+            message = message,
+            timestamp = "Just now",
+            animeThumbnail = animeThumbnail.ifEmpty { coverImage },
+            tag = tag,
+            createdAt = System.currentTimeMillis(),
+            isUnread = true
+        )
+        notificationDao.insert(notif)
+    }
+
+    suspend fun deleteNotification(id: String) = withContext(Dispatchers.IO) {
+        notificationDao.deleteNotification(id)
+    }
+
+    suspend fun markNotificationRead(id: String) = withContext(Dispatchers.IO) {
+        notificationDao.markRead(id)
+    }
+
+    suspend fun markAllNotificationsRead() = withContext(Dispatchers.IO) {
+        notificationDao.markAllRead()
     }
 
     suspend fun clearNotifications() = withContext(Dispatchers.IO) {

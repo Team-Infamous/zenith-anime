@@ -18,119 +18,139 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.example.ui.components.shimmerEffect
-import com.example.ui.theme.DarkBackground
 
 /**
  * Skeleton loading screen displayed while the catalog is fetching or initializing.
- * Matches the layout hierarchy and dark aesthetic of the production catalog.
+ * Perfectly mirrors the edge-to-edge hero banner and media rails of HomeScreen.
  */
 @Composable
 fun HomeSkeletonScreen(
     modifier: Modifier = Modifier
 ) {
+    val bgColor = MaterialTheme.colorScheme.background
+
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .background(DarkBackground),
+            .background(bgColor),
         contentPadding = PaddingValues(bottom = 90.dp)
     ) {
-        // Top App Bar Shimmer
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                // Avatar placeholder
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .shimmerEffect()
-                )
-
-                // Search field placeholder
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(42.dp)
-                        .clip(RoundedCornerShape(22.dp))
-                        .shimmerEffect()
-                )
-
-                // Bell icon placeholder
-                Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .shimmerEffect()
-                )
-            }
-        }
-
-        // Hero Spotlight Banner Shimmer
+        // Full-bleed Hero Spotlight Shimmer
         item {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .height(230.dp)
-                    .clip(RoundedCornerShape(18.dp))
-                    .shimmerEffect()
+                    .height(440.dp)
             ) {
-                Column(
+                // Background hero image shimmer
+                Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.SpaceBetween
+                        .shimmerEffect()
+                )
+
+                // Dark gradient scrim fading to background
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    Color(0x99000000),
+                                    Color.Transparent,
+                                    bgColor
+                                )
+                            )
+                        )
+                )
+
+                // Top floating app bar
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Top tag placeholder
                     Box(
                         modifier = Modifier
-                            .width(80.dp)
-                            .height(22.dp)
+                            .width(120.dp)
+                            .height(28.dp)
                             .clip(RoundedCornerShape(6.dp))
                             .shimmerEffect()
                     )
 
-                    Column {
-                        // Title placeholder
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        repeat(3) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .shimmerEffect()
+                            )
+                        }
+                    }
+                }
+
+                // Bottom Hero details & CTA buttons
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomStart)
+                        .padding(horizontal = 16.dp, vertical = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .width(180.dp)
+                            .height(26.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .shimmerEffect()
+                    )
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Box(
                             modifier = Modifier
-                                .width(200.dp)
-                                .height(20.dp)
-                                .clip(RoundedCornerShape(4.dp))
+                                .width(70.dp)
+                                .height(18.dp)
+                                .clip(RoundedCornerShape(10.dp))
                                 .shimmerEffect()
                         )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        // Subtitle / genres placeholder
                         Box(
                             modifier = Modifier
-                                .width(130.dp)
-                                .height(14.dp)
-                                .clip(RoundedCornerShape(4.dp))
+                                .width(90.dp)
+                                .height(18.dp)
+                                .clip(RoundedCornerShape(10.dp))
                                 .shimmerEffect()
                         )
+                    }
 
-                        Spacer(modifier = Modifier.height(14.dp))
-
-                        // Action button placeholder
+                    Row(
+                        modifier = Modifier.padding(top = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
                         Box(
                             modifier = Modifier
-                                .width(110.dp)
-                                .height(36.dp)
-                                .clip(RoundedCornerShape(18.dp))
+                                .width(120.dp)
+                                .height(38.dp)
+                                .clip(RoundedCornerShape(20.dp))
+                                .shimmerEffect()
+                        )
+                        Box(
+                            modifier = Modifier
+                                .width(100.dp)
+                                .height(38.dp)
+                                .clip(RoundedCornerShape(20.dp))
                                 .shimmerEffect()
                         )
                     }
@@ -138,48 +158,57 @@ fun HomeSkeletonScreen(
             }
         }
 
-        // Genre Chips Shimmer
+        // Continue Watching Shimmer
         item {
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(6) { index ->
-                    Box(
-                        modifier = Modifier
-                            .width(if (index % 2 == 0) 64.dp else 84.dp)
-                            .height(30.dp)
-                            .clip(RoundedCornerShape(15.dp))
-                            .shimmerEffect()
-                    )
+            Column(modifier = Modifier.padding(top = 8.dp)) {
+                Box(
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .width(150.dp)
+                        .height(20.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .shimmerEffect()
+                )
+
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(2) {
+                        Box(
+                            modifier = Modifier
+                                .width(240.dp)
+                                .height(135.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .shimmerEffect()
+                        )
+                    }
                 }
+                Spacer(modifier = Modifier.height(14.dp))
             }
-            Spacer(modifier = Modifier.height(10.dp))
         }
 
-        // Row 1: Section Header + Horizontal Cards Shimmer
+        // Section 1: Trending Now Rail
         item {
             Box(
                 modifier = Modifier
                     .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .width(160.dp)
-                    .height(18.dp)
+                    .width(140.dp)
+                    .height(20.dp)
                     .clip(RoundedCornerShape(4.dp))
                     .shimmerEffect()
             )
 
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(4) {
-                    Column(
-                        modifier = Modifier.width(135.dp)
-                    ) {
+                items(5) {
+                    Column(modifier = Modifier.width(135.dp)) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(190.dp)
+                                .height(195.dp)
                                 .clip(RoundedCornerShape(14.dp))
                                 .shimmerEffect()
                         )
@@ -197,29 +226,27 @@ fun HomeSkeletonScreen(
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        // Row 2: Section Header + Horizontal Cards Shimmer
+        // Section 2: Top Rated Rail
         item {
             Box(
                 modifier = Modifier
                     .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .width(140.dp)
-                    .height(18.dp)
+                    .width(130.dp)
+                    .height(20.dp)
                     .clip(RoundedCornerShape(4.dp))
                     .shimmerEffect()
             )
 
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(4) {
-                    Column(
-                        modifier = Modifier.width(135.dp)
-                    ) {
+                items(5) {
+                    Column(modifier = Modifier.width(135.dp)) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(190.dp)
+                                .height(195.dp)
                                 .clip(RoundedCornerShape(14.dp))
                                 .shimmerEffect()
                         )

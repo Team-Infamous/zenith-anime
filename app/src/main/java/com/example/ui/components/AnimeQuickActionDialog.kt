@@ -1,5 +1,6 @@
 package com.example.ui.components
 
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -28,6 +29,7 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -37,6 +39,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -45,10 +48,8 @@ import coil.compose.AsyncImage
 import com.example.data.model.Anime
 import com.example.data.model.WatchStatus
 import com.example.ui.theme.AccentRed
-import com.example.ui.theme.DarkBackground
 import com.example.ui.theme.DarkBorder
-import com.example.ui.theme.DarkSurface
-import com.example.ui.theme.DarkSurfaceVariant
+import com.example.ui.theme.LocalAppSettings
 import com.example.ui.theme.LocalThemeAccent
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
@@ -67,12 +68,18 @@ fun AnimeQuickActionDialog(
     onShare: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val themeAccent = LocalThemeAccent.current
+    val appSettings = LocalAppSettings.current
+    val displayTitle = anime.displayTitle(appSettings.titleLanguagePreference)
     val activeStatus = WatchStatus.fromRaw(anime.watchStatus)
+    val surfaceColor = MaterialTheme.colorScheme.surface
+    val surfaceVarColor = MaterialTheme.colorScheme.surfaceVariant
+    val bgColor = MaterialTheme.colorScheme.background
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = DarkSurface,
+        containerColor = surfaceColor,
         modifier = modifier.clip(RoundedCornerShape(18.dp)),
         title = {
             Row(
@@ -81,7 +88,7 @@ fun AnimeQuickActionDialog(
             ) {
                 AsyncImage(
                     model = anime.coverImage,
-                    contentDescription = anime.title,
+                    contentDescription = displayTitle,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .size(width = 50.dp, height = 70.dp)
@@ -92,7 +99,7 @@ fun AnimeQuickActionDialog(
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = anime.title,
+                        text = displayTitle,
                         color = TextPrimary,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
@@ -132,7 +139,7 @@ fun AnimeQuickActionDialog(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(14.dp))
-                                    .background(if (isSelected) themeAccent else DarkSurfaceVariant)
+                                    .background(if (isSelected) themeAccent else surfaceVarColor)
                                     .border(
                                         width = 0.5.dp,
                                         color = if (isSelected) themeAccent else DarkBorder,
@@ -146,7 +153,7 @@ fun AnimeQuickActionDialog(
                             ) {
                                 Text(
                                     text = statusOption.displayName,
-                                    color = if (isSelected) DarkBackground else TextPrimary,
+                                    color = if (isSelected) bgColor else TextPrimary,
                                     fontSize = 11.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                                 )
@@ -223,17 +230,32 @@ fun AnimeQuickActionDialog(
                     )
                 }
 
-                if (onShare != null) {
-                    QuickActionRow(
-                        icon = Icons.Default.Share,
-                        title = "Share Anime (Coming Soon)",
-                        tint = TextSecondary,
-                        onClick = {
-                            onDismiss()
-                            onShare()
+                QuickActionRow(
+                    icon = Icons.Default.Share,
+                    title = "Share Anime",
+                    tint = TextPrimary,
+                    onClick = {
+                        onDismiss()
+                        val link = if (anime.malId.isNotBlank() && anime.malId != "0") {
+                            "https://myanimelist.net/anime/${anime.malId}"
+                        } else {
+                            "https://anilist.co/anime/${anime.id.removePrefix("mal_")}"
                         }
-                    )
-                }
+                        val shareText = buildString {
+                            append("$displayTitle (★ ${anime.rating} • ${anime.type} • ${anime.year})")
+                            if (anime.genres.isNotBlank()) append("\nGenres: ${anime.genres}")
+                            val snippet = anime.synopsis.trim().take(180)
+                            if (snippet.isNotBlank()) append("\n\n$snippet${if (anime.synopsis.length > 180) "…" else ""}")
+                            append("\n\n$link")
+                        }
+                        val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_SUBJECT, displayTitle)
+                            putExtra(Intent.EXTRA_TEXT, shareText)
+                        }
+                        context.startActivity(Intent.createChooser(sendIntent, "Share $displayTitle"))
+                    }
+                )
             }
         },
         confirmButton = {

@@ -33,6 +33,9 @@ import androidx.compose.material.icons.filled.Casino
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Tune
+import android.content.Intent
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -42,8 +45,8 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -73,9 +76,7 @@ import com.example.data.model.Anime
 import com.example.data.repository.AnimeRepository
 import com.example.ui.components.AnimeCard
 import com.example.ui.components.AnimeQuickActionDialog
-import com.example.ui.theme.DarkBackground
 import com.example.ui.theme.DarkBorder
-import com.example.ui.theme.DarkSurface
 import com.example.ui.theme.DarkSurfaceVariant
 import com.example.ui.theme.LocalThemeAccent
 import com.example.ui.theme.TextPrimary
@@ -94,7 +95,10 @@ fun SearchScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val themeAccent = LocalThemeAccent.current
+    val bgColor = MaterialTheme.colorScheme.background
+    val surfaceColor = MaterialTheme.colorScheme.surface
     val focusManager = LocalFocusManager.current
+    val settings by repository.settings.collectAsState(initial = repository.settingsManager.getSettings())
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedGenre by remember { mutableStateOf("All") }
@@ -118,6 +122,7 @@ fun SearchScreen(
     }
 
     fun saveRecentSearches(list: List<String>) {
+        if (list.isNotEmpty() && settings.incognitoMode) return
         recentSearches = list
         searchPrefs.edit().putString("recent_queries", list.joinToString("\n")).apply()
     }
@@ -128,14 +133,16 @@ fun SearchScreen(
     val formats = listOf("All", "TV", "Movie", "OVA", "ONA", "Special")
     val statuses = listOf("All", "Currently Airing", "Finished Airing", "Not Yet Aired")
     val seasons = listOf("All", "Winter", "Spring", "Summer", "Fall")
-    val sorts = listOf("Popularity", "Score", "Trending", "Recently Added")
+    val sorts = listOf("Popularity", "Score", "Trending", "Newest", "Recently Added", "Title A-Z")
 
     fun triggerSearch(q: String) {
         val trimmed = q.trim()
         if (trimmed.length >= 2) {
             isSearchingOnline = true
-            val updated = (listOf(trimmed) + recentSearches.filter { !it.equals(trimmed, ignoreCase = true) }).take(8)
-            saveRecentSearches(updated)
+            if (!settings.incognitoMode) {
+                val updated = (listOf(trimmed) + recentSearches.filter { !it.equals(trimmed, ignoreCase = true) }).take(8)
+                saveRecentSearches(updated)
+            }
             scope.launch {
                 val results = repository.searchOnlineFiltered(
                     query = q.trim(),
@@ -158,24 +165,71 @@ fun SearchScreen(
         }
     }
 
-    val combined = (onlineResults + localAnime).distinctBy { it.id }
+    val combined = remember(onlineResults, localAnime) {
+        (onlineResults + localAnime).distinctBy { it.id }
+    }
 
-    val filteredAnime = combined.filter { anime ->
-        val matchesQuery = searchQuery.isBlank() ||
-                anime.title.contains(searchQuery, ignoreCase = true) ||
-                anime.nativeTitle.contains(searchQuery, ignoreCase = true) ||
-                anime.genres.contains(searchQuery, ignoreCase = true)
+    val filteredAnime = remember(
+        combined,
+        searchQuery,
+        selectedGenre,
+        filterFormat,
+        filterStatus,
+        filterSeason,
+        filterSort,
+        settings.titleLanguagePreference
+    ) {
+        val matched = combined.filter { anime ->
+            val matchesQuery = searchQuery.isBlank() ||
+                    anime.title.contains(searchQuery, ignoreCase = true) ||
+                    anime.englishTitle.contains(searchQuery, ignoreCase = true) ||
+                    anime.romajiTitle.contains(searchQuery, ignoreCase = true) ||
+                    anime.nativeTitle.contains(searchQuery, ignoreCase = true) ||
+                    anime.genres.contains(searchQuery, ignoreCase = true)
 
-        val matchesGenre = selectedGenre == "All" || anime.genres.contains(selectedGenre, ignoreCase = true)
-        val matchesFormat = filterFormat == "All" || anime.type.equals(filterFormat, ignoreCase = true)
+            val matchesGenre = selectedGenre == "All" || anime.genres.contains(selectedGenre, ignoreCase = true)
+            val matchesFormat = filterFormat == "All" || anime.type.equals(filterFormat, ignoreCase = true)
 
-        matchesQuery && matchesGenre && matchesFormat
+            val matchesStatus = when (filterStatus) {
+                "All" -> true
+                "Currently Airing", "Airing" -> anime.isAiring
+                "Finished Airing", "Finished" -> anime.status.equals("FINISHED", ignoreCase = true) ||
+                        anime.status.contains("Finished", ignoreCase = true)
+                "Not Yet Aired", "Upcoming" -> anime.isUpcoming
+                else -> true
+            }
+
+            val matchesSeason = filterSeason == "All" || anime.season.contains(filterSeason, ignoreCase = true)
+
+            matchesQuery && matchesGenre && matchesFormat && matchesStatus && matchesSeason
+        }
+
+        when (filterSort) {
+            "Score" -> matched.sortedWith(
+                compareByDescending<Anime> { it.rating }.thenBy(String.CASE_INSENSITIVE_ORDER) {
+                    it.displayTitle(settings.titleLanguagePreference)
+                }
+            )
+            "Newest" -> matched.sortedWith(
+                compareByDescending<Anime> { it.year }.thenByDescending { it.rating }
+            )
+            "Recently Added" -> matched.sortedWith(
+                compareByDescending<Anime> { it.lastUpdated }.thenByDescending { it.year }
+            )
+            "Title A-Z" -> matched.sortedWith(
+                compareBy(String.CASE_INSENSITIVE_ORDER) { it.displayTitle(settings.titleLanguagePreference) }
+            )
+            "Trending" -> matched.sortedWith(
+                compareByDescending<Anime> { it.isAiring }.thenByDescending { it.rating }
+            )
+            else -> matched // Popularity preserves online popularity order + local catalog
+        }
     }
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(DarkBackground)
+            .background(bgColor)
             .statusBarsPadding()
     ) {
         // Top Search Bar + Roulette + Filter Icons
@@ -228,8 +282,8 @@ fun SearchScreen(
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = themeAccent,
                     unfocusedBorderColor = DarkBorder,
-                    focusedContainerColor = DarkSurface,
-                    unfocusedContainerColor = DarkSurface,
+                    focusedContainerColor = surfaceColor,
+                    unfocusedContainerColor = surfaceColor,
                     focusedTextColor = TextPrimary,
                     unfocusedTextColor = TextPrimary
                 ),
@@ -255,7 +309,11 @@ fun SearchScreen(
                             val pick = repository.getRandomAnime()
                             isRouletteRolling = false
                             if (pick != null) {
-                                Toast.makeText(context, "Roulette Discovered: ${pick.title}", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(
+                                    context,
+                                    "Roulette Discovered: ${pick.displayTitle(settings.titleLanguagePreference)}",
+                                    Toast.LENGTH_SHORT
+                                ).show()
                                 onAnimeClick(pick.id)
                             } else {
                                 Toast.makeText(context, "Could not discover anime. Try again!", Toast.LENGTH_SHORT).show()
@@ -311,7 +369,7 @@ fun SearchScreen(
                 ) {
                     Text(
                         text = genre,
-                        color = if (isSelected) DarkBackground else TextPrimary,
+                        color = if (isSelected) bgColor else TextPrimary,
                         fontSize = 12.sp,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                     )
@@ -319,8 +377,44 @@ fun SearchScreen(
             }
         }
 
+        // Sleek Online Search Loading Indicator Pill
+        AnimatedVisibility(
+            visible = isSearchingOnline,
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(surfaceColor)
+                        .border(0.5.dp, themeAccent.copy(alpha = 0.5f), RoundedCornerShape(20.dp))
+                        .padding(horizontal = 14.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CircularProgressIndicator(
+                        color = themeAccent,
+                        modifier = Modifier.size(14.dp),
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Searching AniList catalog...",
+                        color = themeAccent,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+
         // Recent Searches row
-        if (searchQuery.isBlank() && recentSearches.isNotEmpty()) {
+        if (searchQuery.isBlank() && recentSearches.isNotEmpty() && !settings.incognitoMode) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -404,7 +498,7 @@ fun SearchScreen(
                         Spacer(modifier = Modifier.height(16.dp))
                         Button(
                             onClick = { triggerSearch(searchQuery) },
-                            colors = ButtonDefaults.buttonColors(containerColor = themeAccent, contentColor = DarkBackground),
+                            colors = ButtonDefaults.buttonColors(containerColor = themeAccent, contentColor = bgColor),
                             shape = RoundedCornerShape(20.dp)
                         ) {
                             Text("Query Online AniList", fontWeight = FontWeight.Bold)
@@ -414,17 +508,20 @@ fun SearchScreen(
             }
         } else {
             LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
+                columns = GridCells.Fixed(settings.gridColumnsCount.coerceIn(2, 3)),
                 contentPadding = PaddingValues(16.dp),
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
+                    .navigationBarsPadding()
             ) {
                 items(filteredAnime, key = { it.id }) { anime ->
                     AnimeCard(
                         anime = anime,
                         onClick = { onAnimeClick(anime.id) },
-                        onLongClick = { selectedQuickActionAnime = anime }
+                        onLongClick = { selectedQuickActionAnime = anime },
+                        titlePreference = settings.titleLanguagePreference
                     )
                 }
             }
@@ -437,7 +534,7 @@ fun SearchScreen(
         ModalBottomSheet(
             onDismissRequest = { showFilterSheet = false },
             sheetState = sheetState,
-            containerColor = DarkSurface
+            containerColor = surfaceColor
         ) {
             Column(
                 modifier = Modifier
@@ -481,7 +578,7 @@ fun SearchScreen(
                             label = { Text(fmt, fontSize = 11.sp) },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = themeAccent,
-                                selectedLabelColor = DarkBackground,
+                                selectedLabelColor = bgColor,
                                 containerColor = DarkSurfaceVariant,
                                 labelColor = TextPrimary
                             )
@@ -502,7 +599,7 @@ fun SearchScreen(
                             label = { Text(stat, fontSize = 11.sp) },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = themeAccent,
-                                selectedLabelColor = DarkBackground,
+                                selectedLabelColor = bgColor,
                                 containerColor = DarkSurfaceVariant,
                                 labelColor = TextPrimary
                             )
@@ -523,7 +620,7 @@ fun SearchScreen(
                             label = { Text(sea, fontSize = 11.sp) },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = themeAccent,
-                                selectedLabelColor = DarkBackground,
+                                selectedLabelColor = bgColor,
                                 containerColor = DarkSurfaceVariant,
                                 labelColor = TextPrimary
                             )
@@ -544,7 +641,7 @@ fun SearchScreen(
                             label = { Text(s, fontSize = 11.sp) },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = themeAccent,
-                                selectedLabelColor = DarkBackground,
+                                selectedLabelColor = bgColor,
                                 containerColor = DarkSurfaceVariant,
                                 labelColor = TextPrimary
                             )
@@ -559,7 +656,7 @@ fun SearchScreen(
                         showFilterSheet = false
                         triggerSearch(searchQuery.ifBlank { "A" })
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = themeAccent, contentColor = DarkBackground),
+                    colors = ButtonDefaults.buttonColors(containerColor = themeAccent, contentColor = bgColor),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -579,6 +676,7 @@ fun SearchScreen(
             anime = target,
             onDismiss = { selectedQuickActionAnime = null },
             onPlay = { onAnimeClick(target.id) },
+            onViewDetails = { onAnimeClick(target.id) },
             onToggleFavorite = {
                 scope.launch {
                     repository.toggleFavorite(target.id, !target.isFavorite)
@@ -598,7 +696,13 @@ fun SearchScreen(
                 }
             },
             onShare = {
-                Toast.makeText(context, "Sharing is coming soon!", Toast.LENGTH_SHORT).show()
+                val shareText = "Check out ${target.displayTitle(settings.titleLanguagePreference)} (${target.year} • ★ ${target.rating}) on Zenith Anime!"
+                val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_SUBJECT, target.displayTitle(settings.titleLanguagePreference))
+                    putExtra(Intent.EXTRA_TEXT, shareText)
+                }
+                context.startActivity(Intent.createChooser(sendIntent, "Share Anime"))
             },
             onDownload = {
                 scope.launch {

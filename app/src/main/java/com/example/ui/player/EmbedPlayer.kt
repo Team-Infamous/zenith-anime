@@ -15,7 +15,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import org.json.JSONObject
@@ -39,9 +41,27 @@ data class EmbedPlayerState(
 class EmbedPlayerController {
     internal var webView: WebView? = null
 
-    fun send(name: String, arg: String? = null) {
-        val call = "window.__zenith&&window.__zenith.cmd('" + name + "'" +
-            (if (arg.isNullOrEmpty()) "" else "," + arg) + ")"
+    fun send(name: String, arg: Any? = null) {
+        val formattedArg = when (arg) {
+            null -> ""
+            is Number, is Boolean -> ",$arg"
+            is String -> {
+                if (arg.isEmpty()) ""
+                else if (
+                    arg.toDoubleOrNull() != null ||
+                    arg == "true" ||
+                    arg == "false" ||
+                    (arg.startsWith("\"") && arg.endsWith("\"")) ||
+                    (arg.startsWith("'") && arg.endsWith("'"))
+                ) {
+                    ",$arg"
+                } else {
+                    ",${JSONObject.quote(arg)}"
+                }
+            }
+            else -> ",${JSONObject.quote(arg.toString())}"
+        }
+        val call = "window.__zenith&&window.__zenith.cmd('$name'$formattedArg)"
         webView?.evaluateJavascript(call, null)
     }
 }
@@ -57,9 +77,11 @@ fun EmbedPlayerView(
     wrapEmbeds: Boolean,
     state: MutableState<EmbedPlayerState>,
     controller: EmbedPlayerController,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    adBlockEnabled: Boolean = true
 ) {
-    val wrap = wrapEmbeds
+    val wrap by rememberUpdatedState(wrapEmbeds)
+    val currentAdBlock by rememberUpdatedState(adBlockEnabled)
     AndroidView(
         factory = { ctx ->
             WebView(ctx).apply {
@@ -113,11 +135,13 @@ fun EmbedPlayerView(
                     ): Boolean {
                         val scheme = request?.url?.scheme?.lowercase() ?: ""
                         if (scheme != "http" && scheme != "https") return true
-                        if (request?.isForMainFrame == true) {
+                        if (currentAdBlock && request?.isForMainFrame == true) {
                             val host = request.url?.host?.lowercase() ?: ""
                             val trusted = listOf(
                                 "vidlink", "vidsrc", "tryembed", "megaplay", "kaido", "megacloud",
-                                "rabbitstream", "rapid-cloud", "streamwish", "filemoon", "jwplayer"
+                                "rabbitstream", "rapid-cloud", "streamwish", "filemoon", "jwplayer",
+                                "anikoto", "aniembed", "viduki", "animegg", "anineko", "allanime",
+                                "gogoanime", "hianime", "zoro"
                             )
                             if (trusted.none { host.contains(it) }) return true
                         }
@@ -156,13 +180,16 @@ fun EmbedPlayerView(
                     }
                 }, "AndroidPlayer")
 
-                loadUrl(embedUrl)
+                if (embedUrl.isNotBlank()) {
+                    tag = embedUrl
+                    loadUrl(embedUrl)
+                }
                 controller.webView = this
             }
         },
         update = { webView ->
-            val current = webView.url ?: ""
-            if (current.isBlank() || current != embedUrl) {
+            if (embedUrl.isNotBlank() && webView.tag != embedUrl) {
+                webView.tag = embedUrl
                 webView.loadUrl(embedUrl)
             }
         },
@@ -171,7 +198,13 @@ fun EmbedPlayerView(
 
     DisposableEffect(controller) {
         onDispose {
-            controller.webView?.stopLoading()
+            controller.webView?.apply {
+                stopLoading()
+                loadUrl("about:blank")
+                onPause()
+                removeAllViews()
+                destroy()
+            }
             controller.webView = null
         }
     }

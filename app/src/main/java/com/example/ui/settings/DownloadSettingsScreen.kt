@@ -1,7 +1,10 @@
 package com.example.ui.settings
 
+import android.content.Intent
 import android.os.Environment
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -20,6 +23,24 @@ fun DownloadSettingsScreen(
 ) {
     val context = LocalContext.current
     val settings by repository.settings.collectAsState(initial = repository.settingsManager.getSettings())
+
+    val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri != null) {
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                )
+            } catch (_: Throwable) {}
+            repository.settingsManager.update {
+                it.copy(
+                    downloadCustomFolderUri = uri.toString(),
+                    downloadLocation = "Custom folder (SAF)"
+                )
+            }
+            Toast.makeText(context, "Custom download folder saved", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     val storageUsed = remember {
         val internal = context.getExternalFilesDir(Environment.DIRECTORY_MOVIES)
@@ -75,7 +96,11 @@ fun DownloadSettingsScreen(
                 currentValue = settings.downloadLocation,
                 options = listOf("In-App", "Downloads folder", "Custom folder (SAF)"),
                 onSelect = { location ->
-                    repository.settingsManager.update { it.copy(downloadLocation = location) }
+                    if (location == "Custom folder (SAF)") {
+                        folderPicker.launch(null)
+                    } else {
+                        repository.settingsManager.update { it.copy(downloadLocation = location) }
+                    }
                 }
             )
             SettingsDivider()
@@ -84,11 +109,7 @@ fun DownloadSettingsScreen(
                 subtitle = "Pick any folder on your phone or SD card for exported episodes",
                 valueText = settings.downloadCustomFolderUri.ifBlank { "Not set" },
                 onClick = {
-                    Toast.makeText(
-                        context,
-                        "Choose the folder from the Downloads tab after your next download.",
-                        Toast.LENGTH_LONG
-                    ).show()
+                    folderPicker.launch(null)
                 }
             )
             SettingsDivider()

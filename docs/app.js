@@ -58,6 +58,7 @@
       const isTarget = chip.getAttribute("data-color") === accentName;
       chip.classList.toggle("active", isTarget);
       chip.setAttribute("aria-selected", isTarget ? "true" : "false");
+      chip.setAttribute("aria-pressed", isTarget ? "true" : "false");
     });
   }
 
@@ -189,8 +190,9 @@
         if (e.target === modal) closeModal(modal);
       });
 
-      const closeBtn = modal.querySelector(".modal-close-btn");
-      closeBtn?.addEventListener("click", () => closeModal(modal));
+      modal.querySelectorAll(".modal-close-btn").forEach((btn) => {
+        btn.addEventListener("click", () => closeModal(modal));
+      });
     });
 
     // Escape key listener

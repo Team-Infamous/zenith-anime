@@ -11,5 +11,6 @@ data class AppNotification(
     val timestamp: String,
     val animeThumbnail: String,
     val tag: String = "DOWNLOAD",
-    val createdAt: Long = System.currentTimeMillis()
+    val createdAt: Long = System.currentTimeMillis(),
+    val isUnread: Boolean = true
 )

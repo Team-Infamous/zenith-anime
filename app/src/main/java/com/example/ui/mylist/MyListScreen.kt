@@ -35,6 +35,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRowDefaults
@@ -119,7 +120,8 @@ fun MyListScreen(
             6 -> favorites
             else -> emptyList()
         },
-        settings.librarySortOrder
+        settings.librarySortOrder,
+        settings.titleLanguagePreference
     )
 
     val gridState = rememberLazyGridState()
@@ -134,7 +136,7 @@ fun MyListScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(DarkBackground)
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
     ) {
         Row(
@@ -303,7 +305,7 @@ fun MyListScreen(
         } else {
             LazyVerticalGrid(
                 state = gridState,
-                columns = GridCells.Fixed(2),
+                columns = GridCells.Fixed(settings.gridColumnsCount.coerceIn(2, 3)),
                 contentPadding = PaddingValues(16.dp),
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -312,6 +314,7 @@ fun MyListScreen(
                 items(displayedAnime, key = { it.id }) { anime ->
                     AnimeCard(
                         anime = anime,
+                        titlePreference = settings.titleLanguagePreference,
                         onClick = { onAnimeClick(anime.id) },
                         onLongClick = { selectedQuickActionAnime = anime }
                     )
@@ -326,6 +329,7 @@ fun MyListScreen(
             anime = target,
             onDismiss = { selectedQuickActionAnime = null },
             onPlay = { onAnimeClick(target.id) },
+            onViewDetails = { onAnimeClick(target.id) },
             onToggleFavorite = {
                 scope.launch {
                     repository.toggleFavorite(target.id, !target.isFavorite)

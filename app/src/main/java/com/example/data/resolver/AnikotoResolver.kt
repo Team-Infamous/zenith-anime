@@ -144,7 +144,7 @@ class AnikotoResolver : AnimeStreamResolver {
         val epHtml = Http.unescapeJson(epBody)
 
         // The episode list exposes the show's MAL id: a cheap, exact way to reject a name-alike.
-        if (anime.malId.isNotBlank()) {
+        if (anime.malId.isNotBlank() && anime.malId != "0") {
             val siteMal = Regex("data-mal=\"(\\d+)\"").find(epHtml)?.groupValues?.getOrNull(1)
             if (siteMal != null && siteMal != anime.malId) {
                 Log.i(TAG, "${candidate.path} is MAL $siteMal, wanted ${anime.malId} - skipping")
@@ -226,7 +226,7 @@ class AnikotoResolver : AnimeStreamResolver {
         anime: Anime,
         headers: Map<String, String>
     ): List<Candidate> {
-        val keywords = listOf(anime.title, anime.nativeTitle)
+        val keywords = listOf(anime.title, anime.englishTitle, anime.romajiTitle, anime.nativeTitle)
             .map { it.trim() }
             .filter { it.isNotEmpty() }
             .distinct()

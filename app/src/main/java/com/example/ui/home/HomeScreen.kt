@@ -104,11 +104,14 @@ import com.example.ui.components.AnimeQuickActionDialog
 import com.example.ui.components.ContinueWatchingAllSheet
 import com.example.ui.components.ContinueWatchingCard
 import com.example.ui.components.SectionHeader
+import androidx.compose.material3.MaterialTheme
 import com.example.ui.theme.AccentRed
 import com.example.ui.theme.DarkBackground
 import com.example.ui.theme.DarkBorder
 import com.example.ui.theme.DarkSurface
 import com.example.ui.theme.DarkSurfaceVariant
+import com.example.ui.theme.LocalAppSettings
+import com.example.ui.theme.LocalReducedMotion
 import com.example.ui.theme.LocalThemeAccent
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
@@ -194,12 +197,15 @@ fun HomeScreen(
     }
     val heroPagerState = rememberPagerState(pageCount = { heroAnimeList.size })
 
-    LaunchedEffect(heroAnimeList.size) {
-        if (heroAnimeList.isNotEmpty()) {
+    val reducedMotion = LocalReducedMotion.current
+    LaunchedEffect(heroAnimeList.size, reducedMotion) {
+        if (heroAnimeList.size > 1 && !reducedMotion) {
             while (true) {
                 delay(6500L)
-                val next = (heroPagerState.currentPage + 1) % heroAnimeList.size
-                heroPagerState.animateScrollToPage(next)
+                if (!heroPagerState.isScrollInProgress) {
+                    val next = (heroPagerState.currentPage + 1) % heroAnimeList.size
+                    heroPagerState.animateScrollToPage(next)
+                }
             }
         }
     }
@@ -211,7 +217,7 @@ fun HomeScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(DarkBackground)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         AnimatedContent(
             targetState = expandedCollectionSection,
@@ -377,8 +383,8 @@ fun HomeScreen(
                                                             Color(0xCC0B0E14),
                                                             Color(0x330B0E14),
                                                             themeAccent.copy(alpha = 0.20f),
-                                                            Color(0xDD0B0E14),
-                                                            DarkBackground
+                                                            DarkBackground.copy(alpha = 0.8f),
+                                                            MaterialTheme.colorScheme.background
                                                         )
                                                     )
                                                 )
@@ -594,8 +600,10 @@ fun HomeScreen(
                                 horizontalArrangement = Arrangement.spacedBy(14.dp)
                             ) {
                                 items(continueWatching, key = { it.id }) { item ->
+                                    val animeObj = allAnime.firstOrNull { it.id == item.animeId }
                                     ContinueWatchingCard(
                                         progress = item,
+                                        displayTitle = animeObj?.displayTitle(homeSettings.titleLanguagePreference) ?: item.animeTitle,
                                         onPlayClick = { onPlayClick(item.animeId, item.episodeNumber) },
                                         onDismissClick = {
                                             scope.launch {
@@ -853,7 +861,14 @@ fun HomeScreen(
             AnimeQuickActionDialog(
                 anime = target,
                 onDismiss = { selectedQuickActionAnime = null },
-                onPlay = { onPlayClick(target.id, 1) },
+                onPlay = {
+                    if (target.availableEpisodes > 0) {
+                        onPlayClick(target.id, 1)
+                    } else {
+                        Toast.makeText(context, "Episode 1 has not aired yet", Toast.LENGTH_SHORT).show()
+                        onAnimeClick(target.id)
+                    }
+                },
                 onViewDetails = { onAnimeClick(target.id) },
                 onToggleFavorite = {
                     scope.launch {
@@ -938,17 +953,20 @@ private fun HomeCollectionExpandedView(
     var filterQuery by remember { mutableStateOf("") }
     var sortOption by remember { mutableStateOf("Default") }
 
-    val displayed = remember(items, filterQuery, sortOption) {
+    val appSettings = LocalAppSettings.current
+    val displayed = remember(items, filterQuery, sortOption, appSettings.titleLanguagePreference) {
         val filtered = if (filterQuery.isBlank()) items else {
             val q = filterQuery.trim()
             items.filter {
                 it.title.contains(q, ignoreCase = true) ||
+                    it.englishTitle.contains(q, ignoreCase = true) ||
+                    it.romajiTitle.contains(q, ignoreCase = true) ||
                     it.genres.contains(q, ignoreCase = true)
             }
         }
         when (sortOption) {
             "Score" -> filtered.sortedByDescending { it.rating }
-            "A-Z" -> filtered.sortedBy { it.title.lowercase() }
+            "A-Z" -> filtered.sortedBy { it.displayTitle(appSettings.titleLanguagePreference).lowercase() }
             "Year" -> filtered.sortedByDescending { it.year }
             else -> filtered
         }
@@ -957,7 +975,7 @@ private fun HomeCollectionExpandedView(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(DarkBackground)
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .testTag("home_collection_expanded_view")
     ) {
@@ -1063,7 +1081,7 @@ private fun HomeCollectionExpandedView(
         Spacer(modifier = Modifier.height(12.dp))
 
         LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = 110.dp),
+            columns = androidx.compose.foundation.lazy.grid.GridCells.Fixed(appSettings.gridColumnsCount.coerceIn(2, 3)),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),

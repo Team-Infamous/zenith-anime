@@ -50,6 +50,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -88,6 +89,7 @@ import com.example.ui.theme.DarkBorder
 import com.example.ui.theme.DarkSurface
 import com.example.ui.theme.DarkSurfaceVariant
 import com.example.ui.theme.LocalThemeAccent
+import com.example.ui.theme.LocalAppSettings
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import kotlinx.coroutines.flow.first
@@ -170,6 +172,7 @@ fun ScheduleScreen(
     var currentItems by remember { mutableStateOf<List<AiringScheduleItem>>(emptyList()) }
 
     val allAnime by repository.allAnime.collectAsState(initial = emptyList())
+    val settings by repository.settings.collectAsState(initial = repository.settingsManager.getSettings())
     var selectedQuickActionAnime by remember { mutableStateOf<Anime?>(null) }
 
     fun loadSchedule(day: CalendarDay, forceRefresh: Boolean = false) {
@@ -212,7 +215,7 @@ fun ScheduleScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(DarkBackground)
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
     ) {
         // ----- Header -----
@@ -418,7 +421,8 @@ fun ScheduleScreen(
                                     Toast.LENGTH_SHORT
                                 ).show()
                             }
-                        }
+                        },
+                        repository = repository
                     )
                 }
 
@@ -435,6 +439,7 @@ fun ScheduleScreen(
             anime = target,
             onDismiss = { selectedQuickActionAnime = null },
             onPlay = { onAnimeClick(target.id) },
+            onViewDetails = { onAnimeClick(target.id) },
             onToggleFavorite = {
                 scope.launch {
                     repository.toggleFavorite(target.id, !target.isFavorite)
@@ -481,11 +486,14 @@ fun AiringTimelineRow(
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
     onToggleWatchlist: () -> Unit,
+    repository: AnimeRepository,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     val themeAccent = LocalThemeAccent.current
+    val settings = LocalAppSettings.current
+    val scope = rememberCoroutineScope()
     val rowInteractionSource = remember { MutableInteractionSource() }
     val isRowPressed by rowInteractionSource.collectIsPressedAsState()
 
@@ -547,7 +555,7 @@ fun AiringTimelineRow(
                     .weight(1f)
                     .scale(scaleAnim)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(DarkSurface)
+                    .background(MaterialTheme.colorScheme.surface)
                     .border(0.5.dp, DarkBorder, RoundedCornerShape(12.dp))
                     .combinedClickable(
                         interactionSource = rowInteractionSource,
@@ -587,10 +595,12 @@ fun AiringTimelineRow(
                         }
                     }
                     val isUpcoming = diffSec > 0L
-                    var reminderActive by remember { mutableStateOf(false) }
+                    val reminderActive = remember(settings.airingReminderIds, airingItem.anime.id) {
+                        settings.airingReminderIds.split(",").map { it.trim() }.contains(airingItem.anime.id)
+                    }
 
                     Text(
-                        text = airingItem.anime.title,
+                        text = airingItem.anime.displayTitle(settings.titleLanguagePreference),
                         color = TextPrimary,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
@@ -681,10 +691,22 @@ fun AiringTimelineRow(
                                     .clip(RoundedCornerShape(16.dp))
                                     .background(if (reminderActive) themeAccent.copy(alpha = 0.2f) else Color(0x22FFFFFF))
                                     .clickable {
-                                        reminderActive = !reminderActive
+                                        val nowActive = repository.settingsManager.toggleAiringReminder(airingItem.anime.id)
+                                        if (nowActive) {
+                                            scope.launch {
+                                                repository.addNotification(
+                                                    title = "Reminder: ${airingItem.anime.displayTitle(settings.titleLanguagePreference)}",
+                                                    message = "Episode ${airingItem.episode} is scheduled to air ($countdownText)!",
+                                                    animeId = airingItem.anime.id,
+                                                    animeTitle = airingItem.anime.displayTitle(settings.titleLanguagePreference),
+                                                    coverImage = airingItem.anime.coverImage,
+                                                    episodeNumber = airingItem.episode
+                                                )
+                                            }
+                                        }
                                         Toast.makeText(
                                             context,
-                                            if (reminderActive) "Reminder set for ${airingItem.anime.title} Ep ${airingItem.episode}!"
+                                            if (nowActive) "Reminder set for ${airingItem.anime.displayTitle(settings.titleLanguagePreference)} Ep ${airingItem.episode}!"
                                             else "Airing reminder removed",
                                             Toast.LENGTH_SHORT
                                         ).show()

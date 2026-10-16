@@ -1,16 +1,18 @@
 package com.example
 
 import android.Manifest
+import android.app.ActivityManager
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -21,6 +23,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -66,7 +69,6 @@ import com.example.ui.profile.getEffectiveAvatarModel
 import com.example.ui.settings.CustomizationPlaygroundScreen
 import com.example.ui.splash.AnimatedSplashScreen
 import com.example.ui.sync.MalSyncScreen
-import com.example.ui.theme.DarkBackground
 import com.example.ui.theme.MyApplicationTheme
 
 class MainActivity : ComponentActivity() {
@@ -89,10 +91,32 @@ class MainActivity : ComponentActivity() {
         val repository = AnimeRepository(applicationContext)
 
         setContent {
-            val settings by repository.settings.collectAsState(initial = com.example.data.model.AppSettings())
+            val settings by repository.settings.collectAsState(initial = repository.settingsManager.getSettings())
+
+            LaunchedEffect(settings.blockScreenshots) {
+                if (settings.blockScreenshots) {
+                    window.setFlags(
+                        WindowManager.LayoutParams.FLAG_SECURE,
+                        WindowManager.LayoutParams.FLAG_SECURE
+                    )
+                } else {
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                }
+            }
+
+            LaunchedEffect(settings.hideFromRecents) {
+                try {
+                    (getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager)
+                        ?.appTasks
+                        ?.firstOrNull()
+                        ?.setExcludeFromRecents(settings.hideFromRecents)
+                } catch (_: Throwable) {}
+            }
+
             MyApplicationTheme(
                 themeAccent = settings.themeAccent,
-                amoled = settings.amoledMode
+                amoled = settings.amoledMode,
+                appSettings = settings
             ) {
                 MainApp(repository = repository, settings = settings)
             }
@@ -105,10 +129,36 @@ fun MainApp(repository: AnimeRepository, settings: com.example.data.model.AppSet
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-    var showSplash by remember { mutableStateOf(true) }
+    var showSplash by remember { mutableStateOf(!settings.reduceAnimations) }
+    val bgColor = MaterialTheme.colorScheme.background
+
+    LaunchedEffect(settings.reduceAnimations) {
+        if (settings.reduceAnimations) {
+            showSplash = false
+        }
+    }
 
     LaunchedEffect(Unit) {
         repository.freshStartWipe()
+        val initialSettings = repository.settingsManager.getSettings()
+        if (initialSettings.autoSyncOnOpen) {
+            val malUser = initialSettings.malUsername.trim()
+            if (malUser.isNotEmpty()) {
+                try {
+                    repository.malSyncService.importFromMyAnimeList(malUser).onSuccess { list ->
+                        repository.importWatchlist(list, eraseExisting = false)
+                    }
+                } catch (_: Exception) {}
+            }
+            val alUser = initialSettings.anilistUsername.trim()
+            if (alUser.isNotEmpty()) {
+                try {
+                    repository.malSyncService.importFromAniList(alUser).onSuccess { list ->
+                        repository.importWatchlist(list, eraseExisting = false)
+                    }
+                } catch (_: Exception) {}
+            }
+        }
     }
 
     // Android 13+ drops every notification from an app that has not asked for POST_NOTIFICATIONS,
@@ -148,7 +198,7 @@ fun MainApp(repository: AnimeRepository, settings: com.example.data.model.AppSet
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
-            containerColor = DarkBackground,
+            containerColor = bgColor,
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             bottomBar = {
             if (showBottomBar) {
@@ -174,7 +224,7 @@ fun MainApp(repository: AnimeRepository, settings: com.example.data.model.AppSet
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(DarkBackground)
+                .background(bgColor)
                 .padding(bottom = if (showBottomBar) innerPadding.calculateBottomPadding() else 0.dp)
         ) {
             NavHost(
@@ -193,7 +243,8 @@ fun MainApp(repository: AnimeRepository, settings: com.example.data.model.AppSet
                             navController.navigate(Screen.Details.createRoute(animeId))
                         },
                         onPlayClick = { animeId, episodeNum ->
-                            navController.navigate(Screen.Player.createRoute(animeId, episodeNum, "sub"))
+                            val lang = settings.defaultLanguage.ifBlank { "sub" }
+                            navController.navigate(Screen.Player.createRoute(animeId, episodeNum, lang))
                         },
                         onSearchClick = {
                             navController.navigate(Screen.Search.route)
@@ -232,7 +283,8 @@ fun MainApp(repository: AnimeRepository, settings: com.example.data.model.AppSet
                     DownloadScreen(
                         repository = repository,
                         onPlayClick = { animeId, episodeNum ->
-                            navController.navigate(Screen.Player.createRoute(animeId, episodeNum, "sub"))
+                            val lang = settings.defaultLanguage.ifBlank { "sub" }
+                            navController.navigate(Screen.Player.createRoute(animeId, episodeNum, lang))
                         },
                         onSearchClick = {
                             navController.navigate(Screen.Search.route)

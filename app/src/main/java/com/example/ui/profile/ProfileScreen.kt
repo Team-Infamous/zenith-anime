@@ -71,11 +71,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -148,9 +151,10 @@ fun validateAvatarUrl(url: String): Pair<Boolean, String?> {
     }
 }
 
-fun getEffectiveAvatarModel(avatarPath: String?, avatarUrl: String? = null): Any {
+fun getEffectiveAvatarModel(avatarPath: String?, avatarUrl: String? = null, avatarSvgContent: String? = null): Any {
     val path = avatarPath?.trim().orEmpty()
     val url = avatarUrl?.trim().orEmpty()
+    val svg = avatarSvgContent?.trim().orEmpty()
     return when {
         path.isNotEmpty() -> {
             if (path.startsWith("http://", ignoreCase = true) || path.startsWith("https://", ignoreCase = true)) {
@@ -162,6 +166,7 @@ fun getEffectiveAvatarModel(avatarPath: String?, avatarUrl: String? = null): Any
             }
         }
         url.isNotEmpty() -> url
+        svg.isNotEmpty() -> svg.toByteArray(Charsets.UTF_8)
         else -> "https://images.unsplash.com/photo-1534447677768-be436bb09401?w=300&auto=format&fit=crop&q=80"
     }
 }
@@ -218,7 +223,6 @@ fun ProfileScreen(
 
     var showEditProfileDialog by remember { mutableStateOf(false) }
     var showDataManagementDialog by remember { mutableStateOf(false) }
-    var showPlayerSettingsDialog by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
     var showPrivacyDialog by remember { mutableStateOf(false) }
     var showResetConfirmationDialog by remember { mutableStateOf(false) }
@@ -236,6 +240,15 @@ fun ProfileScreen(
     val selectedThemeColor = settings.themeAccent
     val incognitoMode = settings.incognitoMode
     val amoledMode = settings.amoledMode
+
+    val bannerColor = remember(settings.profileBannerColor) {
+        try {
+            if (settings.profileBannerColor.isNotBlank()) Color(android.graphics.Color.parseColor(settings.profileBannerColor))
+            else null
+        } catch (_: Throwable) {
+            null
+        }
+    }
 
     var importJsonText by remember { mutableStateOf("") }
     var backupStatusMessage by remember { mutableStateOf("") }
@@ -294,7 +307,7 @@ fun ProfileScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(DarkBackground)
+            .background(MaterialTheme.colorScheme.background)
             .statusBarsPadding()
             .verticalScroll(rememberScrollState())
     ) {
@@ -328,6 +341,15 @@ fun ProfileScreen(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 14.dp)
                 .clip(RoundedCornerShape(14.dp))
+                .background(
+                    if (bannerColor != null) {
+                        Brush.horizontalGradient(
+                            listOf(bannerColor.copy(alpha = 0.35f), bannerColor.copy(alpha = 0.08f))
+                        )
+                    } else {
+                        SolidColor(MaterialTheme.colorScheme.surface)
+                    }
+                )
                 .combinedClickable(
                     onClick = { showEditProfileDialog = true },
                     onLongClick = {
@@ -344,11 +366,11 @@ fun ProfileScreen(
                     .border(2.5.dp, themeAccent, CircleShape)
                     .padding(3.dp)
                     .clip(CircleShape)
-                    .background(DarkSurfaceVariant),
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
                 AsyncImage(
-                    model = getEffectiveAvatarModel(settings.avatarPath, settings.avatarUrl),
+                    model = getEffectiveAvatarModel(settings.avatarPath, settings.avatarUrl, settings.avatarSvgContent),
                     contentDescription = "Avatar",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
@@ -379,7 +401,7 @@ fun ProfileScreen(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(DarkSurface)
+                .background(MaterialTheme.colorScheme.surface)
                 .padding(vertical = 12.dp),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
@@ -577,17 +599,19 @@ fun ProfileScreen(
 
     if (showThemeDialog) {
         val themes = listOf(
-            "Emerald" to Color(0xFF00D26A),
+            "Emerald" to Color(0xFF06C149),
             "Cyan" to Color(0xFF00E5FF),
             "Sakura" to Color(0xFFFF4081),
             "Violet" to Color(0xFFB388FF),
             "Amber" to Color(0xFFFFB300),
-            "Crimson" to Color(0xFFFF5252)
+            "Crimson" to Color(0xFFFF5252),
+            "Indigo" to Color(0xFF536DFE),
+            "Gold" to Color(0xFFFFD54F)
         )
 
         AlertDialog(
             onDismissRequest = { showThemeDialog = false },
-            containerColor = DarkSurface,
+            containerColor = MaterialTheme.colorScheme.surface,
             title = { Text("Accent Color Theme", color = TextPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -598,7 +622,7 @@ fun ProfileScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(if (isSelected) color.copy(alpha = 0.15f) else DarkSurfaceVariant)
+                                .background(if (isSelected) color.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant)
                                 .clickable {
                                     repository.settingsManager.updateThemeAccent(name)
                                     Toast.makeText(context, "Theme set to $name", Toast.LENGTH_SHORT).show()
@@ -639,7 +663,7 @@ fun ProfileScreen(
             confirmButton = {
                 Button(
                     onClick = { showThemeDialog = false },
-                    colors = ButtonDefaults.buttonColors(containerColor = themeAccent, contentColor = DarkBackground)
+                    colors = ButtonDefaults.buttonColors(containerColor = themeAccent, contentColor = MaterialTheme.colorScheme.background)
                 ) {
                     Text("Done", fontWeight = FontWeight.Bold)
                 }
@@ -650,10 +674,13 @@ fun ProfileScreen(
     if (showPrivacyDialog) {
         AlertDialog(
             onDismissRequest = { showPrivacyDialog = false },
-            containerColor = DarkSurface,
+            containerColor = MaterialTheme.colorScheme.surface,
             title = { Text("Privacy & Anti-Tracking", color = TextPrimary, fontWeight = FontWeight.Bold) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -662,7 +689,7 @@ fun ProfileScreen(
                             .padding(12.dp)
                     ) {
                         Column {
-                            Text("Ad & Popup Blocker: ACTIVE", color = themeAccent, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                            Text("Ad & Popup Blocker", color = themeAccent, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 "Malicious popup windows, external scam redirects, and third-party advertising scripts are blocked at the network interceptor level.",
@@ -673,11 +700,38 @@ fun ProfileScreen(
                     }
 
                     SettingSwitchRow(
+                        title = "Ad & Popup Blocker",
+                        checked = settings.adBlockEnabled,
+                        onCheckedChange = {
+                            repository.settingsManager.update { s -> s.copy(adBlockEnabled = it) }
+                            Toast.makeText(context, if (it) "Ad blocker enabled" else "Ad blocker disabled", Toast.LENGTH_SHORT).show()
+                        }
+                    )
+
+                    SettingSwitchRow(
                         title = "Incognito Mode (Do not save history)",
                         checked = incognitoMode,
                         onCheckedChange = {
                             repository.settingsManager.updateIncognitoMode(it)
                             Toast.makeText(context, if (it) "Incognito mode enabled" else "Incognito mode disabled", Toast.LENGTH_SHORT).show()
+                        }
+                    )
+
+                    SettingSwitchRow(
+                        title = "Hide App from Recent Apps List",
+                        checked = settings.hideFromRecents,
+                        onCheckedChange = {
+                            repository.settingsManager.update { s -> s.copy(hideFromRecents = it) }
+                            Toast.makeText(context, if (it) "App will be hidden from recents" else "App visible in recents", Toast.LENGTH_SHORT).show()
+                        }
+                    )
+
+                    SettingSwitchRow(
+                        title = "Block Screenshots & Screen Recording",
+                        checked = settings.blockScreenshots,
+                        onCheckedChange = {
+                            repository.settingsManager.update { s -> s.copy(blockScreenshots = it) }
+                            Toast.makeText(context, if (it) "Screenshots blocked (FLAG_SECURE)" else "Screenshots allowed", Toast.LENGTH_SHORT).show()
                         }
                     )
 
@@ -695,146 +749,9 @@ fun ProfileScreen(
             confirmButton = {
                 Button(
                     onClick = { showPrivacyDialog = false },
-                    colors = ButtonDefaults.buttonColors(containerColor = themeAccent, contentColor = DarkBackground)
+                    colors = ButtonDefaults.buttonColors(containerColor = themeAccent, contentColor = MaterialTheme.colorScheme.background)
                 ) {
                     Text("Understood", fontWeight = FontWeight.Bold)
-                }
-            }
-        )
-    }
-
-    if (showPlayerSettingsDialog) {
-        AlertDialog(
-            onDismissRequest = { showPlayerSettingsDialog = false },
-            containerColor = DarkSurface,
-            title = { Text("Player & Server Settings", color = TextPrimary, fontWeight = FontWeight.Bold) },
-            text = {
-                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-                    Text("Default Streaming Server:", color = TextSecondary, fontSize = 12.sp)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    providerManager.getAvailableProviders().forEach { provider ->
-                        val isSelected = selectedServer == provider.id
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 3.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSelected) themeAccent.copy(alpha = 0.15f) else DarkSurfaceVariant)
-                                .clickable {
-                                    repository.settingsManager.updateDefaultServer(provider.id)
-                                    Toast.makeText(context, "Default set to ${provider.id}", Toast.LENGTH_SHORT).show()
-                                }
-                                .padding(horizontal = 10.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "${provider.id}: ${provider.displayName}",
-                                color = if (isSelected) themeAccent else TextPrimary,
-                                fontSize = 13.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                modifier = Modifier.weight(1f)
-                            )
-                            if (isSelected) {
-                                Box(modifier = Modifier.size(8.dp).background(themeAccent, CircleShape))
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    Text("Default Audio Language:", color = TextSecondary, fontSize = 12.sp)
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(
-                            onClick = { repository.settingsManager.updateDefaultLanguage("sub") },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (selectedAudio == "sub") themeAccent else DarkSurfaceVariant,
-                                contentColor = if (selectedAudio == "sub") DarkBackground else TextPrimary
-                            ),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text("SUBTITLES (SUB)")
-                        }
-                        Button(
-                            onClick = { repository.settingsManager.updateDefaultLanguage("dub") },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = if (selectedAudio == "dub") themeAccent else DarkSurfaceVariant,
-                                contentColor = if (selectedAudio == "dub") DarkBackground else TextPrimary
-                            ),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text("DUBBED (DUB)")
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    Text("Double-Tap Seek Interval:", color = TextSecondary, fontSize = 12.sp)
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        listOf(5, 10, 15, 30).forEach { sec ->
-                            val isSel = seekIntervalSec == sec
-                            Button(
-                                onClick = { repository.settingsManager.updateSeekInterval(sec) },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (isSel) themeAccent else DarkSurfaceVariant,
-                                    contentColor = if (isSel) DarkBackground else TextPrimary
-                                ),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text("${sec}s", fontSize = 12.sp)
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    Text("Default Playback Speed:", color = TextSecondary, fontSize = 12.sp)
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        listOf(0.75f, 1.0f, 1.25f, 1.5f).forEach { spd ->
-                            val isSel = defaultSpeed == spd
-                            Button(
-                                onClick = { repository.settingsManager.updateDefaultSpeed(spd) },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (isSel) themeAccent else DarkSurfaceVariant,
-                                    contentColor = if (isSel) DarkBackground else TextPrimary
-                                ),
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text("${spd}x", fontSize = 12.sp)
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    SettingSwitchRow(
-                        title = "Autoplay Video Stream",
-                        checked = autoplayEnabled,
-                        onCheckedChange = { repository.settingsManager.updateAutoplay(it) }
-                    )
-                    SettingSwitchRow(
-                        title = "Auto-Next Episode Countdown",
-                        checked = autoNextEnabled,
-                        onCheckedChange = { repository.settingsManager.updateAutoNext(it) }
-                    )
-                    SettingSwitchRow(
-                        title = "Auto-Skip Opening/Intro (+85s)",
-                        checked = autoSkipIntroEnabled,
-                        onCheckedChange = { repository.settingsManager.updateAutoSkipIntro(it) }
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showPlayerSettingsDialog = false
-                        Toast.makeText(context, "Player preferences saved", Toast.LENGTH_SHORT).show()
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = themeAccent, contentColor = DarkBackground)
-                ) {
-                    Text("Done", fontWeight = FontWeight.Bold)
                 }
             }
         )

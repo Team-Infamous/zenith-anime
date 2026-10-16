@@ -22,12 +22,18 @@ import com.example.data.model.DownloadItem
 import com.example.data.model.Episode
 import com.example.data.resolver.HlsParser
 import com.example.data.resolver.SubtitleTrack
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
@@ -54,7 +60,7 @@ class AnimeDownloadManager(
     private val database: AppDatabase,
     private val settingsManager: SettingsManager
 ) {
-    private val scope = CoroutineScope(Dispatchers.IO + Job())
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val activeJobs = ConcurrentHashMap<String, Job>()
     private val _downloadProgress = MutableStateFlow<Map<String, Int>>(emptyMap())
     val downloadProgress: StateFlow<Map<String, Int>> = _downloadProgress.asStateFlow()
@@ -69,6 +75,8 @@ class AnimeDownloadManager(
         private const val TAG = "AnimeDownloader"
         private const val CHANNEL_ID = "zenith_downloads_channel"
         private const val CHANNEL_NAME = "Zenith Anime Downloads"
+        private const val CHANNEL_SOUND_ID = "zenith_downloads_sound_channel"
+        private const val CHANNEL_SOUND_NAME = "Zenith Anime Download Alerts"
         const val STATUS_DOWNLOADING = "DOWNLOADING"
         const val STATUS_COMPLETED = "COMPLETED"
         const val STATUS_FAILED = "FAILED"
@@ -88,13 +96,19 @@ class AnimeDownloadManager(
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
+            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            val silentChannel = NotificationChannel(
                 CHANNEL_ID,
                 CHANNEL_NAME,
                 NotificationManager.IMPORTANCE_LOW
             ).apply { description = "Shows live download progress" }
-            val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
-            manager?.createNotificationChannel(channel)
+            val soundChannel = NotificationChannel(
+                CHANNEL_SOUND_ID,
+                CHANNEL_SOUND_NAME,
+                NotificationManager.IMPORTANCE_DEFAULT
+            ).apply { description = "Alerts when an episode download completes with sound enabled" }
+            manager?.createNotificationChannel(silentChannel)
+            manager?.createNotificationChannel(soundChannel)
         }
     }
 
@@ -117,6 +131,10 @@ class AnimeDownloadManager(
         val safeTitle = anime.title.replace(Regex("[^a-zA-Z0-9.-]"), "_").take(40)
         val isHls = streamUrl?.contains(".m3u8") == true
         val targetDir = targetDirectory(safeTitle)
+
+        if (subtitles.isNotEmpty()) {
+            rememberSubtitle(anime.id, episode.number, subtitles.first())
+        }
 
         val placeholder = DownloadItem(
             id = downloadId,
@@ -165,12 +183,12 @@ class AnimeDownloadManager(
     private fun isOnWifi(): Boolean {
         return try {
             val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
-            val network = cm?.activeNetwork ?: return true
-            val caps = cm.getNetworkCapabilities(network) ?: return true
+            val network = cm?.activeNetwork ?: return false
+            val caps = cm.getNetworkCapabilities(network) ?: return false
             caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) ||
                 caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET)
         } catch (_: Throwable) {
-            true
+            false
         }
     }
 
@@ -191,15 +209,40 @@ class AnimeDownloadManager(
             database.downloadDao().updateProgress(downloadId, 0, STATUS_DOWNLOADING, "0 MB")
             if (notify) postProgressNotification(downloadId.hashCode(), anime.title, episode.number, 0)
 
-            val isHls = declaredHls || fetchLooksLikeHls(streamUrl, headers)
-            outFile = if (isHls) {
-                downloadHls(streamUrl, targetDir, safeTitle, episode.number, headers, downloadId, anime, notify)
-            } else {
-                downloadProgressive(streamUrl, targetDir, safeTitle, episode.number, headers, downloadId, anime, notify)
+            val maxRetries = settingsManager.getSettings().downloadRetryCount.coerceIn(0, 5)
+            var attempt = 0
+            var lastError: Throwable? = null
+
+            while (attempt <= maxRetries) {
+                currentCoroutineContext().ensureActive()
+                try {
+                    val isHls = declaredHls || fetchLooksLikeHls(streamUrl, headers)
+                    outFile = if (isHls) {
+                        downloadHls(streamUrl, targetDir, safeTitle, episode.number, headers, downloadId, anime, notify, preferredQuality = quality)
+                    } else {
+                        downloadProgressive(streamUrl, targetDir, safeTitle, episode.number, headers, downloadId, anime, notify)
+                    }
+
+                    if (outFile == null || !outFile.exists() || outFile.length() <= 0L) {
+                        throw IllegalStateException("Server returned an empty file")
+                    }
+                    lastError = null
+                    break
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (t: Throwable) {
+                    lastError = t
+                    outFile?.takeIf { it.exists() }?.delete()
+                    attempt++
+                    if (attempt <= maxRetries) {
+                        Log.w(TAG, "Retry $attempt/$maxRetries for $downloadId after error: ${t.message}")
+                        delay(1000L * attempt)
+                    }
+                }
             }
 
-            if (outFile == null || !outFile.exists() || outFile.length() <= 0L) {
-                throw IllegalStateException("Server returned an empty file")
+            if (lastError != null || outFile == null) {
+                throw (lastError ?: IllegalStateException("Server returned an empty file"))
             }
 
             val sizeLabel = formatFileSize(outFile.length())
@@ -224,6 +267,8 @@ class AnimeDownloadManager(
             // download may want the ongoing progress bar without a ping when it lands.
             if (currentSettings.downloadCompleteNotifications) {
                 postCompleteNotification(downloadId.hashCode(), anime.title, episode.number)
+            } else {
+                cancelNotification(downloadId.hashCode())
             }
 
             database.notificationDao().insert(
@@ -243,6 +288,10 @@ class AnimeDownloadManager(
                     Toast.LENGTH_LONG
                 ).show()
             }
+        } catch (e: CancellationException) {
+            outFile?.takeIf { it.exists() }?.delete()
+            cancelNotification(downloadId.hashCode())
+            throw e
         } catch (t: Throwable) {
             Log.e(TAG, "download failed for $downloadId", t)
             outFile?.takeIf { it.exists() }?.delete()
@@ -307,7 +356,8 @@ class AnimeDownloadManager(
         headers: Map<String, String>,
         downloadId: String,
         anime: Anime,
-        notify: Boolean
+        notify: Boolean,
+        preferredQuality: String = ""
     ): File {
         val playlistUrl: String
         val playlistText: String
@@ -315,7 +365,7 @@ class AnimeDownloadManager(
         val rootText = fetchText(m3u8Url, headers)
         if (HlsParser.isMaster(rootText)) {
             val variants = HlsParser.variants(m3u8Url, rootText)
-            val preferred = settingsManager.getSettings().downloadQuality
+            val preferred = preferredQuality.ifBlank { settingsManager.getSettings().downloadQuality }
             val picked = HlsParser.pick(variants, preferred) ?: variants.first()
             playlistUrl = picked.url
             playlistText = fetchText(playlistUrl, headers)
@@ -333,6 +383,7 @@ class AnimeDownloadManager(
 
         FileOutputStream(outFile, true).use { output ->
             segments.forEachIndexed { index, segmentUrl ->
+                currentCoroutineContext().ensureActive()
                 val response = httpClient.newCall(request(segmentUrl, headers)).execute()
                 response.use { resp ->
                     if (!resp.isSuccessful) throw IllegalStateException("Segment ${index + 1} HTTP ${resp.code}")
@@ -340,6 +391,7 @@ class AnimeDownloadManager(
                         val buffer = ByteArray(64 * 1024)
                         var read: Int
                         while (input.read(buffer).also { read = it } != -1) {
+                            currentCoroutineContext().ensureActive()
                             output.write(buffer, 0, read)
                         }
                     }
@@ -385,6 +437,7 @@ class AnimeDownloadManager(
                     var read: Int
                     var lastUpdate = 0L
                     while (input.read(buffer).also { read = it } != -1) {
+                        currentCoroutineContext().ensureActive()
                         output.write(buffer, 0, read)
                         copied += read
                         val now = System.currentTimeMillis()
@@ -511,14 +564,26 @@ class AnimeDownloadManager(
         }
     }
 
+    private fun appDownloadDirectory(): File {
+        val base = context.getExternalFilesDir(Environment.DIRECTORY_MOVIES) ?: context.filesDir
+        return File(base, "Zenith-Anime")
+    }
+
     private fun targetDirectory(safeTitle: String): File {
-        val settings = settingsManager.getSettings()
-        return when (settings.downloadLocation) {
-            "Downloads folder" -> {
-                val public = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-                File(public, "Zenith-Anime/$safeTitle")
-            }
-            else -> File(context.getExternalFilesDir(Environment.DIRECTORY_MOVIES), "Zenith-Anime/$safeTitle")
+        return File(appDownloadDirectory(), safeTitle)
+    }
+
+    /** Cancels all active downloads and removes all downloaded files from disk. */
+    fun clearAllDownloadFiles() {
+        activeJobs.keys.toList().forEach { id ->
+            activeJobs.remove(id)?.cancel()
+            cancelNotification(id.hashCode())
+        }
+        _downloadProgress.value = emptyMap()
+        try {
+            appDownloadDirectory().takeIf { it.exists() }?.deleteRecursively()
+        } catch (t: Throwable) {
+            Log.w(TAG, "clearAllDownloadFiles failed: ${t.message}")
         }
     }
 
@@ -535,14 +600,11 @@ class AnimeDownloadManager(
     }
 
     private fun updateProgress(id: String, pct: Int) {
-        val current = _downloadProgress.value.toMutableMap()
-        current[id] = pct
-        _downloadProgress.value = current
+        _downloadProgress.update { current -> current + (id to pct) }
     }
 
     suspend fun deleteDownload(id: String) = withContext(Dispatchers.IO) {
-        activeJobs[id]?.cancel()
-        activeJobs.remove(id)
+        activeJobs.remove(id)?.cancel()
         val item = database.downloadDao().getDownloadById(id)
         if (item != null && item.filePath.isNotBlank()) {
             File(item.filePath).takeIf { it.exists() }?.delete()
@@ -551,9 +613,7 @@ class AnimeDownloadManager(
         // stray .vtt on disk for every download the user removed.
         item?.let { subtitleSidecarFor(it)?.delete() }
         database.downloadDao().deleteDownload(id)
-        val current = _downloadProgress.value.toMutableMap()
-        current.remove(id)
-        _downloadProgress.value = current
+        _downloadProgress.update { current -> current - id }
         cancelNotification(id.hashCode())
     }
 
@@ -613,6 +673,7 @@ class AnimeDownloadManager(
                 .setProgress(100, progress, false)
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
+                .setSilent(true)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .build()
             NotificationManagerCompat.from(context).notify(notifId, notification)
@@ -622,16 +683,24 @@ class AnimeDownloadManager(
 
     private fun postCompleteNotification(notifId: Int, title: String, epNumber: Int) {
         try {
-            val notification = NotificationCompat.Builder(context, CHANNEL_ID)
+            val playSound = settingsManager.getSettings().downloadNotificationsSound
+            val channelId = if (playSound) CHANNEL_SOUND_ID else CHANNEL_ID
+            val builder = NotificationCompat.Builder(context, channelId)
                 .setSmallIcon(R.drawable.ic_zenith_logo)
                 .setContentTitle("Download complete")
                 .setContentText("$title • Episode $epNumber is ready to watch offline")
                 .setProgress(0, 0, false)
                 .setOngoing(false)
                 .setAutoCancel(true)
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                .build()
-            NotificationManagerCompat.from(context).notify(notifId, notification)
+                .setSilent(!playSound)
+                .setPriority(
+                    if (playSound) NotificationCompat.PRIORITY_DEFAULT
+                    else NotificationCompat.PRIORITY_LOW
+                )
+            if (playSound) {
+                builder.setDefaults(NotificationCompat.DEFAULT_SOUND)
+            }
+            NotificationManagerCompat.from(context).notify(notifId, builder.build())
         } catch (_: Throwable) {
         }
     }

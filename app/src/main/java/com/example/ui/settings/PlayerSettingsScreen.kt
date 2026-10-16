@@ -3,16 +3,24 @@ package com.example.ui.settings
 import android.widget.Toast
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.repository.AnimeRepository
+import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import kotlin.math.roundToInt
 
@@ -504,6 +512,16 @@ fun PlayerSettingsScreen(
                 checked = settings.discordRpcEnabled,
                 onCheckedChange = { settingsManager.update { s -> s.copy(discordRpcEnabled = it) } }
             )
+            if (settings.discordRpcEnabled) {
+                SettingsDivider()
+                SettingTextRow(
+                    title = "Discord Webhook URL",
+                    subtitle = "Webhook endpoint for playback activity notifications",
+                    value = settings.discordWebhookUrl,
+                    placeholder = "https://discord.com/api/webhooks/...",
+                    onValueChange = { url -> settingsManager.update { s -> s.copy(discordWebhookUrl = url) } }
+                )
+            }
         }
 
         SettingsSection(title = "BACKGROUND AUDIO & PIP") {
@@ -515,14 +533,43 @@ fun PlayerSettingsScreen(
             )
         }
 
+        var showResetPlayerConfirmDialog by remember { mutableStateOf(false) }
+
         SettingsSection(title = "RESET") {
             SettingActionRow(
                 title = "Reset Player Preferences",
                 subtitle = "Restores streaming, playback, gesture, video and lock settings to their defaults. Downloads, library and profile are kept.",
                 destructive = true,
                 onClick = {
-                    settingsManager.resetPlayerPreferences()
-                    Toast.makeText(context, "Player preferences reset", Toast.LENGTH_SHORT).show()
+                    if (settings.confirmDestructiveActions) {
+                        showResetPlayerConfirmDialog = true
+                    } else {
+                        settingsManager.resetPlayerPreferences()
+                        Toast.makeText(context, "Player preferences reset", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            )
+        }
+
+        if (showResetPlayerConfirmDialog) {
+            AlertDialog(
+                onDismissRequest = { showResetPlayerConfirmDialog = false },
+                containerColor = MaterialTheme.colorScheme.surface,
+                title = { Text("Reset Player Preferences?", color = TextPrimary, fontWeight = FontWeight.Bold) },
+                text = { Text("Are you sure you want to restore all player and playback settings to their defaults?", color = TextSecondary) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showResetPlayerConfirmDialog = false
+                        settingsManager.resetPlayerPreferences()
+                        Toast.makeText(context, "Player preferences reset", Toast.LENGTH_SHORT).show()
+                    }) {
+                        Text("Reset", color = Color(0xFFFF6B6B), fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showResetPlayerConfirmDialog = false }) {
+                        Text("Cancel", color = TextSecondary)
+                    }
                 }
             )
         }

@@ -23,12 +23,12 @@ data class WatchProgress(
     fun formattedCurrentTime(): String {
         val m = currentTimeSec / 60
         val s = currentTimeSec % 60
-        return String.format("%02d:%02d", m, s)
+        return String.format(java.util.Locale.US, "%02d:%02d", m, s)
     }
 
     fun formattedDuration(): String {
         val m = durationSec / 60
         val s = durationSec % 60
-        return String.format("%02d:%02d", m, s)
+        return String.format(java.util.Locale.US, "%02d:%02d", m, s)
     }
 }

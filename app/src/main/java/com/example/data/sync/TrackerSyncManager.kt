@@ -39,7 +39,7 @@ class TrackerSyncManager {
 
         // 1. Scrobble to AniList if token present
         if (settings.anilistAuthToken.isNotBlank()) {
-            val aniListId = anime.id.toIntOrNull() ?: anime.id.removePrefix("mal_").toIntOrNull()
+            val aniListId = if (!anime.id.startsWith("mal_")) anime.id.toIntOrNull() else null
             if (aniListId != null) {
                 val ok = scrobbleAniList(aniListId, episodeNumber, isCompleted, settings.anilistAuthToken)
                 if (ok) anySuccess = true
@@ -48,7 +48,7 @@ class TrackerSyncManager {
 
         // 2. Scrobble to MyAnimeList if token present
         if (settings.malAuthToken.isNotBlank()) {
-            val malId = anime.malId.toIntOrNull() ?: anime.id.removePrefix("mal_").toIntOrNull()
+            val malId = anime.malId.toIntOrNull() ?: if (anime.id.startsWith("mal_")) anime.id.removePrefix("mal_").toIntOrNull() else null
             if (malId != null && malId > 0) {
                 val ok = scrobbleMyAnimeList(malId, episodeNumber, isCompleted, settings.malAuthToken)
                 if (ok) anySuccess = true
@@ -94,10 +94,11 @@ class TrackerSyncManager {
                 .post(payload.toString().toRequestBody(jsonMediaType))
                 .build()
 
-            val response = client.newCall(request).execute()
-            val success = response.isSuccessful
-            Log.d(TAG, "AniList scrobble mediaId=$mediaId ep=$progress completed=$isCompleted -> code=${response.code}")
-            success
+            client.newCall(request).execute().use { response ->
+                val success = response.isSuccessful
+                Log.d(TAG, "AniList scrobble mediaId=$mediaId ep=$progress completed=$isCompleted -> code=${response.code}")
+                success
+            }
         } catch (e: Exception) {
             Log.w(TAG, "Failed AniList scrobble: ${e.message}")
             false
@@ -123,10 +124,11 @@ class TrackerSyncManager {
                 .patch(formBody)
                 .build()
 
-            val response = client.newCall(request).execute()
-            val success = response.isSuccessful
-            Log.d(TAG, "MAL scrobble malId=$malId ep=$progress completed=$isCompleted -> code=${response.code}")
-            success
+            client.newCall(request).execute().use { response ->
+                val success = response.isSuccessful
+                Log.d(TAG, "MAL scrobble malId=$malId ep=$progress completed=$isCompleted -> code=${response.code}")
+                success
+            }
         } catch (e: Exception) {
             Log.w(TAG, "Failed MAL scrobble: ${e.message}")
             false

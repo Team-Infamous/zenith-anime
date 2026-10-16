@@ -17,9 +17,10 @@ object HlsParser {
         val bandwidth: Int,
         val codecs: String = ""
     ) {
-        /** Numeric height for sorting, e.g. "1080p" -> 1080. */
+        /** Numeric height for sorting, e.g. "1080p" -> 1080 or "1920x1080" -> 1080. */
         val height: Int
-            get() = Regex("(\\d{3,4})").find(resolution)?.groupValues?.getOrNull(1)?.toIntOrNull() ?: 0
+            get() = Regex("(?:x|\\b)(\\d{3,4})p?\\b").find(resolution)?.groupValues?.getOrNull(1)?.toIntOrNull()
+                ?: Regex("(\\d{3,4})").find(resolution)?.groupValues?.getOrNull(1)?.toIntOrNull() ?: 0
 
         val label: String get() = if (height > 0) "${height}p" else "Auto"
     }
@@ -56,7 +57,7 @@ object HlsParser {
                 codecs = codecs
             )
         }
-        return out.sortedByDescending { it.height }
+        return out.sortedWith(compareByDescending<Variant> { it.height }.thenByDescending { it.bandwidth })
     }
 
     fun segments(playlistUrl: String, playlist: String): List<String> {

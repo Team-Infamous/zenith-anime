@@ -39,12 +39,14 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.ui.res.painterResource
 import com.example.R
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -72,11 +74,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.model.DownloadItem
+import com.example.data.model.Episode
 import com.example.data.repository.AnimeRepository
 import com.example.ui.theme.AccentRed
-import com.example.ui.theme.DarkBackground
 import com.example.ui.theme.DarkBorder
-import com.example.ui.theme.DarkSurface
 import com.example.ui.theme.DarkSurfaceVariant
 import com.example.ui.theme.LocalThemeAccent
 import com.example.ui.theme.TextPrimary
@@ -92,7 +93,10 @@ fun DownloadScreen(
 ) {
     val context = LocalContext.current
     val themeAccent = LocalThemeAccent.current
+    val bgColor = MaterialTheme.colorScheme.background
+    val surfaceColor = MaterialTheme.colorScheme.surface
     val downloads by repository.allDownloads.collectAsState(initial = emptyList())
+    val allAnime by repository.allAnime.collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
     var selectedItemForAction by remember { mutableStateOf<DownloadItem?>(null) }
     // Both the trash button and the long-press sheet route deletions through one confirmation, so
@@ -101,6 +105,15 @@ fun DownloadScreen(
     var pendingDeleteWatched by remember { mutableStateOf<Boolean?>(null) }
 
     val settings by repository.settings.collectAsState(initial = repository.settingsManager.getSettings())
+    val animeById = remember(allAnime) { allAnime.associateBy { it.id } }
+
+    fun displayTitleFor(item: DownloadItem): String {
+        return animeById[item.animeId]?.displayTitle(settings.titleLanguagePreference)
+            ?.ifBlank { item.animeTitle }
+            ?: item.animeTitle
+    }
+
+    val shouldConfirmDelete = settings.confirmDestructiveActions || settings.confirmBeforeDeletingDownloads
 
     // Knowing whether the episode was finished decides how strongly to word the warning.
     LaunchedEffect(pendingDelete) {
@@ -114,16 +127,63 @@ fun DownloadScreen(
             repository.deleteDownload(target.id)
             Toast.makeText(
                 context,
-                "Deleted ${target.animeTitle} Episode ${target.episodeNumber} from offline storage",
+                "Deleted ${displayTitleFor(target)} Episode ${target.episodeNumber} from offline storage",
                 Toast.LENGTH_SHORT
             ).show()
+        }
+    }
+
+    val handleItemClick: (DownloadItem) -> Unit = { item ->
+        when (item.status) {
+            "COMPLETED" -> onPlayClick(item.animeId, item.episodeNumber)
+            "FAILED" -> {
+                val matchedAnime = animeById[item.animeId]
+                if (matchedAnime != null) {
+                    scope.launch {
+                        Toast.makeText(
+                            context,
+                            "Retrying Episode ${item.episodeNumber} download...",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        val ep = Episode(
+                            id = "${item.animeId}_${item.episodeNumber}",
+                            animeId = item.animeId,
+                            number = item.episodeNumber,
+                            title = "Episode ${item.episodeNumber}",
+                            thumbnail = item.thumbnail
+                        )
+                        val res = repository.addDownload(matchedAnime, ep, item.quality)
+                        if (!res.started) {
+                            Toast.makeText(
+                                context,
+                                res.error ?: "Download retry failed. Try again from the episode page.",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    }
+                } else {
+                    Toast.makeText(
+                        context,
+                        "Download failed for ${displayTitleFor(item)} Ep ${item.episodeNumber}. Long-press to delete or retry.",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+            "DOWNLOADING", "PENDING" -> {
+                Toast.makeText(
+                    context,
+                    "Downloading ${displayTitleFor(item)} Ep ${item.episodeNumber} (${item.progress}%)...",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+            else -> onPlayClick(item.animeId, item.episodeNumber)
         }
     }
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(DarkBackground)
+            .background(bgColor)
             .statusBarsPadding()
     ) {
         Row(
@@ -164,8 +224,8 @@ fun DownloadScreen(
             }
         }
 
-        // Device Storage Meter Card
-        val (totalGb, freeGb, usedPercent) = remember {
+        // Device Storage Meter Card (recalculated dynamically whenever downloads change)
+        val (totalGb, freeGb, usedPercent) = remember(downloads) {
             try {
                 val stat = StatFs(Environment.getDataDirectory().path)
                 val total = stat.totalBytes.toDouble() / (1024 * 1024 * 1024)
@@ -183,7 +243,7 @@ fun DownloadScreen(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 6.dp)
                 .clip(RoundedCornerShape(14.dp))
-                .background(DarkSurface)
+                .background(surfaceColor)
                 .border(0.5.dp, DarkBorder, RoundedCornerShape(14.dp))
                 .padding(14.dp)
         ) {
@@ -263,7 +323,7 @@ fun DownloadScreen(
                     Spacer(modifier = Modifier.height(20.dp))
                     Button(
                         onClick = onSearchClick,
-                        colors = ButtonDefaults.buttonColors(containerColor = themeAccent, contentColor = DarkBackground),
+                        colors = ButtonDefaults.buttonColors(containerColor = themeAccent, contentColor = bgColor),
                         shape = RoundedCornerShape(20.dp)
                     ) {
                         Text("Explore Anime", fontWeight = FontWeight.Bold)
@@ -274,15 +334,18 @@ fun DownloadScreen(
             LazyColumn(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
+                    .navigationBarsPadding()
             ) {
                 items(downloads, key = { it.id }) { item ->
                     DownloadCardItem(
                         item = item,
-                        onPlayClick = { onPlayClick(item.animeId, item.episodeNumber) },
+                        displayTitle = displayTitleFor(item),
+                        onPlayClick = { handleItemClick(item) },
                         onLongClick = { selectedItemForAction = item },
                         onDeleteClick = {
-                            if (settings.confirmDestructiveActions) pendingDelete = item else performDelete(item)
+                            if (shouldConfirmDelete) pendingDelete = item else performDelete(item)
                         }
                     )
                 }
@@ -294,10 +357,10 @@ fun DownloadScreen(
         val target = selectedItemForAction!!
         AlertDialog(
             onDismissRequest = { selectedItemForAction = null },
-            containerColor = DarkSurface,
+            containerColor = surfaceColor,
             title = {
                 Text(
-                    text = "${target.animeTitle} - Ep ${target.episodeNumber}",
+                    text = "${displayTitleFor(target)} - Ep ${target.episodeNumber}",
                     color = TextPrimary,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
@@ -305,7 +368,7 @@ fun DownloadScreen(
             },
             text = {
                 Text(
-                    text = "Quality: ${target.quality} • File Size: ${target.fileSize}",
+                    text = "Quality: ${target.quality} • File Size: ${target.fileSize} • Status: ${target.status}",
                     color = TextSecondary,
                     fontSize = 13.sp
                 )
@@ -313,21 +376,24 @@ fun DownloadScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        val aid = target.animeId
-                        val ep = target.episodeNumber
                         selectedItemForAction = null
-                        onPlayClick(aid, ep)
+                        handleItemClick(target)
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = themeAccent, contentColor = DarkBackground)
+                    colors = ButtonDefaults.buttonColors(containerColor = themeAccent, contentColor = bgColor)
                 ) {
-                    Text("Play Offline", fontWeight = FontWeight.Bold)
+                    val btnLabel = when (target.status) {
+                        "COMPLETED" -> "Play Offline"
+                        "FAILED" -> "Retry Download"
+                        else -> "Check Progress"
+                    }
+                    Text(btnLabel, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 Button(
                     onClick = {
                         selectedItemForAction = null
-                        if (settings.confirmDestructiveActions) pendingDelete = target else performDelete(target)
+                        if (shouldConfirmDelete) pendingDelete = target else performDelete(target)
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = AccentRed, contentColor = TextPrimary)
                 ) {
@@ -338,15 +404,15 @@ fun DownloadScreen(
     }
 
     pendingDelete?.let { target ->
-        if (settings.confirmDestructiveActions) {
+        if (shouldConfirmDelete) {
             AlertDialog(
                 onDismissRequest = { pendingDelete = null },
-                containerColor = DarkSurface,
+                containerColor = surfaceColor,
                 title = { Text("Delete This Download?", color = AccentRed, fontWeight = FontWeight.Bold) },
                 text = {
                     Column {
                         Text(
-                            text = target.animeTitle + " Episode " + target.episodeNumber +
+                            text = displayTitleFor(target) + " Episode " + target.episodeNumber +
                                 " (" + target.quality + ", " + target.fileSize +
                                 ") will be removed from this device. You can download it again later.",
                             color = TextPrimary,
@@ -397,6 +463,7 @@ fun DownloadScreen(
 @Composable
 fun DownloadCardItem(
     item: DownloadItem,
+    displayTitle: String = item.animeTitle,
     onPlayClick: () -> Unit,
     onLongClick: () -> Unit,
     onDeleteClick: () -> Unit,
@@ -404,6 +471,7 @@ fun DownloadCardItem(
 ) {
     val haptic = LocalHapticFeedback.current
     val themeAccent = LocalThemeAccent.current
+    val surfaceColor = MaterialTheme.colorScheme.surface
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
@@ -421,7 +489,7 @@ fun DownloadCardItem(
             .fillMaxWidth()
             .scale(scaleAnim)
             .clip(RoundedCornerShape(12.dp))
-            .background(DarkSurface)
+            .background(surfaceColor)
             .combinedClickable(
                 interactionSource = interactionSource,
                 indication = ripple(bounded = true, color = themeAccent),
@@ -442,7 +510,7 @@ fun DownloadCardItem(
         ) {
             AsyncImage(
                 model = item.thumbnail,
-                contentDescription = item.animeTitle,
+                contentDescription = displayTitle,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
@@ -454,7 +522,7 @@ fun DownloadCardItem(
                     .align(Alignment.Center),
                 contentAlignment = Alignment.Center
             ) {
-                if (item.status == "DOWNLOADING") {
+                if (item.status == "DOWNLOADING" || item.status == "PENDING") {
                     Icon(
                         imageVector = Icons.Default.Download,
                         contentDescription = "Downloading",
@@ -465,7 +533,7 @@ fun DownloadCardItem(
                     Icon(
                         imageVector = Icons.Default.PlayArrow,
                         contentDescription = "Play offline",
-                        tint = themeAccent,
+                        tint = if (item.status == "FAILED") Color(0xFFEF4444) else themeAccent,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -478,7 +546,7 @@ fun DownloadCardItem(
             modifier = Modifier.weight(1f)
         ) {
             Text(
-                text = item.animeTitle,
+                text = displayTitle,
                 color = TextPrimary,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
@@ -494,7 +562,7 @@ fun DownloadCardItem(
                 fontSize = 12.sp
             )
 
-            if (item.status == "DOWNLOADING") {
+            if (item.status == "DOWNLOADING" || item.status == "PENDING") {
                 Spacer(modifier = Modifier.height(4.dp))
                 LinearProgressIndicator(
                     progress = (item.progress / 100f).coerceIn(0f, 1f),
@@ -511,7 +579,7 @@ fun DownloadCardItem(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Downloading ${item.progress}%",
+                        text = if (item.status == "PENDING") "Queued..." else "Downloading ${item.progress}%",
                         color = themeAccent,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.SemiBold
@@ -542,7 +610,7 @@ fun DownloadCardItem(
                     Spacer(modifier = Modifier.width(8.dp))
 
                     Text(
-                        text = if (item.status == "FAILED") "Download Failed" else item.fileSize,
+                        text = if (item.status == "FAILED") "Download Failed • Tap to Retry" else item.fileSize,
                         color = if (item.status == "FAILED") Color(0xFFEF4444) else TextSecondary,
                         fontSize = 11.sp
                     )

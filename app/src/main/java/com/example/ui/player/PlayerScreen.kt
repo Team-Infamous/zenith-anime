@@ -26,6 +26,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.material3.ripple
@@ -50,6 +51,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -137,9 +139,11 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
@@ -162,6 +166,9 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -217,10 +224,12 @@ fun PlayerScreen(
 ) {
     val context = LocalContext.current
     val activity = context as? Activity
+    val lifecycleOwner = LocalLifecycleOwner.current
     val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val isInPip = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && activity?.isInPictureInPictureMode == true
     val themeAccent = LocalThemeAccent.current
     val view = LocalView.current
 
@@ -247,6 +256,7 @@ fun PlayerScreen(
     var playbackError by remember { mutableStateOf<String?>(null) }
     var exoAudioTracks by remember { mutableStateOf<List<AudioTrackOption>>(emptyList()) }
     var activeExoAudioTrackId by remember { mutableStateOf<String?>(null) }
+    var userPickedExoAudioTrack by remember { mutableStateOf(false) }
     var dubStatusBanner by remember { mutableStateOf<String?>(null) }
 
     var isPlaying by remember { mutableStateOf(false) }
@@ -257,11 +267,16 @@ fun PlayerScreen(
     var isMuted by remember { mutableStateOf(false) }
     var videoVolume by remember { mutableFloatStateOf(1f) }
     var playbackSpeed by remember { mutableFloatStateOf(savedSettings.defaultPlaybackSpeed) }
-    var brightness by remember { mutableFloatStateOf(1f) }
+    var brightness by remember {
+        mutableFloatStateOf(
+            activity?.window?.attributes?.screenBrightness?.takeIf { it in 0.05f..1.0f } ?: 0.75f
+        )
+    }
 
     // ---- ui state ----
     var showControls by remember { mutableStateOf(true) }
     var isLocked by remember { mutableStateOf(false) }
+    var manualFullscreen by remember { mutableStateOf(false) }
     var isScrubbing by remember { mutableStateOf(false) }
     var scrubPosition by remember { mutableLongStateOf(0L) }
     var isHoldingSpeed by remember { mutableStateOf(false) }
@@ -289,10 +304,17 @@ fun PlayerScreen(
     var isCasting by remember { mutableStateOf(false) }
     var castingDeviceName by remember { mutableStateOf<String?>(null) }
     var showAutoNextBanner by remember { mutableStateOf(false) }
-    var autoNextCountdown by remember { mutableIntStateOf(5) }
+    var autoNextCountdown by remember { mutableIntStateOf(savedSettings.autoNextCountdownSec.coerceIn(2, 15)) }
+    var autoNextCancelled by remember(currentEpNumber) { mutableStateOf(false) }
+    var introSkippedForEp by remember(currentEpNumber) { mutableStateOf(false) }
+    var outroSkippedForEp by remember(currentEpNumber) { mutableStateOf(false) }
     var episodeQuery by remember { mutableStateOf("") }
     var selectedEpisodeRangeIndex by remember { mutableIntStateOf(0) }
     var resumePositionSec by remember { mutableLongStateOf(0L) }
+    var hasAppliedResume by remember(animeId, currentEpNumber) { mutableStateOf(false) }
+    // A finished offline download is played straight from disk, so downloads work with no network.
+    var localPath by remember { mutableStateOf<String?>(null) }
+    var localSubtitlePath by remember { mutableStateOf<String?>(null) }
     // Deferred intents: effects and the player listener set these, and they are applied after the
     // helper functions below are declared (Kotlin resolves local functions lexically).
     var pendingAdvance by remember { mutableStateOf(false) }
@@ -314,6 +336,10 @@ fun PlayerScreen(
     val currentSource: StreamSource? = sources.getOrNull(sourceIndex)
     val effectiveMultiplier = savedSettings.holdToSpeedMultiplier.coerceIn(1.25f, 4f)
     val effectiveSlowMultiplier = savedSettings.holdToSpeedSlowMultiplier.coerceIn(0.25f, 1f)
+
+    LaunchedEffect(currentEpNumber, currentSource?.key) {
+        userPickedExoAudioTrack = false
+    }
 
     // ---------------------------------------------------------------------------------------------
     // Player instance
@@ -354,19 +380,34 @@ fun PlayerScreen(
             }
     }
 
-    val mediaSession = remember { MediaSession.Builder(context, player).build() }
+    var audioSessionId by remember { mutableIntStateOf(player.audioSessionId) }
+
+    val mediaSession = remember {
+        MediaSession.Builder(context, player)
+            .setId("zenith_player_${java.util.UUID.randomUUID()}")
+            .build()
+    }
+
+    val currentEpisodeState by rememberUpdatedState(currentEpisode)
+    val currentAnimeState by rememberUpdatedState(anime)
+    val userPickedExoAudioTrackState by rememberUpdatedState(userPickedExoAudioTrack)
 
     DisposableEffect(Unit) {
         val listener = object : Player.Listener {
+            override fun onAudioSessionIdChanged(newAudioSessionId: Int) {
+                audioSessionId = newAudioSessionId
+            }
+
             override fun onIsPlayingChanged(playing: Boolean) {
                 isPlaying = playing
                 if (!playing && currentTimeSec > 0) {
-                    anime?.let { loaded ->
+                    currentAnimeState?.let { loaded ->
+                        val displayAnime = loaded.copy(title = loaded.displayTitle(savedSettings.titleLanguagePreference))
                         val comp = durationSec > 0 && currentTimeSec >= durationSec * savedSettings.markWatchedThresholdPercent / 100
                         scope.launch {
                             repository.saveWatchProgress(
-                                anime = loaded,
-                                episode = currentEpisode,
+                                anime = displayAnime,
+                                episode = currentEpisodeState,
                                 currentTimeSec = currentTimeSec,
                                 durationSec = if (durationSec > 0) durationSec else 1440L,
                                 language = currentLanguage,
@@ -422,8 +463,9 @@ fun PlayerScreen(
                 exoAudioTracks = discovered
 
                 // If the stream exposes multiple audio tracks inside the manifest, automatically
-                // select the track matching currentLanguage ("dub" -> English, "sub" -> Japanese).
-                if (discovered.isNotEmpty()) {
+                // select the track matching currentLanguage ("dub" -> English, "sub" -> Japanese)
+                // unless the user manually picked a specific ExoPlayer audio track.
+                if (discovered.isNotEmpty() && !userPickedExoAudioTrackState) {
                     val wantDub = currentLanguage.equals("dub", ignoreCase = true)
                     val matchingTrack = discovered.firstOrNull { it.isDub == wantDub }
                         ?: if (!wantDub) discovered.firstOrNull() else null
@@ -453,14 +495,15 @@ fun PlayerScreen(
         }
         player.addListener(listener)
         onDispose {
-            anime?.let { loaded ->
+            currentAnimeState?.let { loaded ->
+                val displayAnime = loaded.copy(title = loaded.displayTitle(savedSettings.titleLanguagePreference))
                 val cur = if (currentTimeSec > 0) currentTimeSec else (player.currentPosition / 1000L).coerceAtLeast(0L)
                 val dur = if (durationSec > 0) durationSec else (player.duration / 1000L).coerceAtLeast(0L)
                 val comp = dur > 0 && cur >= dur * savedSettings.markWatchedThresholdPercent / 100
                 CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
                     repository.saveWatchProgress(
-                        anime = loaded,
-                        episode = currentEpisode,
+                        anime = displayAnime,
+                        episode = currentEpisodeState,
                         currentTimeSec = cur,
                         durationSec = if (dur > 0) dur else 1440L,
                         language = currentLanguage,
@@ -468,9 +511,53 @@ fun PlayerScreen(
                     )
                 }
             }
+            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            val lp = activity?.window?.attributes
+            if (lp != null) {
+                lp.screenBrightness = android.view.WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+                activity.window.attributes = lp
+            }
             player.removeListener(listener)
             mediaSession.release()
             player.release()
+        }
+    }
+
+    // Lifecycle observer: pause playback on ON_STOP when background playback & audio-only background are disabled (and not in PiP).
+    DisposableEffect(lifecycleOwner, savedSettings.backgroundPlayback, savedSettings.audioOnlyBackgroundEnabled) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) {
+                val inPipNow = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && activity?.isInPictureInPictureMode == true
+                if (!inPipNow && !savedSettings.backgroundPlayback && !savedSettings.audioOnlyBackgroundEnabled) {
+                    player.pause()
+                    embedController.send("pause")
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    // Loudness Normalization via Android LoudnessEnhancer attached to ExoPlayer's audioSessionId.
+    DisposableEffect(audioSessionId, savedSettings.loudnessNormalization) {
+        var enhancer: android.media.audiofx.LoudnessEnhancer? = null
+        if (audioSessionId != C.AUDIO_SESSION_ID_UNSET && audioSessionId != 0 && savedSettings.loudnessNormalization) {
+            try {
+                enhancer = android.media.audiofx.LoudnessEnhancer(audioSessionId).apply {
+                    setTargetGain(600)
+                    enabled = true
+                }
+            } catch (_: Throwable) {
+            }
+        }
+        onDispose {
+            try {
+                enhancer?.enabled = false
+                enhancer?.release()
+            } catch (_: Throwable) {
+            }
         }
     }
 
@@ -481,12 +568,47 @@ fun PlayerScreen(
         onDispose { view.keepScreenOn = false }
     }
 
+    // Apply orientationLockMode when not locked or manually fullscreened.
+    LaunchedEffect(savedSettings.orientationLockMode) {
+        if (!isLocked) {
+            when (savedSettings.orientationLockMode) {
+                "Landscape" -> activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                "Portrait" -> if (!manualFullscreen) activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                "Auto" -> if (!manualFullscreen) activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            }
+        }
+    }
+
+    LaunchedEffect(isInPip) {
+        if (isInPip) {
+            showControls = false
+        }
+    }
+
     // ---------------------------------------------------------------------------------------------
     // Resolve a real stream for the current episode
     // ---------------------------------------------------------------------------------------------
+    LaunchedEffect(animeId, currentEpNumber) {
+        localPath = repository.localPlaybackPath(animeId, currentEpNumber)
+        localSubtitlePath = repository.localSubtitlePath(animeId, currentEpNumber)
+    }
+
     // `anime` is a key so the resolve retries once the Room row arrives instead of giving up.
     LaunchedEffect(animeId, anime?.id, currentEpNumber, currentLanguage, currentServer, resolveNonce) {
         val loaded = anime ?: return@LaunchedEffect
+        val diskPath = localPath ?: repository.localPlaybackPath(animeId, currentEpNumber)
+        if (localPath == null && diskPath != null) {
+            localPath = diskPath
+            localSubtitlePath = repository.localSubtitlePath(animeId, currentEpNumber)
+        }
+        val hasLocalBefore = !diskPath.isNullOrBlank() && java.io.File(diskPath).exists()
+        if (hasLocalBefore) {
+            isResolving = false
+            playbackError = null
+            usingEmbedFallback = false
+            return@LaunchedEffect
+        }
+
         isResolving = true
         playbackError = null
         dubStatusBanner = null
@@ -507,7 +629,8 @@ fun PlayerScreen(
             )
             resolveResult = result
             sources = result.sources
-            if (!result.hasAnySource) {
+            val hasOfflineNow = !localPath.isNullOrBlank() && java.io.File(localPath!!).exists()
+            if (!result.hasAnySource && !hasOfflineNow) {
                 if (result.isDubUnavailable) {
                     dubStatusBanner = "English Dub is not available on direct servers for Episode $currentEpNumber — trying dub-capable embed or switch to SUB."
                     Toast.makeText(
@@ -525,19 +648,16 @@ fun PlayerScreen(
         isResolving = false
     }
 
-    // A finished offline download is played straight from disk, so downloads work with no network.
-    var localPath by remember { mutableStateOf<String?>(null) }
-    var localSubtitlePath by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(animeId, currentEpNumber) {
-        localPath = repository.localPlaybackPath(animeId, currentEpNumber)
-        localSubtitlePath = repository.localSubtitlePath(animeId, currentEpNumber)
-    }
-
     // Load the selected source into the player.
     LaunchedEffect(currentSource?.key, currentEpisode.id, localPath, localSubtitlePath, usingEmbedFallback) {
-        if (usingEmbedFallback) return@LaunchedEffect
+        if (usingEmbedFallback) {
+            player.pause()
+            player.stop()
+            return@LaunchedEffect
+        }
         val source = currentSource
-        if (source == null && localPath == null) return@LaunchedEffect
+        val validLocalPath = localPath?.takeIf { it.isNotBlank() && java.io.File(it).exists() }
+        if (source == null && validLocalPath == null) return@LaunchedEffect
         playbackError = null
         isBuffering = true
         isReady = false
@@ -547,16 +667,17 @@ fun PlayerScreen(
         playbackHeaders.putAll(source?.headers.orEmpty())
         Log.i(
             PLAYER_TAG,
-            "loading ep ${currentEpisode.number}: local=${localPath ?: "-"} source=${source?.url ?: "-"}"
+            "loading ep ${currentEpisode.number}: local=${validLocalPath ?: "-"} source=${source?.url ?: "-"}"
         )
 
-        val mediaItem = if (localPath != null) {
+        val preferredAnimeTitle = anime?.displayTitle(savedSettings.titleLanguagePreference).orEmpty()
+        val mediaItem = if (validLocalPath != null) {
             val builder = MediaItem.Builder()
-                .setUri("file://$localPath")
+                .setUri("file://$validLocalPath")
                 .setMediaMetadata(
                     MediaMetadata.Builder()
                         .setTitle("Episode ${currentEpisode.number}")
-                        .setArtist(anime?.title.orEmpty())
+                        .setArtist(preferredAnimeTitle)
                         .setDescription("Offline")
                         .build()
                 )
@@ -576,46 +697,60 @@ fun PlayerScreen(
             }
             builder.build()
         } else {
-            buildMediaItem(source!!, anime?.title.orEmpty(), currentEpisode)
+            buildMediaItem(source!!, preferredAnimeTitle, currentEpisode)
         }
         player.setMediaItem(mediaItem)
         player.prepare()
         player.playWhenReady = savedSettings.autoplay
         player.setPlaybackSpeed(playbackSpeed)
-        if (resumePositionSec > savedSettings.resumeThresholdSec * 1000L) {
-            player.seekTo(resumePositionSec)
-            resumePositionSec = 0L
-        }
         applyResizeMode(player, savedSettings.videoFitMode)
     }
 
     // ---------------------------------------------------------------------------------------------
     // Progress persistence and auto-next
     // ---------------------------------------------------------------------------------------------
-    LaunchedEffect(currentEpNumber, animeId, anime?.id, usingEmbedFallback) {
+    LaunchedEffect(currentEpNumber, animeId, anime?.id) {
         val loaded = anime ?: return@LaunchedEffect
-        val saved = repository.getProgressForEpisode(animeId, currentEpNumber)
+        val displayAnime = loaded.copy(title = loaded.displayTitle(savedSettings.titleLanguagePreference))
+        val saved = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            repository.getProgressForEpisode(animeId, currentEpNumber)
+        }
         if (saved == null) {
             resumePositionSec = 0L
             repository.saveWatchProgress(
-                anime = loaded,
+                anime = displayAnime,
                 episode = currentEpisode,
                 currentTimeSec = 0L,
                 durationSec = 1440L,
                 language = currentLanguage,
                 completed = false
             )
-        } else if (!usingEmbedFallback && !saved.completed &&
-            saved.currentTimeSec > savedSettings.resumeThresholdSec
-        ) {
+        } else if (!saved.completed && saved.currentTimeSec > savedSettings.resumeThresholdSec) {
             resumePositionSec = saved.currentTimeSec * 1000L
             if (savedSettings.resumePromptEnabled) {
                 Toast.makeText(
                     context,
-                    "Resuming episode ${currentEpNumber} from ${saved.formattedCurrentTime()}",
+                    "Resuming episode $currentEpNumber from ${saved.formattedCurrentTime()}",
                     Toast.LENGTH_SHORT
                 ).show()
             }
+        } else {
+            resumePositionSec = 0L
+        }
+    }
+
+    // Apply resume position reliably once both the player is ready and resumePositionSec has loaded from Room.
+    LaunchedEffect(isReady, resumePositionSec, currentEpNumber, usingEmbedFallback) {
+        if (!hasAppliedResume && isReady && resumePositionSec > savedSettings.resumeThresholdSec * 1000L) {
+            hasAppliedResume = true
+            val targetSec = resumePositionSec / 1000L
+            currentTimeSec = targetSec
+            if (usingEmbedFallback) {
+                embedController.send("seek", resumePositionSec / 1000.0)
+            } else {
+                player.seekTo(resumePositionSec)
+            }
+            resumePositionSec = 0L
         }
     }
 
@@ -641,11 +776,13 @@ fun PlayerScreen(
     LaunchedEffect(currentTimeSec, durationSec, isReady, savedSettings.saveProgressEverySecond, savedSettings.saveProgressIntervalSec) {
         val loaded = anime ?: return@LaunchedEffect
         if (!isReady || durationSec <= 0) return@LaunchedEffect
+        if (!hasAppliedResume && resumePositionSec > 0L) return@LaunchedEffect
         val interval = if (savedSettings.saveProgressEverySecond) 1L else savedSettings.saveProgressIntervalSec.coerceIn(1, 60).toLong()
         if (interval > 1L && currentTimeSec % interval != 0L && currentTimeSec < durationSec - 5) return@LaunchedEffect
         val completeThreshold = durationSec * savedSettings.markWatchedThresholdPercent / 100
+        val displayAnime = loaded.copy(title = loaded.displayTitle(savedSettings.titleLanguagePreference))
         repository.saveWatchProgress(
-            anime = loaded,
+            anime = displayAnime,
             episode = currentEpisode,
             currentTimeSec = currentTimeSec,
             durationSec = durationSec,
@@ -654,12 +791,23 @@ fun PlayerScreen(
         )
     }
 
-    LaunchedEffect(currentTimeSec, durationSec, isReady) {
-        if (!isReady || durationSec <= 0 || showAutoNextBanner || !savedSettings.autoNextEpisode) return@LaunchedEffect
-        if (currentTimeSec <= 5 || durationSec - currentTimeSec > 30) return@LaunchedEffect
+    // Auto-next episode countdown banner
+    LaunchedEffect(
+        currentTimeSec,
+        durationSec,
+        isReady,
+        autoNextCancelled,
+        savedSettings.autoNextEpisode,
+        savedSettings.autoNextCountdownSec
+    ) {
+        val countdownTarget = savedSettings.autoNextCountdownSec.coerceIn(2, 15)
+        if (!isReady || durationSec <= 0 || showAutoNextBanner || autoNextCancelled || !savedSettings.autoNextEpisode) {
+            return@LaunchedEffect
+        }
+        if (currentTimeSec <= 5 || durationSec - currentTimeSec > countdownTarget + 5) return@LaunchedEffect
         if (episodes.any { it.number == currentEpNumber + 1 }) {
             showAutoNextBanner = true
-            autoNextCountdown = 5
+            autoNextCountdown = countdownTarget
         }
     }
 
@@ -674,12 +822,50 @@ fun PlayerScreen(
         }
     }
 
+    // Auto-skip OP / ED when enabled in settings
+    LaunchedEffect(
+        currentTimeSec,
+        durationSec,
+        isReady,
+        savedSettings.autoSkipIntro,
+        savedSettings.autoSkipOutro,
+        savedSettings.introSkipSeconds,
+        savedSettings.outroSkipSeconds,
+        introSkippedForEp,
+        outroSkippedForEp
+    ) {
+        if (!isReady) return@LaunchedEffect
+        val introSkip = savedSettings.introSkipSeconds.coerceIn(5, 300).toLong()
+        val outroSkip = savedSettings.outroSkipSeconds.coerceIn(5, 300).toLong()
+        if (savedSettings.autoSkipIntro && !introSkippedForEp &&
+            currentTimeSec in 2..30L && (durationSec <= 0L || durationSec > introSkip + 30L)
+        ) {
+            introSkippedForEp = true
+            val target = (currentTimeSec + introSkip).let { if (durationSec > 0) it.coerceAtMost(durationSec) else it }
+            currentTimeSec = target
+            if (usingEmbedFallback) embedController.send("seek", target)
+            else player.seekTo(target * 1000L)
+            Toast.makeText(context, "Auto-skipped OP (+${introSkip}s)", Toast.LENGTH_SHORT).show()
+        }
+        if (savedSettings.autoSkipOutro && !outroSkippedForEp && durationSec > outroSkip + 30L &&
+            currentTimeSec in (durationSec - outroSkip)..(durationSec - 8L)
+        ) {
+            outroSkippedForEp = true
+            val target = minOf(currentTimeSec + outroSkip, (durationSec - 5L).coerceAtLeast(currentTimeSec))
+            currentTimeSec = target
+            if (usingEmbedFallback) embedController.send("seek", target)
+            else player.seekTo(target * 1000L)
+            Toast.makeText(context, "Auto-skipped ED", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     LaunchedEffect(sleepTimerRemainingMin) {
         if (sleepTimerRemainingMin > 0) {
             delay(60000L)
             sleepTimerRemainingMin -= 1
             if (sleepTimerRemainingMin == 0) {
                 player.pause()
+                embedController.send("pause")
                 Toast.makeText(context, "Sleep timer paused playback", Toast.LENGTH_LONG).show()
             }
         }
@@ -763,14 +949,27 @@ fun PlayerScreen(
             .build()
     }
 
+    LaunchedEffect(savedSettings.videoFitMode, usingEmbedFallback) {
+        if (usingEmbedFallback) {
+            embedController.send("setFit", savedSettings.videoFitMode.lowercase())
+        } else {
+            applyResizeMode(player, savedSettings.videoFitMode)
+        }
+    }
+
     // ---------------------------------------------------------------------------------------------
     // Actions
     // ---------------------------------------------------------------------------------------------
     fun playEpisode(number: Int) {
         if (episodes.none { it.number == number } && number != currentEpNumber) return
+        localPath = null
+        localSubtitlePath = null
         currentEpNumber = number
         currentTimeSec = 0L
         isReady = false
+        autoNextCancelled = false
+        introSkippedForEp = false
+        outroSkippedForEp = false
         showAutoNextBanner = false
         showEpisodeSheet = false
     }
@@ -815,7 +1014,7 @@ fun PlayerScreen(
         val mode = savedSettings.orientationLockMode
         activity?.requestedOrientation = when (mode) {
             "Landscape" -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-            "Portrait" -> ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT
+            "Portrait" -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
             "Lock Current" -> ActivityInfo.SCREEN_ORIENTATION_LOCKED
             else -> {
                 // In Auto mode, preserve current orientation so locking in fullscreen landscape never drops to portrait
@@ -830,8 +1029,10 @@ fun PlayerScreen(
         lockPillVisible = false
         showControls = true
         if (savedSettings.lockHapticFeedback) haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-        if (isLandscape) {
+        if (isLandscape || savedSettings.orientationLockMode == "Landscape") {
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        } else if (savedSettings.orientationLockMode == "Portrait") {
+            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         } else {
             activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         }
@@ -839,7 +1040,12 @@ fun PlayerScreen(
 
     /** Leaves fullscreen and always restores the controls, so the player can never look dead. */
     fun exitFullscreen() {
-        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        manualFullscreen = false
+        activity?.requestedOrientation = if (savedSettings.orientationLockMode == "Auto") {
+            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        } else {
+            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        }
         isHoldingSpeed = false
         showControls = true
     }
@@ -847,10 +1053,12 @@ fun PlayerScreen(
     fun toggleFullscreen() {
         isHoldingSpeed = false
         showControls = true
-        activity?.requestedOrientation = if (isLandscape) {
-            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        if (isLandscape) {
+            manualFullscreen = false
+            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         } else {
-            ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            manualFullscreen = true
+            activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         }
     }
 
@@ -861,6 +1069,7 @@ fun PlayerScreen(
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             try {
+                showControls = false
                 activity?.enterPictureInPictureMode(
                     PictureInPictureParams.Builder()
                         .setAspectRatio(Rational(16, 9))
@@ -896,7 +1105,7 @@ fun PlayerScreen(
     // auto-hidden looked like a player that no longer responded.
     LaunchedEffect(isLandscape) {
         isHoldingSpeed = false
-        if (!isLocked) {
+        if (!isLocked && !isInPip) {
             showControls = true
         }
     }
@@ -905,13 +1114,16 @@ fun PlayerScreen(
     // Gestures
     // ---------------------------------------------------------------------------------------------
     fun onTapAt(x: Float, width: Float) {
-        if (!savedSettings.singleTapTogglesControls) return
-        showControls = !showControls
+        if (!showControls) {
+            showControls = true
+        } else if (savedSettings.singleTapTogglesControls) {
+            showControls = false
+        }
     }
 
     fun onDoubleTapAt(x: Float, width: Float) {
         if (!savedSettings.doubleTapSeekEnabled) return
-        val step = savedSettings.seekDurationSec.coerceAtLeast(10)
+        val step = savedSettings.seekDurationSec.coerceAtLeast(5)
         when {
             x < width * 0.45f -> {
                 if (doubleTapSeekSide != "left") {
@@ -943,7 +1155,7 @@ fun PlayerScreen(
                     doubleTapSeekAccumulated = 0
                 }
             }
-            else -> showControls = !showControls
+            else -> onTapAt(x, width)
         }
     }
 
@@ -1011,6 +1223,7 @@ fun PlayerScreen(
             var startVolume = videoVolume
             var startBrightness = brightness
             var seekPreview: Long? = null
+            var openedCenterSettings = false
 
             // A finger that rests still produces no pointer events at all, so the old in-loop
             // `awaitPointerEvent()` time check never saw the 450ms mark and hold-to-speed never
@@ -1051,16 +1264,31 @@ fun PlayerScreen(
                         seekFeedbackText = (if (deltaSec >= 0) "+" else "") + deltaSec + "s"
                     } else if (abs(dy) > abs(dx)) {
                         val vDelta = -dy / height
-                        if (downX > width / 2 && savedSettings.gestureVolumeEnabled) {
+                        val inCenterBand = savedSettings.swipeUpDownOpensSettings &&
+                            downX in (width * 0.35f)..(width * 0.65f)
+                        if (inCenterBand) {
+                            if (!openedCenterSettings && abs(dy) > 48f) {
+                                openedCenterSettings = true
+                                showSpeedDialog = true
+                            }
+                        } else if (downX > width / 2 && savedSettings.gestureVolumeEnabled) {
                             val next = (startVolume + vDelta).coerceIn(0f, 1f)
                             videoVolume = next
                             player.volume = next
+                            if (usingEmbedFallback) {
+                                embedController.send("setVolume", next)
+                            }
                             gestureHudType = "volume"
                             gestureHudLevel = next
                             gestureFeedback = "Volume ${(next * 100).toInt()}%"
-                        } else if (savedSettings.gestureBrightnessEnabled) {
+                        } else if (downX <= width / 2 && savedSettings.gestureBrightnessEnabled) {
                             val next = (startBrightness + vDelta).coerceIn(0.05f, 1f)
                             brightness = next
+                            val lp = activity?.window?.attributes
+                            if (lp != null) {
+                                lp.screenBrightness = next
+                                activity.window.attributes = lp
+                            }
                             gestureHudType = "brightness"
                             gestureHudLevel = next
                             gestureFeedback = "Brightness ${(next * 100).toInt()}%"

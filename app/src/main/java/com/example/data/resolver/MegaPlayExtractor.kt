@@ -53,9 +53,14 @@ class MegaPlayExtractor(
 
         // The payload is JSON-escaped: `\"` around keys and `\/` inside every URL. Unescape first,
         // otherwise the media directory is derived one path segment too deep.
-        val subtitles = parseTracks(Http.unescapeJson(raw))
-        val mediaDir = subtitles.firstNotNullOfOrNull { mediaDirOf(it.url) }
-            ?: return fail("Stream location not found")
+        val unescaped = Http.unescapeJson(raw)
+        val subtitles = parseTracks(unescaped)
+        var mediaDir = subtitles.firstNotNullOfOrNull { mediaDirOf(it.url) }
+        if (mediaDir == null) {
+            val anyTrackUrl = Regex("\"file\"\\s*:\\s*\"(https?://[^\"]+)\"").find(unescaped)?.groupValues?.getOrNull(1)
+            mediaDir = anyTrackUrl?.let { mediaDirOf(it) }
+        }
+        if (mediaDir == null) return fail("Stream location not found")
 
         val masterUrl = "$mediaDir/$MASTER_PLAYLIST"
         Log.i(TAG, "megaplay file $fileId -> $masterUrl")
