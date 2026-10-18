@@ -78,8 +78,8 @@ This release delivers major player customizations, video aspect ratio modes, res
 
 | Asset | File Name | Size | SHA-256 Checksum |
 | :--- | :--- | :--- | :--- |
-| **Release APK** | `zenith-anime-latest.apk` | ~30.1 MB | `DAEFAA74A340336504D7F9D70CB84AFE3C0667CA45482B2FE286DF4017F6713F` |
-| **Debug APK** | `app-debug.apk` | ~30.1 MB | `DAEFAA74A340336504D7F9D70CB84AFE3C0667CA45482B2FE286DF4017F6713F` |
+| **Release APK** | `zenith-anime-latest.apk` | ~30.1 MB | `9EF0BEE46C0C7B4ED42D9FB7EA9D3FE76AB394DE720144CA461884F38BC11A25` |
+| **Debug APK** | `app-debug.apk` | ~30.1 MB | `9EF0BEE46C0C7B4ED42D9FB7EA9D3FE76AB394DE720144CA461884F38BC11A25` |
 
 ---
 

@@ -129,14 +129,8 @@ fun MainApp(repository: AnimeRepository, settings: com.example.data.model.AppSet
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
-    var showSplash by remember { mutableStateOf(!settings.reduceAnimations) }
+    var showSplash by remember { mutableStateOf(true) }
     val bgColor = MaterialTheme.colorScheme.background
-
-    LaunchedEffect(settings.reduceAnimations) {
-        if (settings.reduceAnimations) {
-            showSplash = false
-        }
-    }
 
     LaunchedEffect(Unit) {
         repository.freshStartWipe()
@@ -456,9 +450,9 @@ fun MainApp(repository: AnimeRepository, settings: com.example.data.model.AppSet
     }
 
     AnimatedVisibility(
-        visible = showSplash && !settings.reduceAnimations,
-        enter = fadeIn(tween(if (settings.reduceAnimations) 0 else 150)),
-        exit = if (settings.reduceAnimations) fadeOut(tween(0)) else (fadeOut(tween(400)) + scaleOut(targetScale = 1.05f))
+        visible = showSplash,
+        enter = fadeIn(tween(150)),
+        exit = fadeOut(tween(400)) + scaleOut(targetScale = 1.05f)
     ) {
         AnimatedSplashScreen(onFinish = { showSplash = false })
     }

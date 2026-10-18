@@ -69,20 +69,22 @@ fun AnimatedSplashScreen(
     val reducedMotion = LocalReducedMotion.current
     var startAnimation by remember { mutableStateOf(false) }
 
-    val scale by animateFloatAsState(
+    val rawScale by animateFloatAsState(
         targetValue = if (startAnimation) 1f else 0.82f,
         animationSpec = spring(dampingRatio = 0.65f, stiffness = 180f),
         label = "logo_scale"
     )
+    val scale = if (reducedMotion) 1f else rawScale
 
-    val contentAlpha by animateFloatAsState(
+    val rawContentAlpha by animateFloatAsState(
         targetValue = if (startAnimation) 1f else 0f,
         animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
         label = "content_alpha"
     )
+    val contentAlpha = if (reducedMotion) 1f else rawContentAlpha
 
     val infiniteTransition = rememberInfiniteTransition(label = "pulse_transition")
-    val pulseGlow by infiniteTransition.animateFloat(
+    val rawPulseGlow by infiniteTransition.animateFloat(
         initialValue = 0.35f,
         targetValue = 0.85f,
         animationSpec = infiniteRepeatable(
@@ -91,8 +93,9 @@ fun AnimatedSplashScreen(
         ),
         label = "pulse_glow"
     )
+    val pulseGlow = if (reducedMotion) 0.65f else rawPulseGlow
 
-    val ringScale by infiniteTransition.animateFloat(
+    val rawRingScale by infiniteTransition.animateFloat(
         initialValue = 1f,
         targetValue = 1.14f,
         animationSpec = infiniteRepeatable(
@@ -101,12 +104,9 @@ fun AnimatedSplashScreen(
         ),
         label = "ring_scale"
     )
+    val ringScale = if (reducedMotion) 1f else rawRingScale
 
-    LaunchedEffect(reducedMotion) {
-        if (reducedMotion) {
-            onFinish()
-            return@LaunchedEffect
-        }
+    LaunchedEffect(Unit) {
         startAnimation = true
         delay(1250L)
         onFinish()
