@@ -99,6 +99,25 @@ class LibrarySortTest {
     }
 
     @Test
+    fun sortHonoursTitleLanguagePreference() {
+        val a = anime("a", "Fallback A").copy(
+            englishTitle = "Zeta English",
+            romajiTitle = "Alpha Romaji",
+            nativeTitle = "Beta Native"
+        )
+        val b = anime("b", "Fallback B").copy(
+            englishTitle = "Alpha English",
+            romajiTitle = "Zeta Romaji",
+            nativeTitle = "Alpha Native"
+        )
+        val items = listOf(a, b)
+
+        assertEquals(listOf("b", "a"), LibrarySort.sort(items, LibrarySort.TITLE_ASC, "English").map { it.id })
+        assertEquals(listOf("a", "b"), LibrarySort.sort(items, LibrarySort.TITLE_ASC, "Romaji").map { it.id })
+        assertEquals(listOf("b", "a"), LibrarySort.sort(items, LibrarySort.TITLE_ASC, "Native").map { it.id })
+    }
+
+    @Test
     fun emptyInputIsHandledForEveryOrder() {
         LibrarySort.ALL.forEach { order ->
             assertEquals(emptyList<Anime>(), LibrarySort.apply(emptyList(), order))

@@ -309,7 +309,7 @@ fun PlayerScreen(
     var introSkippedForEp by remember(currentEpNumber) { mutableStateOf(false) }
     var outroSkippedForEp by remember(currentEpNumber) { mutableStateOf(false) }
     var episodeQuery by remember { mutableStateOf("") }
-    var selectedEpisodeRangeIndex by remember { mutableIntStateOf(0) }
+    var selectedEpisodeRangeIndex by remember(episodeQuery) { mutableIntStateOf(0) }
     var resumePositionSec by remember { mutableLongStateOf(0L) }
     var hasAppliedResume by remember(animeId, currentEpNumber) { mutableStateOf(false) }
     // A finished offline download is played straight from disk, so downloads work with no network.
@@ -1405,6 +1405,10 @@ fun PlayerScreen(
     val episodeChunks = remember(filteredEpisodes) {
         if (filteredEpisodes.isEmpty()) emptyList() else filteredEpisodes.chunked(pageSize)
     }
+    LaunchedEffect(currentEpNumber, episodeChunks) {
+        val idx = episodeChunks.indexOfFirst { chunk -> chunk.any { it.number == currentEpNumber } }
+        if (idx >= 0) selectedEpisodeRangeIndex = idx
+    }
     val currentChunkEpisodes = remember(episodeChunks, selectedEpisodeRangeIndex) {
         if (episodeChunks.isNotEmpty() && selectedEpisodeRangeIndex in episodeChunks.indices) {
             episodeChunks[selectedEpisodeRangeIndex]
@@ -1413,10 +1417,96 @@ fun PlayerScreen(
     val currentDownload = allDownloads.firstOrNull {
         it.animeId == currentAnime.id && it.episodeNumber == currentEpNumber
     }
+    val transportPlayPauseButton: @Composable () -> Unit = {
+        val playInteractionSource = remember { MutableInteractionSource() }
+        val isPlayPressed by playInteractionSource.collectIsPressedAsState()
+        val playScale by animateFloatAsState(
+            targetValue = if (isPlayPressed) 0.88f else if (isPlaying) 1f else 1.06f,
+            animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+            label = "play_scale"
+        )
+        Box(
+            modifier = Modifier
+                .size((54f * iconScaleMult).dp)
+                .scale(playScale)
+                .background(playerAccent, CircleShape)
+                .clickable(
+                    onClick = { togglePlayback() },
+                    interactionSource = playInteractionSource,
+                    indication = ripple(bounded = true, radius = 27.dp)
+                )
+                .testTag("player_play_pause_button"),
+            contentAlignment = Alignment.Center
+        ) {
+            if (isBuffering) {
+                CircularProgressIndicator(
+                    color = DarkBackground,
+                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(24.dp)
+                )
+            } else {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = if (isPlaying) "Pause" else "Play",
+                    tint = DarkBackground,
+                    modifier = Modifier.size((30f * iconScaleMult).dp)
+                )
+            }
+        }
+    }
 
-    // The transport row is shared by both orientations. Landscape centres it over the video; portrait
-    // stacks it above the timeline, because a 16:9 video on a phone is only about 200dp tall and a
-    // centred row there collided with the title bar into one unusable jumble of icons.
+    val transportSecondaryControls: @Composable () -> Unit = {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(18.dp)
+        ) {
+            IconButton(
+                onClick = { playEpisode(currentEpNumber - 1) },
+                enabled = currentEpNumber > 1,
+                modifier = Modifier.testTag("player_prev_episode")
+            ) {
+                Icon(
+                    Icons.Default.SkipPrevious,
+                    contentDescription = "Previous episode",
+                    tint = if (currentEpNumber > 1) Color.White else Color.Gray,
+                    modifier = Modifier.size(26.dp)
+                )
+            }
+
+            TransportButton(onClick = { seekBy(-savedSettings.seekDurationSec.toLong()) }) {
+                Icon(
+                    Icons.Default.Replay10,
+                    contentDescription = "Rewind",
+                    tint = Color.White,
+                    modifier = Modifier.size(30.dp)
+                )
+            }
+
+            TransportButton(onClick = { seekBy(savedSettings.seekDurationSec.toLong()) }) {
+                Icon(
+                    Icons.Default.Forward10,
+                    contentDescription = "Forward",
+                    tint = Color.White,
+                    modifier = Modifier.size(30.dp)
+                )
+            }
+
+            val nextExists = episodes.any { it.number == currentEpNumber + 1 }
+            IconButton(
+                onClick = { playEpisode(currentEpNumber + 1) },
+                enabled = nextExists,
+                modifier = Modifier.testTag("player_next_episode")
+            ) {
+                Icon(
+                    Icons.Default.SkipNext,
+                    contentDescription = "Next episode",
+                    tint = if (nextExists) Color.White else Color.Gray,
+                    modifier = Modifier.size(26.dp)
+                )
+            }
+        }
+    }
+
     val transportControls: @Composable () -> Unit = {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -1444,41 +1534,7 @@ fun PlayerScreen(
                 )
             }
 
-            val playInteractionSource = remember { MutableInteractionSource() }
-            val isPlayPressed by playInteractionSource.collectIsPressedAsState()
-            val playScale by animateFloatAsState(
-                targetValue = if (isPlayPressed) 0.88f else if (isPlaying) 1f else 1.06f,
-                animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                label = "play_scale"
-            )
-            Box(
-                modifier = Modifier
-                    .size((54f * iconScaleMult).dp)
-                    .scale(playScale)
-                    .background(playerAccent, CircleShape)
-                    .clickable(
-                        onClick = { togglePlayback() },
-                        interactionSource = playInteractionSource,
-                        indication = ripple(bounded = true, radius = 27.dp)
-                    )
-                    .testTag("player_play_pause_button"),
-                contentAlignment = Alignment.Center
-            ) {
-                if (isBuffering) {
-                    CircularProgressIndicator(
-                        color = DarkBackground,
-                        strokeWidth = 2.dp,
-                        modifier = Modifier.size(24.dp)
-                    )
-                } else {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                        contentDescription = if (isPlaying) "Pause" else "Play",
-                        tint = DarkBackground,
-                        modifier = Modifier.size((30f * iconScaleMult).dp)
-                    )
-                }
-            }
+            transportPlayPauseButton()
 
             TransportButton(onClick = { seekBy(savedSettings.seekDurationSec.toLong()) }) {
                 Icon(
@@ -1508,9 +1564,10 @@ fun PlayerScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(DarkBackground)
+            .background(androidx.compose.material3.MaterialTheme.colorScheme.background)
+            .then(if (!isLandscape && !isInPip) Modifier.statusBarsPadding() else Modifier)
     ) {
-        val playerModifier = if (isLandscape) {
+        val playerModifier = if (isLandscape || isInPip) {
             Modifier.fillMaxSize()
         } else {
             Modifier
@@ -1527,9 +1584,10 @@ fun PlayerScreen(
                     embedUrl = embedUrl,
                     wrapEmbeds = wrapEmbeds,
                     state = embedState,
-                    controller = embedController
+                    controller = embedController,
+                    adBlockEnabled = savedSettings.adBlockEnabled
                 )
-                LaunchedEffect(embedState.value.ready, embedState.value.playing) {
+                LaunchedEffect(embedState.value) {
                     isReady = embedState.value.ready
                     isPlaying = embedState.value.playing
                     isBuffering = embedState.value.buffering
@@ -1577,7 +1635,7 @@ fun PlayerScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(color = themeAccent, strokeWidth = 3.dp)
+                        CircularProgressIndicator(color = playerAccent, strokeWidth = 3.dp)
                         Spacer(modifier = Modifier.height(10.dp))
                         Text("Finding a stream…", color = TextPrimary, fontSize = 13.sp)
                     }
@@ -1587,6 +1645,7 @@ fun PlayerScreen(
             if (playbackError != null) {
                 PlaybackErrorOverlay(
                     message = playbackError!!,
+                    accentColor = playerAccent,
                     onRetry = {
                         playbackError = null
                         resolveNonce += 1
@@ -1609,7 +1668,7 @@ fun PlayerScreen(
                         .align(Alignment.CenterStart)
                         .clip(RoundedCornerShape(topEnd = 160.dp, bottomEnd = 160.dp))
                         .background(Color(0x66000000))
-                        .border(0.5.dp, themeAccent.copy(alpha = 0.5f), RoundedCornerShape(topEnd = 160.dp, bottomEnd = 160.dp)),
+                        .border(0.5.dp, playerAccent.copy(alpha = 0.5f), RoundedCornerShape(topEnd = 160.dp, bottomEnd = 160.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
@@ -1620,7 +1679,7 @@ fun PlayerScreen(
                             Icon(
                                 imageVector = Icons.Default.FastRewind,
                                 contentDescription = null,
-                                tint = themeAccent,
+                                tint = playerAccent,
                                 modifier = Modifier.size(34.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
@@ -1646,7 +1705,7 @@ fun PlayerScreen(
                         .align(Alignment.CenterEnd)
                         .clip(RoundedCornerShape(topStart = 160.dp, bottomStart = 160.dp))
                         .background(Color(0x66000000))
-                        .border(0.5.dp, themeAccent.copy(alpha = 0.5f), RoundedCornerShape(topStart = 160.dp, bottomStart = 160.dp)),
+                        .border(0.5.dp, playerAccent.copy(alpha = 0.5f), RoundedCornerShape(topStart = 160.dp, bottomStart = 160.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
@@ -1664,7 +1723,7 @@ fun PlayerScreen(
                             Icon(
                                 imageVector = Icons.Default.FastForward,
                                 contentDescription = null,
-                                tint = themeAccent,
+                                tint = playerAccent,
                                 modifier = Modifier.size(34.dp)
                             )
                         }
@@ -1685,7 +1744,7 @@ fun PlayerScreen(
                 ) {
                     Text(
                         text = seekFeedbackText!!,
-                        color = themeAccent,
+                        color = playerAccent,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Black
                     )
@@ -1713,7 +1772,7 @@ fun PlayerScreen(
                                 else -> Icons.AutoMirrored.Filled.VolumeUp
                             },
                             contentDescription = null,
-                            tint = themeAccent,
+                            tint = playerAccent,
                             modifier = Modifier.size(20.dp)
                         )
 
@@ -1729,7 +1788,7 @@ fun PlayerScreen(
                                     .fillMaxHeight()
                                     .fillMaxWidth(gestureHudLevel.coerceIn(0f, 1f))
                                     .clip(RoundedCornerShape(3.dp))
-                                    .background(themeAccent)
+                                    .background(playerAccent)
                             )
                         }
 
@@ -1760,7 +1819,7 @@ fun PlayerScreen(
                             }
                         )
                         .clip(RoundedCornerShape(20.dp))
-                        .background(themeAccent.copy(alpha = 0.9f))
+                        .background(playerAccent.copy(alpha = 0.9f))
                         .padding(horizontal = 14.dp, vertical = 6.dp)
                         .testTag("player_hold_speed_badge")
                 ) {
@@ -1951,7 +2010,7 @@ fun PlayerScreen(
             }
 
             // Unobtrusive screen-lock icon in the letterbox margin (Left or Right per user preference)
-            if (showControls && !isLocked && savedSettings.lockButtonEnabled && !savedSettings.useLegacyPlayerLayout) {
+            if (showControls && !isLocked && !isInPip && savedSettings.lockButtonEnabled && !savedSettings.useLegacyPlayerLayout) {
                 Box(
                     modifier = Modifier
                         .align(lockSideAlign)
@@ -1980,8 +2039,58 @@ fun PlayerScreen(
                 }
             }
 
+            // Floating Skip OP / Skip ED pill outside AnimatedVisibility(visible = showControls)
+            if (!isLocked && !isInPip && savedSettings.showSkipButtons) {
+                val skipBottomPadding = if (showControls) {
+                    if (isLandscape) 96.dp else 68.dp
+                } else {
+                    16.dp
+                }
+                val introSkip = savedSettings.introSkipSeconds.coerceIn(5, 300)
+                val outroSkip = savedSettings.outroSkipSeconds.coerceIn(5, 300)
+                val showIntroSkip = !introSkippedForEp &&
+                    currentTimeSec in 0..(introSkip + 35).toLong()
+                val showOutroSkip = !outroSkippedForEp &&
+                    durationSec > 0 && currentTimeSec > durationSec - (outroSkip + 30).toLong()
+
+                if (showIntroSkip || showOutroSkip) {
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(end = 12.dp, bottom = skipBottomPadding)
+                            .zIndex(92f),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        if (showIntroSkip) {
+                            SkipChip(
+                                label = "+${introSkip}s Skip OP",
+                                accentColor = playerAccent,
+                                onClick = {
+                                    introSkippedForEp = true
+                                    seekBy(introSkip.toLong())
+                                }
+                            )
+                        }
+                        if (showOutroSkip) {
+                            SkipChip(
+                                label = "+${outroSkip}s Skip ED",
+                                accentColor = playerAccent,
+                                onClick = {
+                                    outroSkippedForEp = true
+                                    val target = minOf(
+                                        currentTimeSec + outroSkip.toLong(),
+                                        (durationSec - 5L).coerceAtLeast(currentTimeSec)
+                                    )
+                                    seekTo(target)
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
             androidx.compose.animation.AnimatedVisibility(
-                visible = showControls && !isLocked,
+                visible = showControls && !isLocked && !isInPip,
                 enter = fadeIn(animationSpec = tween(180)),
                 exit = fadeOut(animationSpec = tween(180)),
                 modifier = Modifier.fillMaxSize()
@@ -2002,13 +2111,12 @@ fun PlayerScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .statusBarsPadding()
-                            .then(if (isLandscape) Modifier.displayCutoutPadding() else Modifier)
+                            .then(if (isLandscape) Modifier.statusBarsPadding().displayCutoutPadding() else Modifier.padding(top = 4.dp))
                     ) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
@@ -2029,10 +2137,11 @@ fun PlayerScreen(
                             Column(
                                 modifier = Modifier
                                     .weight(1f)
+                                    .widthIn(min = 110.dp)
                                     .padding(horizontal = if (isLandscape) 8.dp else 4.dp)
                             ) {
                                 Text(
-                                    text = "${currentAnime.title} • Ep $currentEpNumber",
+                                    text = "${currentAnime.displayTitle(savedSettings.titleLanguagePreference)} • Ep $currentEpNumber",
                                     color = TextPrimary,
                                     fontSize = if (isLandscape) 13.sp else 11.sp,
                                     fontWeight = FontWeight.Bold,
@@ -2049,260 +2158,245 @@ fun PlayerScreen(
                                 )
                             }
 
-                            if (savedSettings.useLegacyPlayerLayout) {
-                                // Legacy layout keeps the original fixed top bar order (including top lock button)
-                                PlayerIconButton(onClick = { showSpeedDialog = true }) {
-                                    Icon(Icons.Default.Speed, contentDescription = "Speed", tint = Color.White, modifier = Modifier.size(19.dp))
-                                }
-                                PlayerIconButton(onClick = { showSubtitleDialog = true }) {
-                                    Icon(
-                                        Icons.Default.Subtitles,
-                                        contentDescription = "Subtitles",
-                                        tint = if (savedSettings.subtitlesEnabled) playerAccent else Color.White,
-                                        modifier = Modifier.size(19.dp)
-                                    )
-                                }
-                                PlayerIconButton(onClick = { showAudioDialog = true }) {
-                                    Icon(Icons.Default.Audiotrack, contentDescription = "Audio track", tint = Color.White, modifier = Modifier.size(19.dp))
-                                }
-                                PlayerIconButton(onClick = {
-                                    if (sources.isNotEmpty()) showSourceSheet = true else showServerSheet = true
-                                }) {
-                                    Icon(Icons.Default.Dns, contentDescription = "Servers and quality", tint = Color.White, modifier = Modifier.size(19.dp))
-                                }
-                                PlayerIconButton(
-                                    onClick = { lockPlayer() },
-                                    modifier = Modifier.testTag("player_lock_button")
-                                ) {
-                                    Icon(Icons.Default.LockOpen, contentDescription = "Lock player", tint = Color.White, modifier = Modifier.size(19.dp))
-                                }
-                                PlayerIconButton(onClick = { showFitDialog = true }) {
-                                    Icon(Icons.Default.AspectRatio, contentDescription = "Aspect ratio", tint = Color.White, modifier = Modifier.size(19.dp))
-                                }
-                                if (isLandscape) {
-                                    PlayerIconButton(onClick = { showSleepTimerDialog = true }) {
+                            Row(
+                                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                if (savedSettings.useLegacyPlayerLayout) {
+                                    // Legacy layout keeps the original fixed top bar order (including top lock button)
+                                    PlayerIconButton(onClick = { showSpeedDialog = true }) {
+                                        Icon(Icons.Default.Speed, contentDescription = "Speed", tint = Color.White, modifier = Modifier.size(19.dp))
+                                    }
+                                    PlayerIconButton(onClick = { showSubtitleDialog = true }) {
                                         Icon(
-                                            Icons.Default.NightlightRound,
-                                            contentDescription = "Sleep timer",
-                                            tint = if (sleepTimerRemainingMin > 0) playerAccent else Color.White,
+                                            Icons.Default.Subtitles,
+                                            contentDescription = "Subtitles",
+                                            tint = if (savedSettings.subtitlesEnabled) playerAccent else Color.White,
                                             modifier = Modifier.size(19.dp)
                                         )
                                     }
-                                    PlayerIconButton(onClick = { showEpisodeSheet = true }) {
-                                        Icon(Icons.Default.VideoLibrary, contentDescription = "Episodes", tint = Color.White, modifier = Modifier.size(19.dp))
+                                    PlayerIconButton(onClick = { showAudioDialog = true }) {
+                                        Icon(Icons.Default.Audiotrack, contentDescription = "Audio track", tint = Color.White, modifier = Modifier.size(19.dp))
                                     }
-                                }
-                                if (savedSettings.pipEnabled) {
-                                    PlayerIconButton(onClick = { enterPip() }) {
-                                        Icon(Icons.Default.PictureInPictureAlt, contentDescription = "Picture in picture", tint = Color.White, modifier = Modifier.size(19.dp))
+                                    PlayerIconButton(onClick = {
+                                        if (sources.isNotEmpty()) showSourceSheet = true else showServerSheet = true
+                                    }) {
+                                        Icon(Icons.Default.Dns, contentDescription = "Servers and quality", tint = Color.White, modifier = Modifier.size(19.dp))
                                     }
-                                }
-                                if (savedSettings.chromecastEnabled) {
-                                    PlayerIconButton(onClick = { showCastDialog = true }) {
+                                    PlayerIconButton(
+                                        onClick = { lockPlayer() },
+                                        modifier = Modifier.testTag("player_lock_button")
+                                    ) {
+                                        Icon(Icons.Default.LockOpen, contentDescription = "Lock player", tint = Color.White, modifier = Modifier.size(19.dp))
+                                    }
+                                    PlayerIconButton(onClick = { showFitDialog = true }) {
+                                        Icon(Icons.Default.AspectRatio, contentDescription = "Aspect ratio", tint = Color.White, modifier = Modifier.size(19.dp))
+                                    }
+                                    if (isLandscape) {
+                                        PlayerIconButton(onClick = { showSleepTimerDialog = true }) {
+                                            Icon(
+                                                Icons.Default.NightlightRound,
+                                                contentDescription = "Sleep timer",
+                                                tint = if (sleepTimerRemainingMin > 0) playerAccent else Color.White,
+                                                modifier = Modifier.size(19.dp)
+                                            )
+                                        }
+                                        PlayerIconButton(onClick = { showEpisodeSheet = true }) {
+                                            Icon(Icons.Default.VideoLibrary, contentDescription = "Episodes", tint = Color.White, modifier = Modifier.size(19.dp))
+                                        }
+                                    }
+                                    if (savedSettings.pipEnabled) {
+                                        PlayerIconButton(onClick = { enterPip() }) {
+                                            Icon(Icons.Default.PictureInPictureAlt, contentDescription = "Picture in picture", tint = Color.White, modifier = Modifier.size(19.dp))
+                                        }
+                                    }
+                                    if (savedSettings.chromecastEnabled) {
+                                        PlayerIconButton(onClick = { showCastDialog = true }) {
+                                            Icon(
+                                                imageVector = Icons.Default.Tv,
+                                                contentDescription = "Cast to Smart TV",
+                                                tint = if (isCasting) playerAccent else Color.White,
+                                                modifier = Modifier.size(19.dp)
+                                            )
+                                        }
+                                    }
+                                    PlayerIconButton(onClick = { toggleFullscreen() }) {
                                         Icon(
-                                            imageVector = Icons.Default.Tv,
-                                            contentDescription = "Cast to Smart TV",
-                                            tint = if (isCasting) playerAccent else Color.White,
-                                            modifier = Modifier.size(19.dp)
+                                            imageVector = if (isLandscape) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
+                                            contentDescription = "Fullscreen",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(20.dp)
                                         )
                                     }
-                                }
-                                PlayerIconButton(onClick = { toggleFullscreen() }) {
-                                    Icon(
-                                        imageVector = if (isLandscape) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
-                                        contentDescription = "Fullscreen",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            } else {
-                                // Redesigned, customizable top bar (no duplicate lock icons!)
-                                topBarControlOrder.forEach { controlId ->
-                                    if (controlId in hiddenControlSet) return@forEach
-                                    when (controlId) {
-                                        "audio" -> {
-                                            Box(
-                                                modifier = Modifier
-                                                    .clip(RoundedCornerShape(14.dp))
-                                                    .background(playerAccent.copy(alpha = 0.18f))
-                                                    .border(0.8.dp, playerAccent.copy(alpha = 0.6f), RoundedCornerShape(14.dp))
-                                                    .clickable { showAudioDialog = true }
-                                                    .padding(horizontal = 8.dp, vertical = 4.dp)
-                                                    .testTag("player_audio_chip"),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    Icon(
-                                                        Icons.Default.Audiotrack,
-                                                        contentDescription = "Audio track",
-                                                        tint = playerAccent,
-                                                        modifier = Modifier.size((14f * iconScaleMult).dp)
-                                                    )
-                                                    Spacer(modifier = Modifier.width(3.dp))
-                                                    Text(
-                                                        text = currentLanguage.uppercase(),
-                                                        color = playerAccent,
-                                                        fontSize = 10.sp,
-                                                        fontWeight = FontWeight.Black
-                                                    )
+                                } else {
+                                    // Redesigned, customizable top bar (no duplicate lock icons!)
+                                    topBarControlOrder.forEach { controlId ->
+                                        if (controlId in hiddenControlSet) return@forEach
+                                        when (controlId) {
+                                            "audio" -> {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(14.dp))
+                                                        .background(playerAccent.copy(alpha = 0.18f))
+                                                        .border(0.8.dp, playerAccent.copy(alpha = 0.6f), RoundedCornerShape(14.dp))
+                                                        .clickable { showAudioDialog = true }
+                                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                                        .testTag("player_audio_chip"),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                        Icon(
+                                                            Icons.Default.Audiotrack,
+                                                            contentDescription = "Audio track",
+                                                            tint = playerAccent,
+                                                            modifier = Modifier.size((14f * iconScaleMult).dp)
+                                                        )
+                                                        Spacer(modifier = Modifier.width(3.dp))
+                                                        Text(
+                                                            text = currentLanguage.uppercase(),
+                                                            color = playerAccent,
+                                                            fontSize = 10.sp,
+                                                            fontWeight = FontWeight.Black
+                                                        )
+                                                    }
                                                 }
                                             }
-                                        }
-                                        "subtitles" -> {
-                                            PlayerIconButton(onClick = { showSubtitleDialog = true }) {
-                                                Icon(
-                                                    Icons.Default.Subtitles,
-                                                    contentDescription = "Subtitles",
-                                                    tint = if (savedSettings.subtitlesEnabled) playerAccent else Color.White,
-                                                    modifier = Modifier.size((19f * iconScaleMult).dp)
-                                                )
-                                            }
-                                        }
-                                        "speed" -> {
-                                            PlayerIconButton(onClick = { showSpeedDialog = true }) {
-                                                Icon(
-                                                    Icons.Default.Speed,
-                                                    contentDescription = "Speed",
-                                                    tint = if (abs(playbackSpeed - 1f) > 0.05f) playerAccent else Color.White,
-                                                    modifier = Modifier.size((19f * iconScaleMult).dp)
-                                                )
-                                            }
-                                        }
-                                        "servers" -> {
-                                            PlayerIconButton(onClick = {
-                                                if (sources.isNotEmpty()) showSourceSheet = true else showServerSheet = true
-                                            }) {
-                                                Icon(
-                                                    Icons.Default.Dns,
-                                                    contentDescription = "Servers and quality",
-                                                    tint = Color.White,
-                                                    modifier = Modifier.size((19f * iconScaleMult).dp)
-                                                )
-                                            }
-                                        }
-                                        "fit" -> {
-                                            PlayerIconButton(onClick = { showFitDialog = true }) {
-                                                Icon(
-                                                    Icons.Default.AspectRatio,
-                                                    contentDescription = "Aspect ratio",
-                                                    tint = Color.White,
-                                                    modifier = Modifier.size((19f * iconScaleMult).dp)
-                                                )
-                                            }
-                                        }
-                                        "sleep" -> {
-                                            if (isLandscape || sleepTimerRemainingMin > 0) {
-                                                PlayerIconButton(onClick = { showSleepTimerDialog = true }) {
+                                            "subtitles" -> {
+                                                PlayerIconButton(onClick = { showSubtitleDialog = true }) {
                                                     Icon(
-                                                        Icons.Default.NightlightRound,
-                                                        contentDescription = "Sleep timer",
-                                                        tint = if (sleepTimerRemainingMin > 0) playerAccent else Color.White,
+                                                        Icons.Default.Subtitles,
+                                                        contentDescription = "Subtitles",
+                                                        tint = if (savedSettings.subtitlesEnabled) playerAccent else Color.White,
                                                         modifier = Modifier.size((19f * iconScaleMult).dp)
                                                     )
                                                 }
                                             }
-                                        }
-                                        "episodes" -> {
-                                            if (isLandscape) {
-                                                PlayerIconButton(onClick = { showEpisodeSheet = true }) {
+                                            "speed" -> {
+                                                PlayerIconButton(onClick = { showSpeedDialog = true }) {
                                                     Icon(
-                                                        Icons.Default.VideoLibrary,
-                                                        contentDescription = "Episodes",
+                                                        Icons.Default.Speed,
+                                                        contentDescription = "Speed",
+                                                        tint = if (abs(playbackSpeed - 1f) > 0.05f) playerAccent else Color.White,
+                                                        modifier = Modifier.size((19f * iconScaleMult).dp)
+                                                    )
+                                                }
+                                            }
+                                            "servers" -> {
+                                                PlayerIconButton(onClick = {
+                                                    if (sources.isNotEmpty()) showSourceSheet = true else showServerSheet = true
+                                                }) {
+                                                    Icon(
+                                                        Icons.Default.Dns,
+                                                        contentDescription = "Servers and quality",
                                                         tint = Color.White,
                                                         modifier = Modifier.size((19f * iconScaleMult).dp)
                                                     )
                                                 }
                                             }
-                                        }
-                                        "pip" -> {
-                                            if (savedSettings.pipEnabled) {
-                                                PlayerIconButton(onClick = { enterPip() }) {
+                                            "fit" -> {
+                                                PlayerIconButton(onClick = { showFitDialog = true }) {
                                                     Icon(
-                                                        Icons.Default.PictureInPictureAlt,
-                                                        contentDescription = "Picture in picture",
+                                                        Icons.Default.AspectRatio,
+                                                        contentDescription = "Aspect ratio",
                                                         tint = Color.White,
                                                         modifier = Modifier.size((19f * iconScaleMult).dp)
                                                     )
                                                 }
                                             }
-                                        }
-                                        "cast" -> {
-                                            if (savedSettings.chromecastEnabled) {
-                                                PlayerIconButton(onClick = { showCastDialog = true }) {
+                                            "sleep" -> {
+                                                if (isLandscape || sleepTimerRemainingMin > 0) {
+                                                    PlayerIconButton(onClick = { showSleepTimerDialog = true }) {
+                                                        Icon(
+                                                            Icons.Default.NightlightRound,
+                                                            contentDescription = "Sleep timer",
+                                                            tint = if (sleepTimerRemainingMin > 0) playerAccent else Color.White,
+                                                            modifier = Modifier.size((19f * iconScaleMult).dp)
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                            "episodes" -> {
+                                                if (isLandscape) {
+                                                    PlayerIconButton(onClick = { showEpisodeSheet = true }) {
+                                                        Icon(
+                                                            Icons.Default.VideoLibrary,
+                                                            contentDescription = "Episodes",
+                                                            tint = Color.White,
+                                                            modifier = Modifier.size((19f * iconScaleMult).dp)
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                            "pip" -> {
+                                                if (savedSettings.pipEnabled) {
+                                                    PlayerIconButton(onClick = { enterPip() }) {
+                                                        Icon(
+                                                            Icons.Default.PictureInPictureAlt,
+                                                            contentDescription = "Picture in picture",
+                                                            tint = Color.White,
+                                                            modifier = Modifier.size((19f * iconScaleMult).dp)
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                            "cast" -> {
+                                                if (savedSettings.chromecastEnabled) {
+                                                    PlayerIconButton(onClick = { showCastDialog = true }) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Tv,
+                                                            contentDescription = "Cast to Smart TV",
+                                                            tint = if (isCasting) playerAccent else Color.White,
+                                                            modifier = Modifier.size((19f * iconScaleMult).dp)
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                            "fullscreen" -> {
+                                                PlayerIconButton(onClick = { toggleFullscreen() }) {
                                                     Icon(
-                                                        imageVector = Icons.Default.Tv,
-                                                        contentDescription = "Cast to Smart TV",
-                                                        tint = if (isCasting) playerAccent else Color.White,
-                                                        modifier = Modifier.size((19f * iconScaleMult).dp)
+                                                        imageVector = if (isLandscape) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
+                                                        contentDescription = "Fullscreen",
+                                                        tint = Color.White,
+                                                        modifier = Modifier.size((20f * iconScaleMult).dp)
                                                     )
                                                 }
                                             }
                                         }
-                                        "fullscreen" -> {
-                                            PlayerIconButton(onClick = { toggleFullscreen() }) {
-                                                Icon(
-                                                    imageVector = if (isLandscape) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
-                                                    contentDescription = "Fullscreen",
-                                                    tint = Color.White,
-                                                    modifier = Modifier.size((20f * iconScaleMult).dp)
-                                                )
-                                            }
-                                        }
                                     }
-                                }
-                                if (savedSettings.chromecastEnabled && "cast" !in topBarControlOrder) {
-                                    PlayerIconButton(onClick = { showCastDialog = true }) {
-                                        Icon(
-                                            imageVector = Icons.Default.Tv,
-                                            contentDescription = "Cast to Smart TV",
-                                            tint = if (isCasting) playerAccent else Color.White,
-                                            modifier = Modifier.size((19f * iconScaleMult).dp)
-                                        )
+                                    if (savedSettings.chromecastEnabled && "cast" !in topBarControlOrder) {
+                                        PlayerIconButton(onClick = { showCastDialog = true }) {
+                                            Icon(
+                                                imageVector = Icons.Default.Tv,
+                                                contentDescription = "Cast to Smart TV",
+                                                tint = if (isCasting) playerAccent else Color.White,
+                                                modifier = Modifier.size((19f * iconScaleMult).dp)
+                                            )
+                                        }
                                     }
                                 }
                             }
                         }
                     }
 
-                    val showCenterTransport = if (savedSettings.useLegacyPlayerLayout) {
-                        isLandscape
+                    val transportMode = if (savedSettings.useLegacyPlayerLayout) {
+                        if (isLandscape) "Center" else "Bottom"
                     } else {
-                        when (savedSettings.playerTransportPosition) {
-                            "Bottom" -> false
-                            else -> isLandscape
+                        when {
+                            savedSettings.playerTransportPosition.equals("Bottom", ignoreCase = true) -> "Bottom"
+                            savedSettings.playerTransportPosition.equals("Split", ignoreCase = true) -> "Split"
+                            else -> "Center"
                         }
                     }
 
-                    // ----- transport (landscape / Center: centred over the video) -----
-                    if (showCenterTransport) {
+                    // ----- transport (Center or Split) -----
+                    if (transportMode == "Center") {
                         Box(modifier = Modifier.align(Alignment.Center)) {
                             transportControls()
                         }
-                    }
-
-                    // ----- skip intro / outro -----
-                    if (savedSettings.showSkipButtons) {
-                        Column(
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(end = 12.dp, bottom = 56.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            if (currentTimeSec in 0..(savedSettings.introSkipSeconds + 35).toLong()) {
-                                SkipChip(
-                                    label = "+85s Auto-Skip OP",
-                                    onClick = { seekBy(85L) }
-                                )
-                            }
-                            if (durationSec > 0 && currentTimeSec > durationSec - 180) {
-                                SkipChip(
-                                    label = "+85s Auto-Skip ED",
-                                    onClick = {
-                                        val target = durationSec - savedSettings.outroSkipSeconds
-                                        seekTo(target.coerceAtLeast(0L))
-                                    }
-                                )
-                            }
+                    } else if (transportMode == "Split") {
+                        Box(modifier = Modifier.align(Alignment.Center)) {
+                            transportPlayPauseButton()
                         }
                     }
 
@@ -2314,7 +2408,7 @@ fun PlayerScreen(
                             .then(if (isLandscape) Modifier.navigationBarsPadding() else Modifier)
                             .padding(horizontal = 12.dp, vertical = 4.dp)
                     ) {
-                        if (!showCenterTransport) {
+                        if (transportMode == "Bottom") {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -2323,6 +2417,21 @@ fun PlayerScreen(
                             ) {
                                 transportControls()
                             }
+                        } else if (transportMode == "Split") {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 2.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                transportSecondaryControls()
+                            }
+                        }
+
+                        val (seekTrackHeight, seekThumbSize) = when (savedSettings.playerSeekbarStyle) {
+                            "Minimal" -> 2.dp to 10.dp
+                            "Thick" -> 7.dp to 18.dp
+                            else -> 3.5.dp to 14.dp
                         }
 
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -2354,7 +2463,7 @@ fun PlayerScreen(
                                     SliderDefaults.Thumb(
                                         interactionSource = remember { MutableInteractionSource() },
                                         colors = SliderDefaults.colors(thumbColor = playerAccent),
-                                        modifier = Modifier.size(14.dp)
+                                        modifier = Modifier.size(seekThumbSize)
                                     )
                                 },
                                 track = { sliderState ->
@@ -2364,7 +2473,7 @@ fun PlayerScreen(
                                             activeTrackColor = playerAccent,
                                             inactiveTrackColor = Color(0x40FFFFFF)
                                         ),
-                                        modifier = Modifier.height(3.5.dp)
+                                        modifier = Modifier.height(seekTrackHeight)
                                     )
                                 },
                                 modifier = Modifier
@@ -2380,8 +2489,8 @@ fun PlayerScreen(
                             )
                         }
 
-                        // In-Player Quick Episode Drawer strip
-                        if (episodes.size > 1) {
+                        // In-Player Quick Episode Drawer strip (landscape only — portrait has the Episodes tab right below)
+                        if (isLandscape && episodes.size > 1) {
                             Spacer(modifier = Modifier.height(2.dp))
                             LazyRow(
                                 modifier = Modifier.fillMaxWidth(),
@@ -2479,7 +2588,7 @@ fun PlayerScreen(
                         .padding(end = 16.dp, bottom = if (isLandscape) 72.dp else 24.dp)
                         .clip(RoundedCornerShape(16.dp))
                         .background(Color(0xF0121622))
-                        .border(1.dp, themeAccent.copy(alpha = 0.8f), RoundedCornerShape(16.dp))
+                        .border(1.dp, playerAccent.copy(alpha = 0.8f), RoundedCornerShape(16.dp))
                         .padding(14.dp)
                 ) {
                     Column(
@@ -2487,7 +2596,7 @@ fun PlayerScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.SkipNext, contentDescription = null, tint = themeAccent, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.SkipNext, contentDescription = null, tint = playerAccent, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "Next: Episode ${currentEpNumber + 1}",
@@ -2510,7 +2619,7 @@ fun PlayerScreen(
                                     showAutoNextBanner = false
                                     playEpisode(currentEpNumber + 1)
                                 },
-                                colors = ButtonDefaults.buttonColors(containerColor = themeAccent, contentColor = DarkBackground),
+                                colors = ButtonDefaults.buttonColors(containerColor = playerAccent, contentColor = DarkBackground),
                                 shape = RoundedCornerShape(10.dp),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                             ) {
@@ -2520,7 +2629,10 @@ fun PlayerScreen(
                             }
 
                             TextButton(
-                                onClick = { showAutoNextBanner = false },
+                                onClick = {
+                                    autoNextCancelled = true
+                                    showAutoNextBanner = false
+                                },
                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp)
                             ) {
                                 Text("Cancel", color = TextSecondary, fontSize = 12.sp)
@@ -2541,7 +2653,7 @@ fun PlayerScreen(
                 ) {
                     Text(
                         text = currentSource?.qualityLabel ?: "Auto",
-                        color = themeAccent,
+                        color = playerAccent,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -2550,7 +2662,7 @@ fun PlayerScreen(
         }
 
         // ---------------- portrait: remastered player section ---------------- 
-        if (!isLandscape) {
+        if (!isLandscape && !isInPip) {
             RemasteredPortraitPlayerSection(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -2595,17 +2707,23 @@ fun PlayerScreen(
                 playbackSpeed = playbackSpeed,
                 onPlaybackSpeedChange = { speed ->
                     playbackSpeed = speed
-                    player.setPlaybackSpeed(speed)
+                    if (usingEmbedFallback) embedController.send("setRate", speed.toString())
+                    else player.setPlaybackSpeed(speed)
                 },
                 videoFitMode = savedSettings.videoFitMode,
                 onVideoFitModeChange = { mode ->
                     scope.launch {
                         repository.settingsManager.update { it.copy(videoFitMode = mode) }
                     }
+                    if (usingEmbedFallback) {
+                        embedController.send("setFit", mode.lowercase())
+                    } else {
+                        applyResizeMode(player, mode)
+                    }
                 },
                 allProgress = allProgress,
                 allDownloads = allDownloads,
-                themeAccent = themeAccent,
+                themeAccent = playerAccent,
                 savedSettings = savedSettings,
                 onEpisodeClick = { epNum -> playEpisode(epNum) },
                 onDownloadClick = { ep -> enqueueDownload(repository, context, scope, currentAnime, ep, currentSource) },
@@ -2621,6 +2739,7 @@ fun PlayerScreen(
                 exoAudioTracks = exoAudioTracks,
                 activeExoAudioTrackId = activeExoAudioTrackId,
                 onSelectExoAudioTrack = { trackOption ->
+                    userPickedExoAudioTrack = true
                     val targetGroup = player.currentTracks.groups.getOrNull(trackOption.groupIndex)
                     if (targetGroup != null) {
                         player.trackSelectionParameters = player.trackSelectionParameters
@@ -2655,7 +2774,8 @@ fun PlayerScreen(
             visibleEpisodes = currentChunkEpisodes,
             allProgress = allProgress,
             allDownloads = allDownloads,
-            themeAccent = themeAccent,
+            themeAccent = playerAccent,
+            spoilerBlurCovers = savedSettings.spoilerBlurCovers,
             onEpisodeClick = { playEpisode(it) },
             onDownloadClick = { ep -> enqueueDownload(repository, context, scope, currentAnime, ep, currentSource) },
             onDismiss = { showEpisodeSheet = false }
@@ -2667,6 +2787,7 @@ fun PlayerScreen(
             sources = sources,
             activeIndex = sourceIndex,
             serverLabel = currentServer,
+            accentColor = playerAccent,
             onPick = { index ->
                 sourceIndex = index
                 showSourceSheet = false
@@ -2683,6 +2804,7 @@ fun PlayerScreen(
         ServerPickerSheet(
             options = registry.serverOptions(),
             activeId = currentServer,
+            accentColor = playerAccent,
             onPick = { option ->
                 currentServer = option.id
                 showServerSheet = false
@@ -2695,7 +2817,7 @@ fun PlayerScreen(
         val result = resolveResult
         AlertDialog(
             onDismissRequest = { showDiagnostics = false },
-            containerColor = DarkSurface,
+            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface,
             title = { Text("Why didn't it play?", color = TextPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -2712,7 +2834,7 @@ fun PlayerScreen(
                             text = "${attempt.resolverName}: " +
                                 if (attempt.sources.isEmpty()) (attempt.error ?: "no stream returned")
                                 else "${attempt.sources.size} source(s)",
-                            color = if (attempt.sources.isEmpty()) TextSecondary else themeAccent,
+                            color = if (attempt.sources.isEmpty()) TextSecondary else playerAccent,
                             fontSize = 11.sp
                         )
                     }
@@ -2730,7 +2852,7 @@ fun PlayerScreen(
                     showDiagnostics = false
                     currentServer = StreamResolverRegistry.EMBED_SERVER_ID
                 }) {
-                    Text("Use built-in player", color = themeAccent, fontWeight = FontWeight.Bold)
+                    Text("Use built-in player", color = playerAccent, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -2746,7 +2868,7 @@ fun PlayerScreen(
         val maxMenuHeight = (configuration.screenHeightDp * 0.55f).dp.coerceIn(140.dp, 360.dp)
         AlertDialog(
             onDismissRequest = { showSleepTimerDialog = false },
-            containerColor = DarkSurface,
+            containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface,
             title = { Text("Sleep timer", color = TextPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 Column(
@@ -2759,7 +2881,7 @@ fun PlayerScreen(
                     if (sleepTimerRemainingMin > 0) {
                         Text(
                             "Pausing in $sleepTimerRemainingMin min",
-                            color = themeAccent,
+                            color = playerAccent,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -2806,6 +2928,7 @@ fun PlayerScreen(
     if (showSpeedDialog) {
         PlaybackSpeedSheet(
             activeSpeed = playbackSpeed,
+            accentColor = playerAccent,
             onPick = { speed ->
                 playbackSpeed = speed
                 if (usingEmbedFallback) embedController.send("setRate", speed.toString())
@@ -2821,6 +2944,7 @@ fun PlayerScreen(
     if (showSubtitleDialog) {
         SubtitleSettingsSheet(
             settings = savedSettings,
+            accentColor = playerAccent,
             onToggleSubtitles = { enabled ->
                 scope.launch {
                     repository.settingsManager.update { it.copy(subtitlesEnabled = enabled) }
@@ -2860,6 +2984,7 @@ fun PlayerScreen(
             exoAudioTracks = exoAudioTracks,
             activeExoTrackId = activeExoAudioTrackId,
             dubUnavailableReason = dubStatusBanner,
+            accentColor = playerAccent,
             onPickLanguage = { lang ->
                 val prev = currentLanguage
                 currentLanguage = lang
@@ -2890,6 +3015,7 @@ fun PlayerScreen(
                 }
             },
             onPickExoTrack = { trackOption ->
+                userPickedExoAudioTrack = true
                 val targetGroup = player.currentTracks.groups.getOrNull(trackOption.groupIndex)
                 if (targetGroup != null) {
                     player.trackSelectionParameters = player.trackSelectionParameters
@@ -2912,13 +3038,14 @@ fun PlayerScreen(
     if (showFitDialog) {
         VideoFitSheet(
             currentFit = savedSettings.videoFitMode,
+            accentColor = playerAccent,
             onPick = { mode ->
                 scope.launch {
                     repository.settingsManager.update { it.copy(videoFitMode = mode) }
                     if (!usingEmbedFallback) {
                         applyResizeMode(player, mode)
                     } else {
-                        embedController.send("setFit", "\"${mode.lowercase()}\"")
+                        embedController.send("setFit", mode.lowercase())
                     }
                 }
             },
@@ -3148,9 +3275,9 @@ private fun nextFitMode(current: String): String = when (current) {
 
 @androidx.annotation.OptIn(UnstableApi::class)
 private fun resizeModeFor(fitMode: String): Int = when (fitMode) {
-    "Cover" -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-    "Stretch" -> AspectRatioFrameLayout.RESIZE_MODE_FILL
-    "Zoom" -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+    "Cover", "Zoom" -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+    "Stretch", "Fill" -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+    "16:9", "4:3", "Fit" -> AspectRatioFrameLayout.RESIZE_MODE_FIT
     else -> AspectRatioFrameLayout.RESIZE_MODE_FIT
 }
 
@@ -3158,7 +3285,7 @@ private fun resizeModeFor(fitMode: String): Int = when (fitMode) {
 private fun applyResizeMode(player: ExoPlayer, fitMode: String) {
     // Resize mode is a view concern; the player only needs to keep the aspect ratio.
     player.videoScalingMode = when (fitMode) {
-        "Stretch", "Zoom" -> C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
+        "Stretch", "Fill", "Zoom", "Cover" -> C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
         else -> C.VIDEO_SCALING_MODE_SCALE_TO_FIT
     }
 }
@@ -3172,7 +3299,8 @@ private fun applyCaptionStyle(playerView: PlayerView, settings: com.example.data
         else -> Color.White.toArgb()
     }
     val background = when (settings.subtitleBackgroundColor) {
-        "Black" -> Color(0xCC000000).toArgb()
+        "Black", "BlackSolid" -> Color(0xE6000000).toArgb()
+        "BlackSemi" -> Color(0x99000000).toArgb()
         "Grey" -> Color(0xAA444444).toArgb()
         "None" -> Color(0x00000000).toArgb()
         else -> Color(0x99000000).toArgb()
@@ -3198,8 +3326,8 @@ private fun applyCaptionStyle(playerView: PlayerView, settings: com.example.data
     )
     playerView.subtitleView?.setBottomPaddingFraction(
         when (settings.subtitlePosition) {
-            "Top" -> 1f
-            "Middle" -> 0.6f
+            "Top" -> 0.82f
+            "Middle" -> 0.5f
             else -> 0.08f
         }
     )
@@ -3343,8 +3471,8 @@ private fun TransportButton(onClick: () -> Unit, content: @Composable () -> Unit
 }
 
 @Composable
-private fun SkipChip(label: String, onClick: () -> Unit) {
-    val themeAccent = LocalThemeAccent.current
+private fun SkipChip(label: String, onClick: () -> Unit, accentColor: Color? = null) {
+    val themeAccent = accentColor ?: LocalThemeAccent.current
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
@@ -3379,9 +3507,10 @@ private fun PlaybackErrorOverlay(
     onRetry: () -> Unit,
     onShowDetails: () -> Unit,
     onUseEmbed: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    accentColor: Color? = null
 ) {
-    val themeAccent = LocalThemeAccent.current
+    val themeAccent = accentColor ?: LocalThemeAccent.current
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -3470,9 +3599,11 @@ private fun RemasteredPortraitPlayerSection(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var selectedTab by remember { mutableIntStateOf(0) }
-    var episodeViewMode by remember { mutableStateOf(savedSettings.episodeLayout.ifEmpty { "Cards" }) }
+    var episodeViewMode by remember(savedSettings.episodeLayout) {
+        mutableStateOf(savedSettings.episodeLayout.ifEmpty { "Cards" })
+    }
     var episodeSearchQuery by remember { mutableStateOf("") }
-    var selectedRangeIndex by remember { mutableIntStateOf(0) }
+    var selectedRangeIndex by remember(episodeSearchQuery) { mutableIntStateOf(0) }
     var synopsisExpanded by remember { mutableStateOf(false) }
 
     fun progressFor(ep: Episode) = allProgress.firstOrNull { it.id == "${anime.id}_${ep.number}" }
@@ -3489,6 +3620,10 @@ private fun RemasteredPortraitPlayerSection(
     val episodeChunks = remember(filteredEpisodes) {
         if (filteredEpisodes.isEmpty()) emptyList() else filteredEpisodes.chunked(pageSize)
     }
+    LaunchedEffect(currentEpisodeNumber, episodeChunks) {
+        val idx = episodeChunks.indexOfFirst { chunk -> chunk.any { it.number == currentEpisodeNumber } }
+        if (idx >= 0) selectedRangeIndex = idx
+    }
     val currentChunkEpisodes = remember(episodeChunks, selectedRangeIndex, filteredEpisodes) {
         if (episodeChunks.isNotEmpty() && selectedRangeIndex in episodeChunks.indices) {
             episodeChunks[selectedRangeIndex]
@@ -3498,7 +3633,7 @@ private fun RemasteredPortraitPlayerSection(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(DarkBackground)
+            .background(androidx.compose.material3.MaterialTheme.colorScheme.background)
     ) {
         // ---------------- Header: Anime & Episode Title + Badges ----------------
         Column(
@@ -3945,7 +4080,7 @@ private fun RemasteredPortraitPlayerSection(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // View Mode Switchers
-                    val modes = listOf("Cards", "List", "Grid")
+                    val modes = listOf("Cards", "Numbers", "Grid")
                     Row(
                         modifier = Modifier
                             .clip(RoundedCornerShape(8.dp))
@@ -3954,12 +4089,18 @@ private fun RemasteredPortraitPlayerSection(
                         horizontalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
                         modes.forEach { mode ->
-                            val isModeActive = episodeViewMode.equals(mode, true)
+                            val isModeActive = episodeViewMode.equals(mode, true) ||
+                                (mode == "Cards" && episodeViewMode.equals("List", true))
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(6.dp))
                                     .background(if (isModeActive) themeAccent.copy(alpha = 0.22f) else Color.Transparent)
-                                    .clickable { episodeViewMode = mode }
+                                    .clickable {
+                                        episodeViewMode = mode
+                                        scope.launch {
+                                            repository.settingsManager.update { it.copy(episodeLayout = mode) }
+                                        }
+                                    }
                                     .padding(horizontal = 8.dp, vertical = 4.dp)
                             ) {
                                 Text(
@@ -4046,7 +4187,7 @@ private fun RemasteredPortraitPlayerSection(
 
                 // Scrollable Episodes Content according to episodeViewMode
                 when {
-                    episodeViewMode.equals("List", true) -> {
+                    episodeViewMode.equals("Cards", true) || episodeViewMode.equals("List", true) -> {
                         LazyColumn(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -4057,12 +4198,14 @@ private fun RemasteredPortraitPlayerSection(
                             items(currentChunkEpisodes, key = { it.id }) { ep ->
                                 val isCurrent = ep.number == currentEpisodeNumber
                                 val progress = progressFor(ep)
+                                val isWatched = progress?.completed == true
                                 val download = downloadFor(ep)
+                                val shouldBlur = savedSettings.spoilerBlurCovers && !isWatched && !isCurrent
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clip(RoundedCornerShape(10.dp))
-                                        .background(if (isCurrent) themeAccent.copy(alpha = 0.14f) else DarkSurface)
+                                        .background(if (isCurrent) themeAccent.copy(alpha = 0.14f) else androidx.compose.material3.MaterialTheme.colorScheme.surface)
                                         .border(
                                             width = if (isCurrent) 1.2.dp else 0.5.dp,
                                             color = if (isCurrent) themeAccent else DarkBorder,
@@ -4083,7 +4226,9 @@ private fun RemasteredPortraitPlayerSection(
                                             model = ep.thumbnail.ifEmpty { anime.coverImage },
                                             contentDescription = ep.title,
                                             contentScale = ContentScale.Crop,
-                                            modifier = Modifier.fillMaxSize()
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .then(if (shouldBlur) Modifier.blur(10.dp) else Modifier)
                                         )
                                         if (isCurrent) {
                                             Box(
@@ -4139,7 +4284,7 @@ private fun RemasteredPortraitPlayerSection(
                         }
                     }
 
-                    episodeViewMode.equals("Grid", true) || episodeViewMode.equals("Numbers", true) -> {
+                    episodeViewMode.equals("Numbers", true) -> {
                         LazyVerticalGrid(
                             columns = GridCells.Adaptive(minSize = 52.dp),
                             modifier = Modifier
@@ -4157,7 +4302,7 @@ private fun RemasteredPortraitPlayerSection(
                                     modifier = Modifier
                                         .aspectRatio(1f)
                                         .clip(RoundedCornerShape(12.dp))
-                                        .background(if (isCurrent) themeAccent else DarkSurface)
+                                        .background(if (isCurrent) themeAccent else androidx.compose.material3.MaterialTheme.colorScheme.surface)
                                         .border(
                                             width = if (isCurrent) 1.2.dp else 0.5.dp,
                                             color = if (isCurrent) themeAccent else DarkBorder,
@@ -4197,7 +4342,7 @@ private fun RemasteredPortraitPlayerSection(
                     }
 
                     else -> {
-                        // Cards Mode: 2-column rich grid of cards
+                        // Grid Mode: 2-column rich grid of thumbnail cards
                         LazyVerticalGrid(
                             columns = GridCells.Fixed(2),
                             modifier = Modifier
@@ -4210,11 +4355,13 @@ private fun RemasteredPortraitPlayerSection(
                             items(currentChunkEpisodes, key = { it.id }) { ep ->
                                 val isCurrent = ep.number == currentEpisodeNumber
                                 val progress = progressFor(ep)
+                                val isWatched = progress?.completed == true
                                 val download = downloadFor(ep)
+                                val shouldBlur = savedSettings.spoilerBlurCovers && !isWatched && !isCurrent
                                 Column(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(10.dp))
-                                        .background(if (isCurrent) themeAccent.copy(alpha = 0.12f) else DarkSurface)
+                                        .background(if (isCurrent) themeAccent.copy(alpha = 0.12f) else androidx.compose.material3.MaterialTheme.colorScheme.surface)
                                         .border(
                                             width = if (isCurrent) 1.2.dp else 0.5.dp,
                                             color = if (isCurrent) themeAccent else DarkBorder,
@@ -4234,7 +4381,9 @@ private fun RemasteredPortraitPlayerSection(
                                             model = ep.thumbnail.ifEmpty { anime.coverImage },
                                             contentDescription = ep.title,
                                             contentScale = ContentScale.Crop,
-                                            modifier = Modifier.fillMaxSize()
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .then(if (shouldBlur) Modifier.blur(10.dp) else Modifier)
                                         )
                                         if (isCurrent) {
                                             Box(
@@ -4748,11 +4897,12 @@ private fun EpisodeSheet(
     themeAccent: Color,
     onEpisodeClick: (Int) -> Unit,
     onDownloadClick: (Episode) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    spoilerBlurCovers: Boolean = false
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = DarkSurface,
+        containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface,
         title = { Text("Episodes", color = TextPrimary, fontWeight = FontWeight.Bold) },
         text = {
             Column {
@@ -4804,6 +4954,8 @@ private fun EpisodeSheet(
                     items(visibleEpisodes, key = { it.id }) { ep ->
                         val isCurrent = ep.number == currentEpisode
                         val progress = allProgress.firstOrNull { it.id == "${anime.id}_${ep.number}" }
+                        val isWatched = progress?.completed == true
+                        val shouldBlur = spoilerBlurCovers && !isWatched && !isCurrent
                         val download = allDownloads.firstOrNull {
                             it.animeId == anime.id && it.episodeNumber == ep.number
                         }
@@ -4821,13 +4973,15 @@ private fun EpisodeSheet(
                                 modifier = Modifier
                                     .size(width = 72.dp, height = 42.dp)
                                     .clip(RoundedCornerShape(6.dp))
-                                    .background(DarkSurface)
+                                    .background(androidx.compose.material3.MaterialTheme.colorScheme.surface)
                             ) {
                                 AsyncImage(
                                     model = ep.thumbnail.ifEmpty { anime.coverImage },
                                     contentDescription = ep.title,
                                     contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .then(if (shouldBlur) Modifier.blur(10.dp) else Modifier)
                                 )
                                 if (progress != null && progress.durationSec > 0) {
                                     LinearProgressIndicator(
@@ -4900,12 +5054,13 @@ private fun SourcePickerSheet(
     serverLabel: String,
     onPick: (Int) -> Unit,
     onSwitchServer: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    accentColor: Color? = null
 ) {
-    val themeAccent = LocalThemeAccent.current
+    val themeAccent = accentColor ?: LocalThemeAccent.current
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = DarkSurface,
+        containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface,
         title = { Text("Quality & source", color = TextPrimary, fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -4965,12 +5120,13 @@ private fun ServerPickerSheet(
     options: List<com.example.data.resolver.ServerOption>,
     activeId: String,
     onPick: (com.example.data.resolver.ServerOption) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    accentColor: Color? = null
 ) {
-    val themeAccent = LocalThemeAccent.current
+    val themeAccent = accentColor ?: LocalThemeAccent.current
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = DarkSurface,
+        containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface,
         title = { Text("Streaming server", color = TextPrimary, fontWeight = FontWeight.Bold) },
         text = {
             val configuration = androidx.compose.ui.platform.LocalConfiguration.current
@@ -5022,13 +5178,14 @@ private fun ServerPickerSheet(
 private fun PlaybackSpeedSheet(
     activeSpeed: Float,
     onPick: (Float) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    accentColor: Color? = null
 ) {
-    val themeAccent = LocalThemeAccent.current
+    val themeAccent = accentColor ?: LocalThemeAccent.current
     val speeds = listOf(0.25f, 0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 2.5f, 3.0f)
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = DarkSurface,
+        containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Speed, contentDescription = null, tint = themeAccent, modifier = Modifier.size(20.dp))
@@ -5091,12 +5248,13 @@ private fun SubtitleSettingsSheet(
     onTextColorChange: (String) -> Unit,
     onBackgroundColorChange: (String) -> Unit,
     onToggleOutline: (Boolean) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    accentColor: Color? = null
 ) {
-    val themeAccent = LocalThemeAccent.current
+    val themeAccent = accentColor ?: LocalThemeAccent.current
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = DarkSurface,
+        containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Subtitles, contentDescription = null, tint = themeAccent, modifier = Modifier.size(20.dp))
@@ -5145,12 +5303,7 @@ private fun SubtitleSettingsSheet(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            listOf(
-                                "Small" to 14,
-                                "Medium" to 18,
-                                "Large" to 22,
-                                "Huge" to 26
-                            ).forEach { (label, sizeSp) ->
+                            listOf(14, 16, 18, 22, 26).forEach { sizeSp ->
                                 val isSelected = settings.subtitleFontSizeSp == sizeSp
                                 Box(
                                     modifier = Modifier
@@ -5162,7 +5315,7 @@ private fun SubtitleSettingsSheet(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = label,
+                                        text = "${sizeSp}sp",
                                         color = if (isSelected) DarkBackground else TextPrimary,
                                         fontSize = 11.sp,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
@@ -5207,11 +5360,13 @@ private fun SubtitleSettingsSheet(
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             listOf(
-                                "Semi-Black" to "BlackSemi",
-                                "Solid Black" to "BlackSolid",
+                                "Semi" to "BlackSemi",
+                                "Solid" to "BlackSolid",
+                                "Grey" to "Grey",
                                 "None" to "None"
                             ).forEach { (label, bgVal) ->
-                                val isSelected = settings.subtitleBackgroundColor.equals(bgVal, ignoreCase = true)
+                                val isSelected = settings.subtitleBackgroundColor.equals(bgVal, ignoreCase = true) ||
+                                    (bgVal == "BlackSolid" && settings.subtitleBackgroundColor.equals("Black", ignoreCase = true))
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
@@ -5270,12 +5425,13 @@ private fun AudioTrackSheet(
     dubUnavailableReason: String?,
     onPickLanguage: (String) -> Unit,
     onPickExoTrack: (AudioTrackOption) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    accentColor: Color? = null
 ) {
-    val themeAccent = LocalThemeAccent.current
+    val themeAccent = accentColor ?: LocalThemeAccent.current
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = DarkSurface,
+        containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Audiotrack, contentDescription = null, tint = themeAccent, modifier = Modifier.size(20.dp))
@@ -5428,18 +5584,22 @@ private fun AudioTrackSheet(
 private fun VideoFitSheet(
     currentFit: String,
     onPick: (String) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    accentColor: Color? = null
 ) {
-    val themeAccent = LocalThemeAccent.current
+    val themeAccent = accentColor ?: LocalThemeAccent.current
     val modes = listOf(
         Pair("Fit", "Preserve standard 16:9 aspect ratio"),
         Pair("Cover", "Zoom and crop edges to fill full screen"),
         Pair("Stretch", "Stretch video non-uniformly to all edges"),
-        Pair("Zoom", "Zoom to fill display width")
+        Pair("Fill", "Fill full frame container"),
+        Pair("Zoom", "Zoom to fill display width"),
+        Pair("16:9", "Widescreen 16:9 aspect ratio"),
+        Pair("4:3", "Classic 4:3 aspect ratio")
     )
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = DarkSurface,
+        containerColor = androidx.compose.material3.MaterialTheme.colorScheme.surface,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.AspectRatio, contentDescription = null, tint = themeAccent, modifier = Modifier.size(20.dp))

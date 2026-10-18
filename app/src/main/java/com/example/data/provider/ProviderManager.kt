@@ -45,6 +45,12 @@ class ProviderManager {
     }
 
     fun getFallbackProvider(currentId: String): StreamingProvider {
-        return providers.firstOrNull { it.id != currentId } ?: providers.first()
+        if (providers.isEmpty()) throw IllegalStateException("No streaming providers registered")
+        val idx = providers.indexOfFirst { it.id.equals(currentId, ignoreCase = true) }
+        return if (idx >= 0) {
+            providers[(idx + 1) % providers.size]
+        } else {
+            providers.first()
+        }
     }
 }

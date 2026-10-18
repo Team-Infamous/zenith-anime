@@ -119,6 +119,31 @@ class HlsParserTest {
         assertEquals("Auto", variant.label)
     }
 
+    @Test
+    fun variantHeightParsesWidthTimesHeightAndHeightWithPSuffix() {
+        val v1 = HlsParser.Variant(url = "https://cdn.example.com/1080.m3u8", resolution = "1920x1080", bandwidth = 5000000)
+        val v2 = HlsParser.Variant(url = "https://cdn.example.com/720.m3u8", resolution = "720p", bandwidth = 2500000)
+        assertEquals(1080, v1.height)
+        assertEquals("1080p", v1.label)
+        assertEquals(720, v2.height)
+        assertEquals("720p", v2.label)
+    }
+
+    @Test
+    fun variantsBreakHeightTiesByBandwidthDescending() {
+        val tieMaster = """
+            #EXTM3U
+            #EXT-X-STREAM-INF:BANDWIDTH=3500000,RESOLUTION=1920x1080
+            1080_low/index.m3u8
+            #EXT-X-STREAM-INF:BANDWIDTH=6500000,RESOLUTION=1920x1080
+            1080_high/index.m3u8
+        """.trimIndent()
+        val variants = HlsParser.variants(masterUrl, tieMaster)
+        assertEquals(2, variants.size)
+        assertEquals(6500000, variants.first().bandwidth)
+        assertEquals("https://cdn.example.com/hls/1080_high/index.m3u8", HlsParser.pick(variants, "1080p")?.url)
+    }
+
     // ------------------------------------------------------------------------ pick
 
     @Test

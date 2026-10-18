@@ -60,8 +60,12 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import com.example.data.model.Anime
 import com.example.data.model.WatchStatus
 import com.example.data.repository.AnimeRepository
@@ -99,10 +103,12 @@ fun MalSyncScreen(
     var anilistTokenInput by remember(settings.anilistAuthToken) {
         mutableStateOf(settings.anilistAuthToken)
     }
+    var showAnilistToken by remember { mutableStateOf(false) }
 
     var malTokenInput by remember(settings.malAuthToken) {
         mutableStateOf(settings.malAuthToken)
     }
+    var showMalToken by remember { mutableStateOf(false) }
 
     var syncWatching by remember { mutableStateOf(true) }
     var syncCompleted by remember { mutableStateOf(true) }
@@ -190,7 +196,7 @@ fun MalSyncScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(if (isSel) themeAccent.copy(alpha = 0.2f) else DarkSurface)
+                                .background(if (isSel) themeAccent.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surface)
                                 .border(
                                     width = if (isSel) 1.5.dp else 0.5.dp,
                                     color = if (isSel) themeAccent else DarkBorder,
@@ -231,8 +237,8 @@ fun MalSyncScreen(
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = themeAccent,
                         unfocusedBorderColor = DarkBorder,
-                        focusedContainerColor = DarkSurface,
-                        unfocusedContainerColor = DarkSurface,
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
                         focusedTextColor = TextPrimary,
                         unfocusedTextColor = TextPrimary
                     ),
@@ -254,7 +260,7 @@ fun MalSyncScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
-                        .background(DarkSurface)
+                        .background(MaterialTheme.colorScheme.surface)
                         .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
                     SyncStatusRow("Watching", syncWatching) { syncWatching = it }
@@ -274,7 +280,7 @@ fun MalSyncScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
-                        .background(DarkSurface)
+                        .background(MaterialTheme.colorScheme.surface)
                         .padding(horizontal = 14.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -286,9 +292,9 @@ fun MalSyncScreen(
                         checked = eraseExisting,
                         onCheckedChange = { eraseExisting = it },
                         colors = SwitchDefaults.colors(
-                            checkedThumbColor = DarkBackground,
+                            checkedThumbColor = MaterialTheme.colorScheme.background,
                             checkedTrackColor = themeAccent,
-                            uncheckedTrackColor = DarkSurfaceVariant
+                            uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
                         )
                     )
                 }
@@ -340,7 +346,7 @@ fun MalSyncScreen(
                             isSyncing = false
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = themeAccent, contentColor = DarkBackground),
+                    colors = ButtonDefaults.buttonColors(containerColor = themeAccent, contentColor = MaterialTheme.colorScheme.background),
                     shape = RoundedCornerShape(12.dp),
                     enabled = !isSyncing,
                     modifier = Modifier
@@ -348,7 +354,7 @@ fun MalSyncScreen(
                         .height(48.dp)
                 ) {
                     if (isSyncing) {
-                        CircularProgressIndicator(color = DarkBackground, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.background, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Fetching Watchlist...", fontWeight = FontWeight.Bold)
                     } else {
@@ -413,7 +419,7 @@ fun MalSyncScreen(
             } else {
                 // TRACKER SCROBBLER TAB
                 Text(
-                    text = "2-Way Tracker Sync & Scrobbler",
+                    text = "2-Way Tracker Auto-Scrobbler & Auth Tokens",
                     color = TextPrimary,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
@@ -506,6 +512,17 @@ fun MalSyncScreen(
                         onValueChange = { anilistTokenInput = it },
                         placeholder = { Text("Paste AniList Bearer token...", color = TextSecondary, fontSize = 12.sp) },
                         singleLine = true,
+                        visualTransformation = if (showAnilistToken) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            IconButton(onClick = { showAnilistToken = !showAnilistToken }) {
+                                Icon(
+                                    imageVector = if (showAnilistToken) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    contentDescription = if (showAnilistToken) "Hide token" else "Show token",
+                                    tint = TextSecondary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        },
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = themeAccent,
                             unfocusedBorderColor = DarkBorder,
@@ -545,6 +562,17 @@ fun MalSyncScreen(
                         onValueChange = { malTokenInput = it },
                         placeholder = { Text("Paste MAL API token...", color = TextSecondary, fontSize = 12.sp) },
                         singleLine = true,
+                        visualTransformation = if (showMalToken) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            IconButton(onClick = { showMalToken = !showMalToken }) {
+                                Icon(
+                                    imageVector = if (showMalToken) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                    contentDescription = if (showMalToken) "Hide token" else "Show token",
+                                    tint = TextSecondary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        },
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = themeAccent,
                             unfocusedBorderColor = DarkBorder,
@@ -598,7 +626,7 @@ private fun SyncStatusRow(
             onCheckedChange = onCheckedChange,
             colors = CheckboxDefaults.colors(
                 checkedColor = themeAccent,
-                checkmarkColor = DarkBackground,
+                checkmarkColor = MaterialTheme.colorScheme.background,
                 uncheckedColor = TextSecondary
             )
         )

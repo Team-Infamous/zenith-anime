@@ -2,6 +2,7 @@ package com.example.data.network
 
 import com.example.data.model.Anime
 import com.example.data.model.WatchStatus
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -33,8 +34,9 @@ class MalSyncService {
                 .header("Accept", "application/json")
                 .build()
 
-            val response = client.newCall(request).execute()
-            val body = response.body?.string() ?: return@withContext Result.failure(Exception("Empty response from MyAnimeList"))
+            val body = client.newCall(request).execute().use { response ->
+                response.body?.string()
+            } ?: return@withContext Result.failure(Exception("Empty response from MyAnimeList"))
 
             val jsonArray = JSONArray(body)
             val list = mutableListOf<Anime>()
@@ -90,6 +92,8 @@ class MalSyncService {
             }
 
             Result.success(list)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -115,6 +119,7 @@ class MalSyncService {
                           title {
                             romaji
                             english
+                            native
                           }
                           coverImage {
                             large
@@ -149,8 +154,9 @@ class MalSyncService {
                 .header("Accept", "application/json")
                 .build()
 
-            val response = client.newCall(request).execute()
-            val body = response.body?.string() ?: return@withContext Result.failure(Exception("Empty response from AniList"))
+            val body = client.newCall(request).execute().use { response ->
+                response.body?.string()
+            } ?: return@withContext Result.failure(Exception("Empty response from AniList"))
 
             val root = JSONObject(body)
             val data = root.optJSONObject("data") ?: return@withContext Result.failure(Exception("User not found or list is private"))
@@ -173,7 +179,8 @@ class MalSyncService {
                     val titleObj = media.optJSONObject("title")
                     val english = titleObj?.optString("english")?.takeIf { it.isNotEmpty() && it != "null" }
                     val romaji = titleObj?.optString("romaji")?.takeIf { it.isNotEmpty() && it != "null" }
-                    val mainTitle = english ?: romaji ?: "Anime Title"
+                    val native = titleObj?.optString("native")?.takeIf { it.isNotEmpty() && it != "null" } ?: ""
+                    val mainTitle = english ?: romaji ?: native.ifEmpty { "Anime Title" }
 
                     val coverObj = media.optJSONObject("coverImage")
                     val cover = coverObj?.optString("extraLarge")?.takeIf { it.isNotEmpty() && it != "null" }
@@ -183,9 +190,26 @@ class MalSyncService {
                     val rawDesc = media.optString("description", "").replace(Regex("<[^>]*>"), "")
                     val score = media.optDouble("averageScore", 80.0) / 10.0
                     val mediaStatus = media.optString("status", "RELEASING")
-                    val epCount = media.optInt("episodes", 12).coerceAtLeast(1)
+                    val hasEpisodesField = !media.isNull("episodes") && media.has("episodes")
+                    val rawEpCount = if (hasEpisodesField) media.optInt("episodes", 0) else 0
+                    val epCount = when {
+                        mediaStatus.equals("NOT_YET_RELEASED", ignoreCase = true) -> 0
+                        rawEpCount > 0 -> rawEpCount
+                        mediaStatus.equals("FINISHED", ignoreCase = true) -> 12
+                        else -> 0
+                    }
                     val year = media.optInt("seasonYear", 2024)
                     val format = media.optString("format", "TV")
+
+                    val genresArray = media.optJSONArray("genres")
+                    val genreList = mutableListOf<String>()
+                    if (genresArray != null) {
+                        for (g in 0 until genresArray.length()) {
+                            val genre = genresArray.optString(g, "").trim()
+                            if (genre.isNotEmpty()) genreList.add(genre)
+                        }
+                    }
+                    val genresStr = if (genreList.isNotEmpty()) genreList.joinToString(", ") else "Anime"
 
                     val watchStatus = when (aniStatus) {
                         "CURRENT" -> WatchStatus.WATCHING.name
@@ -203,7 +227,7 @@ class MalSyncService {
                             title = mainTitle,
                             englishTitle = english ?: "",
                             romajiTitle = romaji ?: "",
-                            nativeTitle = romaji ?: "",
+                            nativeTitle = native,
                             coverImage = cover,
                             bannerImage = banner,
                             synopsis = rawDesc.ifEmpty { "Imported from AniList profile ($trimmed)" },
@@ -215,7 +239,7 @@ class MalSyncService {
                             status = mediaStatus,
                             type = format,
                             totalEpisodes = epCount,
-                            genres = "Anime",
+                            genres = genresStr,
                             studio = "AniList",
                             scheduleDay = "Sun",
                             scheduleTime = "20:00",
@@ -229,6 +253,8 @@ class MalSyncService {
             }
 
             Result.success(list)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }

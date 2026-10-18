@@ -41,6 +41,10 @@ class StreamTapeExtractor(
             val script = robotLinkScript(html)
                 ?: return fail("StreamTape page layout changed")
 
+            if (!script.contains(ROBOTLINK_PREFIX) || !script.contains(TOKEN_PREFIX)) {
+                return fail("StreamTape page layout changed")
+            }
+
             // Mirrors upstream exactly: everything before the first quote is the main fragment,
             // then the second half is rebuilt from the `+ ('xcd` declaration.
             val remainder = script.substringAfter(ROBOTLINK_PREFIX)

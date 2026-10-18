@@ -29,6 +29,7 @@ import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
@@ -41,6 +42,7 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -66,6 +68,7 @@ import com.example.data.repository.AnimeRepository
 import com.example.data.util.LibrarySort
 import com.example.ui.components.AnimeCard
 import com.example.ui.components.AnimeQuickActionDialog
+import com.example.ui.theme.AccentRed
 import com.example.ui.theme.DarkBackground
 import com.example.ui.theme.LocalThemeAccent
 import com.example.ui.theme.TextPrimary
@@ -101,6 +104,7 @@ fun MyListScreen(
     )
     var selectedTabIndex by remember { mutableStateOf(0) }
     var selectedQuickActionAnime by remember { mutableStateOf<Anime?>(null) }
+    var pendingRemoveAnime by remember { mutableStateOf<Pair<Anime, Boolean>?>(null) }
     var showSortMenu by remember { mutableStateOf(false) }
 
     val allSaved = remember(favorites, watchlist, completed) {
@@ -109,7 +113,7 @@ fun MyListScreen(
 
     // De-duplicate first and sort second: ordering before distinct() is what made the grid look
     // like it reshuffled itself as the saved lists changed.
-    val displayedAnime: List<Anime> = LibrarySort.apply(
+    val displayedAnime: List<Anime> = LibrarySort.sort(
         when (selectedTabIndex) {
             0 -> allSaved
             1 -> allSaved.filter { it.isInWatchlist && com.example.data.model.WatchStatus.fromRaw(it.watchStatus) == com.example.data.model.WatchStatus.WATCHING }
@@ -232,7 +236,7 @@ fun MyListScreen(
 
         ScrollableTabRow(
             selectedTabIndex = selectedTabIndex,
-            containerColor = DarkBackground,
+            containerColor = MaterialTheme.colorScheme.background,
             contentColor = TextPrimary,
             edgePadding = 16.dp,
             indicator = { tabPositions ->
@@ -295,7 +299,7 @@ fun MyListScreen(
                     Spacer(modifier = Modifier.height(20.dp))
                     Button(
                         onClick = onSearchClick,
-                        colors = ButtonDefaults.buttonColors(containerColor = themeAccent, contentColor = DarkBackground),
+                        colors = ButtonDefaults.buttonColors(containerColor = themeAccent, contentColor = MaterialTheme.colorScheme.background),
                         shape = RoundedCornerShape(20.dp)
                     ) {
                         Text("Search Anime", fontWeight = FontWeight.Bold)
@@ -331,15 +335,23 @@ fun MyListScreen(
             onPlay = { onAnimeClick(target.id) },
             onViewDetails = { onAnimeClick(target.id) },
             onToggleFavorite = {
-                scope.launch {
-                    repository.toggleFavorite(target.id, !target.isFavorite)
-                    Toast.makeText(context, if (!target.isFavorite) "Added to Favorites" else "Removed from Favorites", Toast.LENGTH_SHORT).show()
+                if (target.isFavorite && settings.confirmDestructiveActions) {
+                    pendingRemoveAnime = target to true
+                } else {
+                    scope.launch {
+                        repository.toggleFavorite(target.id, !target.isFavorite)
+                        Toast.makeText(context, if (!target.isFavorite) "Added to Favorites" else "Removed from Favorites", Toast.LENGTH_SHORT).show()
+                    }
                 }
             },
             onToggleWatchlist = {
-                scope.launch {
-                    repository.toggleWatchlist(target.id, !target.isInWatchlist, target)
-                    Toast.makeText(context, if (!target.isInWatchlist) "Added to Watchlist" else "Removed from Watchlist", Toast.LENGTH_SHORT).show()
+                if (target.isInWatchlist && settings.confirmDestructiveActions) {
+                    pendingRemoveAnime = target to false
+                } else {
+                    scope.launch {
+                        repository.toggleWatchlist(target.id, !target.isInWatchlist, target)
+                        Toast.makeText(context, if (!target.isInWatchlist) "Added to Watchlist" else "Removed from Watchlist", Toast.LENGTH_SHORT).show()
+                    }
                 }
             },
             onChangeWatchStatus = { status ->
@@ -347,9 +359,6 @@ fun MyListScreen(
                     repository.updateWatchStatus(target.id, status.name)
                     Toast.makeText(context, "Moved to ${status.displayName}", Toast.LENGTH_SHORT).show()
                 }
-            },
-            onShare = {
-                Toast.makeText(context, "Sharing is coming soon!", Toast.LENGTH_SHORT).show()
             },
             onDownload = {
                 scope.launch {
@@ -362,6 +371,55 @@ fun MyListScreen(
                     )
                     repository.addDownload(target, ep)
                     Toast.makeText(context, "Saved Episode 1 for offline", Toast.LENGTH_SHORT).show()
+                }
+            }
+        )
+    }
+
+    if (pendingRemoveAnime != null) {
+        val (target, isFavRemoval) = pendingRemoveAnime!!
+        val dispTitle = target.displayTitle(settings.titleLanguagePreference)
+        AlertDialog(
+            onDismissRequest = { pendingRemoveAnime = null },
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = {
+                Text(
+                    text = if (isFavRemoval) "Remove from Favorites?" else "Remove from Watchlist?",
+                    color = TextPrimary,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+            },
+            text = {
+                Text(
+                    text = "Are you sure you want to remove \"$dispTitle\" from your ${if (isFavRemoval) "Favorites" else "Watchlist"}?",
+                    color = TextSecondary,
+                    fontSize = 13.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        pendingRemoveAnime = null
+                        scope.launch {
+                            if (isFavRemoval) {
+                                repository.toggleFavorite(target.id, false)
+                                Toast.makeText(context, "Removed from Favorites", Toast.LENGTH_SHORT).show()
+                            } else {
+                                repository.toggleWatchlist(target.id, false, target)
+                                Toast.makeText(context, "Removed from Watchlist", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentRed, contentColor = Color.White),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Remove", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingRemoveAnime = null }) {
+                    Text("Cancel", color = TextSecondary, fontSize = 12.sp)
                 }
             }
         )

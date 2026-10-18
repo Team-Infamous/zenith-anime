@@ -32,15 +32,21 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.NotificationsNone
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,6 +63,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.data.model.AppNotification
 import com.example.data.repository.AnimeRepository
+import com.example.ui.theme.AccentRed
 import com.example.ui.theme.LocalThemeAccent
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
@@ -71,7 +78,9 @@ fun NotificationsScreen(
     val context = LocalContext.current
     val themeAccent = LocalThemeAccent.current
     val notifications by repository.allNotifications.collectAsState(initial = emptyList())
+    val settings by repository.settings.collectAsState(initial = repository.settingsManager.getSettings())
     val scope = rememberCoroutineScope()
+    var showClearConfirm by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -114,9 +123,13 @@ fun NotificationsScreen(
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier
                         .clickable {
-                            scope.launch {
-                                repository.clearNotifications()
-                                Toast.makeText(context, "All notifications cleared", Toast.LENGTH_SHORT).show()
+                            if (settings.confirmDestructiveActions) {
+                                showClearConfirm = true
+                            } else {
+                                scope.launch {
+                                    repository.clearNotifications()
+                                    Toast.makeText(context, "All notifications cleared", Toast.LENGTH_SHORT).show()
+                                }
                             }
                         }
                         .padding(horizontal = 8.dp, vertical = 6.dp)
@@ -166,6 +179,11 @@ fun NotificationsScreen(
                 items(notifications, key = { it.id }) { notif ->
                     NotificationItemCard(
                         notification = notif,
+                        onClick = {
+                            scope.launch {
+                                repository.markNotificationRead(notif.id)
+                            }
+                        },
                         onDismiss = {
                             scope.launch {
                                 repository.deleteNotification(notif.id)
@@ -179,12 +197,50 @@ fun NotificationsScreen(
             }
         }
     }
+
+    if (showClearConfirm) {
+        AlertDialog(
+            onDismissRequest = { showClearConfirm = false },
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = {
+                Text("Clear All Notifications?", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            },
+            text = {
+                Text(
+                    "Remove all ${notifications.size} notification(s) from your inbox?",
+                    color = TextSecondary,
+                    fontSize = 13.sp
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showClearConfirm = false
+                        scope.launch {
+                            repository.clearNotifications()
+                            Toast.makeText(context, "All notifications cleared", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AccentRed, contentColor = Color.White),
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    Text("Clear All", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearConfirm = false }) {
+                    Text("Cancel", color = TextSecondary, fontSize = 12.sp)
+                }
+            }
+        )
+    }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun NotificationItemCard(
     notification: AppNotification,
+    onClick: (() -> Unit)? = null,
     onDismiss: (() -> Unit)? = null,
     onLongClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
@@ -204,16 +260,17 @@ fun NotificationItemCard(
             .fillMaxWidth()
             .scale(scale)
             .clip(RoundedCornerShape(10.dp))
+            .background(if (notification.isUnread) MaterialTheme.colorScheme.surface else Color.Transparent)
             .combinedClickable(
                 interactionSource = interactionSource,
                 indication = ripple(bounded = true, color = themeAccent),
-                onClick = { },
+                onClick = { onClick?.invoke() },
                 onLongClick = {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     onLongClick?.invoke()
                 }
             )
-            .padding(vertical = 4.dp),
+            .padding(vertical = 4.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.Top
     ) {
         AsyncImage(

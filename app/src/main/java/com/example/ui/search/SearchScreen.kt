@@ -122,9 +122,17 @@ fun SearchScreen(
     }
 
     fun saveRecentSearches(list: List<String>) {
-        if (list.isNotEmpty() && settings.incognitoMode) return
+        if (settings.incognitoMode) return
         recentSearches = list
         searchPrefs.edit().putString("recent_queries", list.joinToString("\n")).apply()
+    }
+
+    fun addRecentSearch(query: String) {
+        if (settings.incognitoMode) return
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) return
+        val updated = (listOf(trimmed) + recentSearches.filter { !it.equals(trimmed, ignoreCase = true) }).take(8)
+        saveRecentSearches(updated)
     }
 
     val localAnime by repository.allAnime.collectAsState(initial = emptyList())
@@ -139,10 +147,7 @@ fun SearchScreen(
         val trimmed = q.trim()
         if (trimmed.length >= 2) {
             isSearchingOnline = true
-            if (!settings.incognitoMode) {
-                val updated = (listOf(trimmed) + recentSearches.filter { !it.equals(trimmed, ignoreCase = true) }).take(8)
-                saveRecentSearches(updated)
-            }
+            addRecentSearch(trimmed)
             scope.launch {
                 val results = repository.searchOnlineFiltered(
                     query = q.trim(),
@@ -205,12 +210,12 @@ fun SearchScreen(
         }
 
         when (filterSort) {
-            "Score" -> matched.sortedWith(
+            "Score", "Popularity" -> matched.sortedWith(
                 compareByDescending<Anime> { it.rating }.thenBy(String.CASE_INSENSITIVE_ORDER) {
                     it.displayTitle(settings.titleLanguagePreference)
                 }
             )
-            "Newest" -> matched.sortedWith(
+            "Newest", "Trending" -> matched.sortedWith(
                 compareByDescending<Anime> { it.year }.thenByDescending { it.rating }
             )
             "Recently Added" -> matched.sortedWith(
@@ -219,10 +224,7 @@ fun SearchScreen(
             "Title A-Z" -> matched.sortedWith(
                 compareBy(String.CASE_INSENSITIVE_ORDER) { it.displayTitle(settings.titleLanguagePreference) }
             )
-            "Trending" -> matched.sortedWith(
-                compareByDescending<Anime> { it.isAiring }.thenByDescending { it.rating }
-            )
-            else -> matched // Popularity preserves online popularity order + local catalog
+            else -> matched
         }
     }
 
@@ -361,7 +363,7 @@ fun SearchScreen(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(16.dp))
-                        .background(if (isSelected) themeAccent else DarkSurfaceVariant)
+                        .background(if (isSelected) themeAccent else MaterialTheme.colorScheme.surfaceVariant)
                         .clickable { selectedGenre = genre }
                         .padding(horizontal = 14.dp, vertical = 6.dp)
                         .testTag("genre_chip_${genre.lowercase()}"),
@@ -445,7 +447,7 @@ fun SearchScreen(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(14.dp))
-                            .background(DarkSurfaceVariant)
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
                             .clickable {
                                 searchQuery = tag
                                 triggerSearch(tag)
@@ -579,7 +581,7 @@ fun SearchScreen(
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = themeAccent,
                                 selectedLabelColor = bgColor,
-                                containerColor = DarkSurfaceVariant,
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
                                 labelColor = TextPrimary
                             )
                         )
@@ -600,7 +602,7 @@ fun SearchScreen(
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = themeAccent,
                                 selectedLabelColor = bgColor,
-                                containerColor = DarkSurfaceVariant,
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
                                 labelColor = TextPrimary
                             )
                         )
@@ -621,7 +623,7 @@ fun SearchScreen(
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = themeAccent,
                                 selectedLabelColor = bgColor,
-                                containerColor = DarkSurfaceVariant,
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
                                 labelColor = TextPrimary
                             )
                         )
@@ -642,7 +644,7 @@ fun SearchScreen(
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = themeAccent,
                                 selectedLabelColor = bgColor,
-                                containerColor = DarkSurfaceVariant,
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
                                 labelColor = TextPrimary
                             )
                         )

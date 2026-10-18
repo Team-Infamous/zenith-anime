@@ -119,6 +119,14 @@ class AppSettingsSerializationTest {
     }
 
     @Test
+    fun defaultSaveProgressIntervalAndAiringRemindersSurviveRoundTrip() {
+        assertEquals(1, AppSettings.DEFAULT.saveProgressIntervalSec)
+        val withReminders = AppSettings.DEFAULT.copy(airingReminderIds = "101,202")
+        val restored = roundTrip(withReminders)
+        assertEquals("101,202", restored.airingReminderIds)
+    }
+
+    @Test
     fun partialJsonKeepsDefaultsForMissingKeysSoOlderBackupsStillLoad() {
         val parsed = adapter.fromJson("{\"defaultServer\":\"embed\",\"amoledMode\":true}")!!
         assertEquals("embed", parsed.defaultServer)

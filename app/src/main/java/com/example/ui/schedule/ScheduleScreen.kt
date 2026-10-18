@@ -280,12 +280,12 @@ fun ScheduleScreen(
             itemsIndexed(days) { index, day ->
                 val isSelected = index == selectedDayIndex
                 val animatedBg by animateColorAsState(
-                    targetValue = if (isSelected) themeAccent else DarkSurfaceVariant,
+                    targetValue = if (isSelected) themeAccent else MaterialTheme.colorScheme.surfaceVariant,
                     animationSpec = tween(150),
                     label = "day_bg_${day.fullDateStr}"
                 )
                 val animatedTextColor by animateColorAsState(
-                    targetValue = if (isSelected) DarkBackground else TextPrimary,
+                    targetValue = if (isSelected) MaterialTheme.colorScheme.background else TextPrimary,
                     animationSpec = tween(150),
                     label = "day_text_${day.fullDateStr}"
                 )
@@ -315,7 +315,7 @@ fun ScheduleScreen(
                     ) {
                         Text(
                             text = day.dayName,
-                            color = if (isSelected) DarkBackground else TextSecondary,
+                            color = if (isSelected) MaterialTheme.colorScheme.background else TextSecondary,
                             fontSize = 12.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                         )

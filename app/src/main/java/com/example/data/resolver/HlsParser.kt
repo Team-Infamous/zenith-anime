@@ -111,8 +111,15 @@ object HlsParser {
     /** Picks the variant closest to (and not above) the preferred height; falls back to best. */
     fun pick(variants: List<Variant>, preferredLabel: String): Variant? {
         if (variants.isEmpty()) return null
+        val sorted = variants.sortedWith(compareByDescending<Variant> { it.height }.thenByDescending { it.bandwidth })
         val preferred = Regex("(\\d{3,4})").find(preferredLabel)?.groupValues?.getOrNull(1)?.toIntOrNull()
-        if (preferred == null || preferredLabel.equals("Auto", true)) return variants.first()
-        return variants.firstOrNull { it.height in 1..preferred } ?: variants.last()
+        if (preferred == null || preferredLabel.equals("Auto", true)) return sorted.first()
+        val within = sorted.filter { it.height in 1..preferred }
+        if (within.isNotEmpty()) {
+            val bestHeight = within.first().height
+            return within.filter { it.height == bestHeight }.maxByOrNull { it.bandwidth } ?: within.first()
+        }
+        val lowestHeight = sorted.last().height
+        return sorted.filter { it.height == lowestHeight }.maxByOrNull { it.bandwidth } ?: sorted.last()
     }
 }

@@ -58,7 +58,9 @@ Join our official community Discord for announcements, feedback, feature voting,
   - Sleek vertical swipe HUDs for brightness (left) and volume (right) with central pill indicator.
   - Auto-skip opening (OP) and ending (ED) with instant 85s jump button.
   - In-player quick episode drawer strip and "Next Episode" 5s countdown overlay during final 30s.
-  - Seamless subtitle styling engine, multi-track dub audio switching, and screen lock.
+  - Seamless subtitle styling engine with numerical sizes (14-26sp), backgrounds (Semi, Solid, Grey, None), multi-track dub audio switching, and screen lock.
+  - Versatile video aspect ratio modes: Fit, Stretch, Fill, Zoom, 16:9, and 4:3.
+  - Decoupled modular transport controls across Center, Bottom, and Split player layout modes.
 
 - **Anime Themes & Music Jukebox (AnimeThemes.moe)**
   - Dedicated "Themes" tab in Anime Details with creditless Openings and Endings.
@@ -128,7 +130,7 @@ Pre-built APKs and distribution portals:
 
 - **Latest Release APK**: [`APK/zenith-anime-latest.apk`](APK/zenith-anime-latest.apk)
 - **Debug APK**: [`APK/app-debug.apk`](APK/app-debug.apk)
-- **GitHub Releases**: [Latest Release (v1.6.0)](https://github.com/gokuthug1/zenith-anime/releases/latest)
+- **GitHub Releases**: [Latest Release (v1.7.0)](https://github.com/gokuthug1/zenith-anime/releases/latest)
 - **Web App / Showcase**: [https://gokuthug1.github.io/zenith-anime/](https://gokuthug1.github.io/zenith-anime/)
 
 ### Requirements

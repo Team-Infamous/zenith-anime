@@ -169,14 +169,20 @@ fun DownloadScreen(
                     ).show()
                 }
             }
-            "DOWNLOADING", "PENDING" -> {
+            "DOWNLOADING", "PENDING", "QUEUED" -> {
                 Toast.makeText(
                     context,
                     "Downloading ${displayTitleFor(item)} Ep ${item.episodeNumber} (${item.progress}%)...",
                     Toast.LENGTH_SHORT
                 ).show()
             }
-            else -> onPlayClick(item.animeId, item.episodeNumber)
+            else -> {
+                Toast.makeText(
+                    context,
+                    "Status for ${displayTitleFor(item)} Ep ${item.episodeNumber}: ${item.status}",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
         }
     }
 
@@ -225,7 +231,10 @@ fun DownloadScreen(
         }
 
         // Device Storage Meter Card (recalculated dynamically whenever downloads change)
-        val (totalGb, freeGb, usedPercent) = remember(downloads) {
+        val storageTrigger = remember(downloads) {
+            downloads.map { "${it.id}:${it.status}:${it.fileSize}:${it.progress}" }
+        }
+        val (totalGb, freeGb, usedPercent) = remember(storageTrigger) {
             try {
                 val stat = StatFs(Environment.getDataDirectory().path)
                 val total = stat.totalBytes.toDouble() / (1024 * 1024 * 1024)
@@ -271,7 +280,7 @@ fun DownloadScreen(
                         .height(6.dp)
                         .clip(RoundedCornerShape(3.dp)),
                     color = themeAccent,
-                    trackColor = DarkSurfaceVariant
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Row {
@@ -562,12 +571,12 @@ fun DownloadCardItem(
                 fontSize = 12.sp
             )
 
-            if (item.status == "DOWNLOADING" || item.status == "PENDING") {
+            if (item.status == "DOWNLOADING" || item.status == "PENDING" || item.status == "QUEUED") {
                 Spacer(modifier = Modifier.height(4.dp))
                 LinearProgressIndicator(
                     progress = (item.progress / 100f).coerceIn(0f, 1f),
                     color = themeAccent,
-                    trackColor = DarkSurfaceVariant,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(4.dp)
@@ -579,7 +588,7 @@ fun DownloadCardItem(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = if (item.status == "PENDING") "Queued..." else "Downloading ${item.progress}%",
+                        text = if (item.status == "PENDING" || item.status == "QUEUED") "Queued..." else "Downloading ${item.progress}%",
                         color = themeAccent,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.SemiBold

@@ -166,7 +166,7 @@ fun SettingSwitchRow(
             colors = SwitchDefaults.colors(
                 checkedThumbColor = MaterialTheme.colorScheme.background,
                 checkedTrackColor = themeAccent,
-                uncheckedTrackColor = DarkSurfaceVariant
+                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
             )
         )
     }
@@ -225,7 +225,7 @@ fun SettingChoiceRow(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(10.dp))
-                                .background(if (isSelected) themeAccent.copy(alpha = 0.15f) else DarkSurfaceVariant)
+                                .background(if (isSelected) themeAccent.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant)
                                 .border(
                                     width = if (isSelected) 1.dp else 0.5.dp,
                                     color = if (isSelected) themeAccent else DarkBorder,
@@ -301,7 +301,7 @@ fun SettingSliderRow(
             colors = SliderDefaults.colors(
                 thumbColor = themeAccent,
                 activeTrackColor = themeAccent,
-                inactiveTrackColor = DarkSurfaceVariant
+                inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant
             )
         )
     }

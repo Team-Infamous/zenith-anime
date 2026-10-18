@@ -84,6 +84,9 @@ class SeasonLabelerTest {
         assertEquals(0, SeasonLabeler.seasonNumberFromTitle("You and I Are Polar Opposites"))
         assertEquals(0, SeasonLabeler.seasonNumberFromTitle("Attack on Titan"))
         assertEquals(0, SeasonLabeler.seasonNumberFromTitle("Cowboy Bebop"))
+        assertEquals(0, SeasonLabeler.seasonNumberFromTitle("Xi Jinping Story"))
+        assertEquals(0, SeasonLabeler.seasonNumberFromTitle("Vi and Powder"))
+        assertEquals(2, SeasonLabeler.seasonNumberFromTitle("Mushoku Tensei II Part"))
     }
 
     @Test

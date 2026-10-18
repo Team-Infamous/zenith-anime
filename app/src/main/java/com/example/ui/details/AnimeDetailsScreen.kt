@@ -178,7 +178,8 @@ fun AnimeDetailsScreen(
     var isExpandedSynopsis by remember { mutableStateOf(false) }
     var activeEpisodeForActions by remember { mutableStateOf<Episode?>(null) }
     var longPressedAnimeForActions by remember { mutableStateOf<com.example.data.model.Anime?>(null) }
-    var selectedRangeIndex by remember { mutableIntStateOf(0) }
+    var episodeSearchQuery by remember { mutableStateOf("") }
+    var selectedRangeIndex by remember(episodeSearchQuery) { mutableIntStateOf(0) }
 
     // Episode presentation is a persisted preference, so the choice survives visits and stays in
     // sync with the setting shown in Library & Series settings.
@@ -188,8 +189,6 @@ fun AnimeDetailsScreen(
     }
 
     var selectedDetailTabIndex by remember { mutableIntStateOf(0) }
-    var isCompactGridMode by remember { mutableStateOf(false) }
-    var episodeSearchQuery by remember { mutableStateOf("") }
     var animeRelations by remember { mutableStateOf<List<AnimeRelation>>(emptyList()) }
     var malReviews by remember { mutableStateOf<List<MalReview>>(emptyList()) }
     var charactersList by remember { mutableStateOf<List<CharacterVa>>(emptyList()) }
@@ -304,7 +303,7 @@ fun AnimeDetailsScreen(
             anime = item,
             onDismiss = { longPressedAnimeForActions = null },
             onPlay = {
-                onPlayEpisode(item.id, 1, "sub")
+                onPlayEpisode(item.id, 1, detailsSettings.defaultLanguage.ifBlank { "sub" })
             },
             onToggleFavorite = {
                 scope.launch {
@@ -370,7 +369,7 @@ fun AnimeDetailsScreen(
                                 colors = listOf(
                                     Color(0x99000000),
                                     Color.Transparent,
-                                    DarkBackground
+                                    MaterialTheme.colorScheme.background
                                 )
                             )
                         )
@@ -643,8 +642,8 @@ fun AnimeDetailsScreen(
                             }
                         },
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (hasAired) themeAccent else DarkSurfaceVariant,
-                            contentColor = if (hasAired) DarkBackground else TextSecondary
+                            containerColor = if (hasAired) themeAccent else MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = if (hasAired) MaterialTheme.colorScheme.background else TextSecondary
                         ),
                         shape = RoundedCornerShape(24.dp),
                         modifier = Modifier
@@ -702,7 +701,7 @@ fun AnimeDetailsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp))
-                        .background(DarkSurfaceVariant.copy(alpha = 0.5f))
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                         .border(0.5.dp, Color(0x1AFFFFFF), RoundedCornerShape(16.dp))
                         .padding(4.dp),
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -730,7 +729,7 @@ fun AnimeDetailsScreen(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
                                     text = tabTitle,
-                                    color = if (isSelected) DarkBackground else TextPrimary,
+                                    color = if (isSelected) MaterialTheme.colorScheme.background else TextPrimary,
                                     fontSize = 12.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                                 )
@@ -739,12 +738,12 @@ fun AnimeDetailsScreen(
                                     Box(
                                         modifier = Modifier
                                             .clip(RoundedCornerShape(8.dp))
-                                            .background(if (isSelected) DarkBackground.copy(alpha = 0.2f) else themeAccent.copy(alpha = 0.2f))
+                                            .background(if (isSelected) MaterialTheme.colorScheme.background.copy(alpha = 0.2f) else themeAccent.copy(alpha = 0.2f))
                                             .padding(horizontal = 5.dp, vertical = 1.dp)
                                     ) {
                                         Text(
                                             text = badgeText,
-                                            color = if (isSelected) DarkBackground else themeAccent,
+                                            color = if (isSelected) MaterialTheme.colorScheme.background else themeAccent,
                                             fontSize = 9.sp,
                                             fontWeight = FontWeight.Bold
                                         )
@@ -792,7 +791,7 @@ fun AnimeDetailsScreen(
                                 modifier = Modifier
                                     .size(34.dp)
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(DarkSurfaceVariant)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
                                     .testTag("episode_layout_toggle")
                             ) {
                                 Icon(
@@ -813,7 +812,7 @@ fun AnimeDetailsScreen(
                             Row(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(16.dp))
-                                    .background(DarkSurfaceVariant)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
                                     .padding(2.dp)
                             ) {
                                 Box(
@@ -825,7 +824,7 @@ fun AnimeDetailsScreen(
                                 ) {
                                     Text(
                                         "SUB",
-                                        color = if (selectedAudioTrack == "sub") DarkBackground else TextSecondary,
+                                        color = if (selectedAudioTrack == "sub") MaterialTheme.colorScheme.background else TextSecondary,
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -839,7 +838,7 @@ fun AnimeDetailsScreen(
                                 ) {
                                     Text(
                                         "DUB",
-                                        color = if (selectedAudioTrack == "dub") DarkBackground else TextSecondary,
+                                        color = if (selectedAudioTrack == "dub") MaterialTheme.colorScheme.background else TextSecondary,
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -857,7 +856,7 @@ fun AnimeDetailsScreen(
                                 .fillMaxWidth()
                                 .height(42.dp)
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(DarkSurfaceVariant)
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
                                 .border(0.5.dp, if (episodeSearchQuery.isNotEmpty()) themeAccent.copy(alpha = 0.6f) else Color.Transparent, RoundedCornerShape(12.dp))
                                 .padding(horizontal = 12.dp),
                             verticalAlignment = Alignment.CenterVertically
@@ -911,19 +910,18 @@ fun AnimeDetailsScreen(
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 items(episodeChunks.indices.toList()) { idx ->
                                     val chunk = episodeChunks[idx]
-                                    val startEp = chunk.firstOrNull()?.number ?: (idx * pageSize + 1)
-                                    val endEp = chunk.lastOrNull()?.number ?: startEp
+                                    val label = "${chunk.first().number}-${chunk.last().number}"
                                     val isSel = selectedRangeIndex == idx
                                     Box(
                                         modifier = Modifier
                                             .clip(RoundedCornerShape(14.dp))
-                                            .background(if (isSel) themeAccent else DarkSurfaceVariant)
+                                            .background(if (isSel) themeAccent else MaterialTheme.colorScheme.surfaceVariant)
                                             .clickable { selectedRangeIndex = idx }
                                             .padding(horizontal = 12.dp, vertical = 6.dp)
                                     ) {
                                         Text(
-                                            text = "$startEp–$endEp",
-                                            color = if (isSel) DarkBackground else TextSecondary,
+                                            text = label,
+                                            color = if (isSel) MaterialTheme.colorScheme.background else TextSecondary,
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.Bold
                                         )
@@ -944,7 +942,7 @@ fun AnimeDetailsScreen(
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp, vertical = 16.dp)
                             .clip(RoundedCornerShape(16.dp))
-                            .background(DarkSurfaceVariant)
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
                             .border(1.dp, DarkBorder, RoundedCornerShape(16.dp))
                             .padding(24.dp),
                         contentAlignment = Alignment.Center
@@ -979,96 +977,74 @@ fun AnimeDetailsScreen(
                             "Numbers" -> "Compact Numbers"
                             else -> "Detailed Cards"
                         }
-                        Text(
-                            text = "Episode Layout: $hintLabel",
-                            color = TextSecondary,
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp)
-                        )
+                        Box(
+                            modifier = Modifier
+                                .padding(horizontal = 16.dp, vertical = 2.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .border(0.5.dp, DarkBorder, RoundedCornerShape(10.dp))
+                                .padding(horizontal = 10.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = hintLabel,
+                                color = TextSecondary,
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                         Spacer(modifier = Modifier.height(6.dp))
                     }
 
                     if (episodeLayout == "Numbers") {
-                        // Compact Grid Mode: Clean numbered squares [ 1 ], [ 2 ], [ 3 ]
+                        // Compact 5-Column Numbers Grid Mode
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            currentChunkEpisodes.chunked(6).forEach { rowEpisodes ->
+                            currentChunkEpisodes.chunked(5).forEach { rowEpisodes ->
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     rowEpisodes.forEach { ep ->
                                         val epProgress = allProgress.firstOrNull { it.id == "${currentAnime.id}_${ep.number}" }
-                                        val isWatched = epProgress?.completed == true
-                                        val inProgress = epProgress != null && epProgress.currentTimeSec > 0 && !isWatched
-                                        Box(
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .height(44.dp)
-                                                .clip(RoundedCornerShape(10.dp))
-                                                .background(if (isWatched) themeAccent.copy(alpha = 0.22f) else DarkSurfaceVariant)
-                                                .border(
-                                                    width = if (isWatched) 1.2.dp else 0.5.dp,
-                                                    color = if (isWatched) themeAccent else DarkBorder,
-                                                    shape = RoundedCornerShape(10.dp)
-                                                )
-                                                .combinedClickable(
-                                                    onClick = { onPlayEpisode(currentAnime.id, ep.number, selectedAudioTrack) },
-                                                    onLongClick = {
-                                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                        activeEpisodeForActions = ep
-                                                    }
-                                                ),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text(
-                                                text = "${ep.number}",
-                                                color = if (isWatched) themeAccent else TextPrimary,
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                            if (inProgress && epProgress.durationSec > 0) {
-                                                val frac = (epProgress.currentTimeSec.toFloat() / epProgress.durationSec.toFloat()).coerceIn(0f, 1f)
-                                                LinearProgressIndicator(
-                                                    progress = { frac },
-                                                    color = themeAccent,
-                                                    trackColor = Color.Transparent,
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .height(2.5.dp)
-                                                        .align(Alignment.BottomCenter)
-                                                )
-                                            }
-                                        }
+                                        EpisodeNumberChip(
+                                            episode = ep,
+                                            progress = epProgress,
+                                            themeAccent = themeAccent,
+                                            onClick = { onPlayEpisode(currentAnime.id, ep.number, selectedAudioTrack) },
+                                            onLongClick = {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                activeEpisodeForActions = ep
+                                            },
+                                            modifier = Modifier.weight(1f)
+                                        )
                                     }
-                                    repeat(6 - rowEpisodes.size) {
+                                    repeat(5 - rowEpisodes.size) {
                                         Spacer(modifier = Modifier.weight(1f))
                                     }
                                 }
                             }
                         }
                     } else if (episodeLayout == "Grid") {
-                        // 3-Column Grid Mode with Thumbnails
+                        // 2-Column Grid Mode with Thumbnails
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            currentChunkEpisodes.chunked(3).forEach { rowEpisodes ->
+                            currentChunkEpisodes.chunked(2).forEach { rowEpisodes ->
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
                                     rowEpisodes.forEach { ep ->
                                         val epProgress = allProgress.firstOrNull { it.id == "${currentAnime.id}_${ep.number}" }
                                         Box(modifier = Modifier.weight(1f)) {
-                                            EpisodeGridTile(
+                                            EpisodeThumbnailCard(
                                                 episode = ep,
                                                 onClick = { onPlayEpisode(currentAnime.id, ep.number, selectedAudioTrack) },
                                                 onLongClick = {
@@ -1076,11 +1052,12 @@ fun AnimeDetailsScreen(
                                                     activeEpisodeForActions = ep
                                                 },
                                                 progress = epProgress,
-                                                themeAccent = themeAccent
+                                                themeAccent = themeAccent,
+                                                modifier = Modifier.fillMaxWidth()
                                             )
                                         }
                                     }
-                                    repeat(3 - rowEpisodes.size) {
+                                    repeat(2 - rowEpisodes.size) {
                                         Spacer(modifier = Modifier.weight(1f))
                                     }
                                 }
@@ -1169,7 +1146,7 @@ fun AnimeDetailsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(14.dp))
-                            .background(DarkSurface)
+                            .background(MaterialTheme.colorScheme.surface)
                             .border(0.5.dp, DarkBorder, RoundedCornerShape(14.dp))
                             .padding(14.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -1224,7 +1201,7 @@ fun AnimeDetailsScreen(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(DarkSurfaceVariant)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
                                     .border(0.5.dp, DarkBorder, RoundedCornerShape(12.dp))
                                     .padding(horizontal = 12.dp, vertical = 6.dp)
                             ) {
@@ -1260,7 +1237,7 @@ fun AnimeDetailsScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(14.dp))
-                                    .background(DarkSurfaceVariant)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
                                     .padding(20.dp),
                                 horizontalArrangement = Arrangement.Center,
                                 verticalAlignment = Alignment.CenterVertically
@@ -1275,7 +1252,7 @@ fun AnimeDetailsScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(14.dp))
-                                    .background(DarkSurfaceVariant)
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
                                     .border(0.5.dp, DarkBorder, RoundedCornerShape(14.dp))
                                     .padding(24.dp),
                                 contentAlignment = Alignment.Center
@@ -1351,7 +1328,7 @@ fun AnimeDetailsScreen(
                                             .fillMaxWidth()
                                             .height(145.dp)
                                             .clip(RoundedCornerShape(10.dp))
-                                            .background(DarkSurfaceVariant)
+                                            .background(MaterialTheme.colorScheme.surfaceVariant)
                                     ) {
                                         AsyncImage(
                                             model = rel.coverImage,
@@ -1402,6 +1379,7 @@ fun AnimeDetailsScreen(
                                 AnimeCard(
                                     anime = rel,
                                     cardWidth = 130f,
+                                    titlePreference = detailsSettings.titleLanguagePreference,
                                     onClick = { onRelatedAnimeClick(rel.id) },
                                     onLongClick = {
                                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -1526,7 +1504,7 @@ private fun MalReviewsSection(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(14.dp))
-                            .background(DarkSurfaceVariant)
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
                             .padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
@@ -1549,7 +1527,7 @@ private fun MalReviewsSection(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(14.dp))
-                            .background(DarkSurfaceVariant)
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
                             .border(0.5.dp, DarkBorder, RoundedCornerShape(14.dp))
                             .padding(18.dp),
                         contentAlignment = Alignment.Center
@@ -1586,7 +1564,7 @@ private fun MalReviewCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .background(DarkSurface)
+            .background(MaterialTheme.colorScheme.surface)
             .border(0.5.dp, DarkBorder, RoundedCornerShape(14.dp))
             .clickable { isExpanded = !isExpanded }
             .padding(14.dp)
@@ -1601,7 +1579,7 @@ private fun MalReviewCard(
                 modifier = Modifier
                     .size(34.dp)
                     .clip(CircleShape)
-                    .background(DarkSurfaceVariant),
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
                 if (review.avatarUrl.isNotBlank()) {
@@ -1692,7 +1670,7 @@ private fun MalReviewCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(8.dp))
-                    .background(DarkSurfaceVariant)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
                     .clickable { revealSpoilers = true }
                     .padding(10.dp),
                 contentAlignment = Alignment.Center
@@ -1748,6 +1726,56 @@ private fun MalReviewCard(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
+fun EpisodeNumberChip(
+    episode: Episode,
+    progress: com.example.data.model.WatchProgress?,
+    themeAccent: Color = LocalThemeAccent.current,
+    onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
+    val isWatched = progress?.completed == true
+    val inProgress = progress != null && progress.currentTimeSec > 0 && !isWatched
+    Box(
+        modifier = modifier
+            .height(44.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .background(if (isWatched) themeAccent.copy(alpha = 0.22f) else MaterialTheme.colorScheme.surfaceVariant)
+            .border(
+                width = if (isWatched) 1.2.dp else 0.5.dp,
+                color = if (isWatched) themeAccent else DarkBorder,
+                shape = RoundedCornerShape(10.dp)
+            )
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
+            .testTag("episode_chip_${episode.number}"),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "${episode.number}",
+            color = if (isWatched) themeAccent else TextPrimary,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold
+        )
+        if (inProgress && progress != null && progress.durationSec > 0) {
+            val frac = (progress.currentTimeSec.toFloat() / progress.durationSec.toFloat()).coerceIn(0f, 1f)
+            LinearProgressIndicator(
+                progress = { frac },
+                color = themeAccent,
+                trackColor = Color.Transparent,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(2.5.dp)
+                    .align(Alignment.BottomCenter)
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
 fun EpisodeThumbnailCard(
     episode: Episode,
     onClick: () -> Unit,
@@ -1758,6 +1786,8 @@ fun EpisodeThumbnailCard(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
+    val isWatched = progress?.completed == true
+    val appSettings = LocalAppSettings.current
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.94f else 1f,
         animationSpec = spring(
@@ -1769,7 +1799,6 @@ fun EpisodeThumbnailCard(
 
     Column(
         modifier = modifier
-            .width(160.dp)
             .scale(scale)
             .clip(RoundedCornerShape(10.dp))
             .combinedClickable(
@@ -1785,13 +1814,15 @@ fun EpisodeThumbnailCard(
                 .fillMaxWidth()
                 .height(100.dp)
                 .clip(RoundedCornerShape(10.dp))
-                .background(DarkSurfaceVariant)
+                .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
             AsyncImage(
                 model = episode.thumbnail,
                 contentDescription = episode.title,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(if (appSettings.spoilerBlurCovers && !isWatched) Modifier.blur(12.dp) else Modifier)
             )
 
             Box(
@@ -1883,7 +1914,7 @@ fun EpisodeGridTile(
         modifier = modifier
             .aspectRatio(16f / 9f)
             .clip(RoundedCornerShape(10.dp))
-            .background(DarkSurfaceVariant)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick
@@ -1897,7 +1928,7 @@ fun EpisodeGridTile(
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .fillMaxSize()
-                .then(if (appSettings.spoilerBlurCovers && progress?.completed != true) Modifier.blur(14.dp) else Modifier)
+                .then(if (appSettings.spoilerBlurCovers && progress?.completed != true) Modifier.blur(12.dp) else Modifier)
         )
 
         Box(
@@ -1977,7 +2008,7 @@ fun EpisodeDetailedListItem(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(if (isWatched) DarkSurface.copy(alpha = 0.55f) else DarkSurface)
+            .background(if (isWatched) MaterialTheme.colorScheme.surface.copy(alpha = 0.55f) else MaterialTheme.colorScheme.surface)
             .border(0.5.dp, if (isWatched) themeAccent.copy(alpha = 0.4f) else DarkBorder, RoundedCornerShape(12.dp))
             .combinedClickable(
                 interactionSource = interactionSource,
@@ -1994,7 +2025,7 @@ fun EpisodeDetailedListItem(
                 .width(112.dp)
                 .aspectRatio(16f / 9f)
                 .clip(RoundedCornerShape(8.dp))
-                .background(DarkSurfaceVariant)
+                .background(MaterialTheme.colorScheme.surfaceVariant)
         ) {
             AsyncImage(
                 model = episode.thumbnail,
@@ -2002,7 +2033,7 @@ fun EpisodeDetailedListItem(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxSize()
-                    .then(if (LocalAppSettings.current.spoilerBlurCovers && !isWatched) Modifier.blur(14.dp) else Modifier)
+                    .then(if (LocalAppSettings.current.spoilerBlurCovers && !isWatched) Modifier.blur(12.dp) else Modifier)
             )
 
             Box(
@@ -2119,7 +2150,7 @@ fun CharacterVaCard(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(DarkSurface)
+            .background(MaterialTheme.colorScheme.surface)
             .border(0.5.dp, DarkBorder, RoundedCornerShape(12.dp))
             .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -2131,7 +2162,7 @@ fun CharacterVaCard(
             modifier = Modifier
                 .size(46.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .background(DarkSurfaceVariant)
+                .background(MaterialTheme.colorScheme.surfaceVariant)
         )
 
         Spacer(modifier = Modifier.width(10.dp))
@@ -2181,7 +2212,7 @@ fun CharacterVaCard(
                     modifier = Modifier
                         .size(46.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(DarkSurfaceVariant)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                 )
             }
         }
@@ -2243,7 +2274,7 @@ private fun ThemesSection(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(14.dp))
-                        .background(DarkSurfaceVariant)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                         .padding(18.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
@@ -2266,7 +2297,7 @@ private fun ThemesSection(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(14.dp))
-                        .background(DarkSurfaceVariant)
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                         .border(0.5.dp, DarkBorder, RoundedCornerShape(14.dp))
                         .padding(20.dp),
                     contentAlignment = Alignment.Center
@@ -2285,7 +2316,7 @@ private fun ThemesSection(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(DarkSurface)
+                                .background(MaterialTheme.colorScheme.surface)
                                 .border(0.5.dp, DarkBorder, RoundedCornerShape(12.dp))
                                 .clickable { onPlayTheme(theme) }
                                 .padding(12.dp),
@@ -2358,7 +2389,7 @@ private fun ThemesSection(
                                 Icon(
                                     imageVector = Icons.Default.PlayArrow,
                                     contentDescription = "Play theme",
-                                    tint = DarkBackground,
+                                    tint = MaterialTheme.colorScheme.background,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -2393,7 +2424,7 @@ private fun ThemeVideoPlayerDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = DarkSurface,
+        containerColor = MaterialTheme.colorScheme.surface,
         title = {
             Column {
                 Text(
@@ -2437,7 +2468,7 @@ private fun ThemeVideoPlayerDialog(
                 onClick = onDismiss,
                 colors = ButtonDefaults.buttonColors(containerColor = themeAccent)
             ) {
-                Text("Close", color = DarkBackground, fontWeight = FontWeight.Bold)
+                Text("Close", color = MaterialTheme.colorScheme.background, fontWeight = FontWeight.Bold)
             }
         }
     )
@@ -2455,7 +2486,7 @@ private fun BatchDownloadDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = DarkSurface,
+        containerColor = MaterialTheme.colorScheme.surface,
         title = {
             Text("Download Episodes", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 17.sp)
         },
@@ -2469,23 +2500,23 @@ private fun BatchDownloadDialog(
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Download Next Unwatched Episode", color = DarkBackground, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text("Download Next Unwatched Episode", color = MaterialTheme.colorScheme.background, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
 
                 if (episodes.size >= 5) {
                     Button(
                         onClick = { onDownloadCount(5) },
-                        colors = ButtonDefaults.buttonColors(containerColor = DarkSurfaceVariant),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text("Download Next 5 Episodes", color = TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        Text("Download Next 5 Unwatched", color = TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                     }
                 }
 
                 Button(
                     onClick = { onDownloadCount(episodes.size) },
-                    colors = ButtonDefaults.buttonColors(containerColor = DarkSurfaceVariant),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -2506,7 +2537,7 @@ private fun BatchDownloadDialog(
                         checked = autoDeleteWatched,
                         onCheckedChange = onToggleAutoDelete,
                         colors = androidx.compose.material3.SwitchDefaults.colors(
-                            checkedThumbColor = DarkBackground,
+                            checkedThumbColor = MaterialTheme.colorScheme.background,
                             checkedTrackColor = themeAccent
                         )
                     )

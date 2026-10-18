@@ -7,10 +7,16 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -162,7 +168,7 @@ fun SubtitleSettingsScreen(
                 title = "Subtitle Background",
                 subtitle = "Backing pill behind the text so it stays readable",
                 currentValue = settings.subtitleBackgroundColor,
-                options = listOf("None", "BlackSemi", "Black", "Grey"),
+                options = listOf("None", "BlackSemi", "BlackSolid", "Black", "Grey"),
                 onSelect = { value ->
                     repository.settingsManager.update { it.copy(subtitleBackgroundColor = value) }
                 }
@@ -214,23 +220,56 @@ fun SubtitleSettingsScreen(
             )
         }
 
+        var showResetSubtitlesConfirmDialog by remember { mutableStateOf(false) }
+
+        fun doResetSubtitles() {
+            repository.settingsManager.updateSubtitleSettings(
+                enabled = true,
+                language = "English",
+                fontSizeSp = 16,
+                textColor = "White",
+                backgroundColor = "BlackSemi",
+                outline = true,
+                bold = false,
+                position = "Bottom",
+                delayMs = 0
+            )
+            Toast.makeText(context, "Subtitle settings reset", Toast.LENGTH_SHORT).show()
+        }
+
         SettingsSection(title = "RESET") {
             SettingActionRow(
                 title = "Reset Subtitle Settings",
                 subtitle = "Restore language, appearance, position and timing defaults",
+                destructive = true,
                 onClick = {
-                    repository.settingsManager.updateSubtitleSettings(
-                        enabled = true,
-                        language = "English",
-                        fontSizeSp = 16,
-                        textColor = "White",
-                        backgroundColor = "BlackSemi",
-                        outline = true,
-                        bold = false,
-                        position = "Bottom",
-                        delayMs = 0
-                    )
-                    Toast.makeText(context, "Subtitle settings reset", Toast.LENGTH_SHORT).show()
+                    if (settings.confirmDestructiveActions) {
+                        showResetSubtitlesConfirmDialog = true
+                    } else {
+                        doResetSubtitles()
+                    }
+                }
+            )
+        }
+
+        if (showResetSubtitlesConfirmDialog) {
+            AlertDialog(
+                onDismissRequest = { showResetSubtitlesConfirmDialog = false },
+                containerColor = MaterialTheme.colorScheme.surface,
+                title = { Text("Reset Subtitle Settings?", color = TextPrimary, fontWeight = FontWeight.Bold) },
+                text = { Text("Are you sure you want to restore all subtitle settings to their defaults?", color = TextSecondary) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showResetSubtitlesConfirmDialog = false
+                        doResetSubtitles()
+                    }) {
+                        Text("Reset", color = Color(0xFFFF6B6B), fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showResetSubtitlesConfirmDialog = false }) {
+                        Text("Cancel", color = TextSecondary)
+                    }
                 }
             )
         }
@@ -252,7 +291,7 @@ private fun subtitleTextColorFor(name: String): Color = when (name) {
 
 private fun subtitleBackgroundFor(name: String): Color = when (name) {
     "BlackSemi" -> Color(0xAA000000)
-    "Black" -> Color(0xE6000000)
+    "BlackSolid", "Black" -> Color(0xE6000000)
     "Grey" -> Color(0xAA444444)
     else -> Color.Transparent
 }

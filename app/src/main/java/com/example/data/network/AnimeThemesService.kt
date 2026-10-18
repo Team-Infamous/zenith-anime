@@ -1,6 +1,7 @@
 package com.example.data.network
 
 import com.example.data.model.AnimeTheme
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -24,6 +25,8 @@ class AnimeThemesService {
                 val url = "https://api.animethemes.moe/anime?filter[has]=resources&filter[site]=AniList&filter[external_id]=$anilistId&include=animethemes.animethemeentries.videos,animethemes.song.artists"
                 val themes = fetchThemesFromUrl(url)
                 if (themes.isNotEmpty()) return@withContext themes
+            } catch (e: CancellationException) {
+                throw e
             } catch (_: Exception) {}
         }
 
@@ -34,6 +37,8 @@ class AnimeThemesService {
             val url = "https://api.animethemes.moe/anime?q=$encoded&include=animethemes.animethemeentries.videos,animethemes.song.artists"
             val themes = fetchThemesFromUrl(url)
             if (themes.isNotEmpty()) return@withContext themes
+        } catch (e: CancellationException) {
+            throw e
         } catch (_: Exception) {}
 
         results
@@ -46,8 +51,10 @@ class AnimeThemesService {
             .header("Accept", "application/json")
             .build()
 
-        val response = client.newCall(request).execute()
-        val body = response.body?.string() ?: return emptyList()
+        val body = client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) return emptyList()
+            response.body?.string()
+        } ?: return emptyList()
 
         val root = JSONObject(body)
         val animeArray = root.optJSONArray("anime") ?: return emptyList()

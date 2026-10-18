@@ -11,6 +11,7 @@ import com.example.data.model.WatchProgress
 import com.example.data.model.WatchStatus
 import com.example.data.network.AniListService
 import com.example.data.network.MalSyncService
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -540,6 +541,9 @@ class AnimeRepository(private val context: Context) {
                     if (!ok) {
                         scrobbledEpisodes.remove(scrobbleKey)
                     }
+                } catch (e: CancellationException) {
+                    scrobbledEpisodes.remove(scrobbleKey)
+                    throw e
                 } catch (_: Exception) {
                     scrobbledEpisodes.remove(scrobbleKey)
                 }
@@ -561,6 +565,8 @@ class AnimeRepository(private val context: Context) {
                         coverImage = anime.coverImage,
                         settings = currentSettings
                     )
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (_: Exception) {}
             }
         }
@@ -901,6 +907,11 @@ class AnimeRepository(private val context: Context) {
     }
 
     suspend fun resetAllData() = withContext(Dispatchers.IO) {
+        dismissedContinueWatchingAnimeIds.clear()
+        dismissedProgressIds.clear()
+        scrobbledEpisodes.clear()
+        lastDiscordRpcAt.clear()
+        downloadManager.clearAllDownloadFiles()
         watchProgressDao.clearAllHistory()
         downloadDao.clearDownloads()
         notificationDao.clearAll()

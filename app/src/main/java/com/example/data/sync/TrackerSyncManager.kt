@@ -3,6 +3,7 @@ package com.example.data.sync
 import android.util.Log
 import com.example.data.model.Anime
 import com.example.data.model.AppSettings
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.FormBody
@@ -48,8 +49,9 @@ class TrackerSyncManager {
 
         // 2. Scrobble to MyAnimeList if token present
         if (settings.malAuthToken.isNotBlank()) {
-            val malId = anime.malId.toIntOrNull() ?: if (anime.id.startsWith("mal_")) anime.id.removePrefix("mal_").toIntOrNull() else null
-            if (malId != null && malId > 0) {
+            val malId = anime.malId.toIntOrNull()?.takeIf { it > 0 }
+                ?: if (anime.id.startsWith("mal_")) anime.id.removePrefix("mal_").toIntOrNull()?.takeIf { it > 0 } else null
+            if (malId != null) {
                 val ok = scrobbleMyAnimeList(malId, episodeNumber, isCompleted, settings.malAuthToken)
                 if (ok) anySuccess = true
             }
@@ -99,6 +101,8 @@ class TrackerSyncManager {
                 Log.d(TAG, "AniList scrobble mediaId=$mediaId ep=$progress completed=$isCompleted -> code=${response.code}")
                 success
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.w(TAG, "Failed AniList scrobble: ${e.message}")
             false
@@ -129,6 +133,8 @@ class TrackerSyncManager {
                 Log.d(TAG, "MAL scrobble malId=$malId ep=$progress completed=$isCompleted -> code=${response.code}")
                 success
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.w(TAG, "Failed MAL scrobble: ${e.message}")
             false

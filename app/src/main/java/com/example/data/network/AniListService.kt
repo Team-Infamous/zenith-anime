@@ -5,6 +5,7 @@ import com.example.data.model.AnimeRelation
 import com.example.data.model.CharacterVa
 import com.example.data.model.MalReview
 import com.example.data.util.SeasonLabeler
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -269,8 +270,9 @@ class AniListService {
                 .header("Accept", "application/json")
                 .build()
 
-            val response = client.newCall(request).execute()
-            val bodyString = response.body?.string() ?: return@withContext emptyList()
+            val bodyString = client.newCall(request).execute().use { response ->
+                response.body?.string()
+            } ?: return@withContext emptyList()
             val root = JSONObject(bodyString)
             val data = root.optJSONObject("data") ?: return@withContext emptyList()
             val page = data.optJSONObject("Page") ?: return@withContext emptyList()
@@ -296,6 +298,8 @@ class AniListService {
                 )
             }
             results
+        } catch (e: CancellationException) {
+            throw e
         } catch (_: Exception) {
             emptyList()
         }
@@ -346,8 +350,9 @@ class AniListService {
                 .header("Accept", "application/json")
                 .build()
 
-            val response = client.newCall(request).execute()
-            val bodyString = response.body?.string() ?: return@withContext Pair(null, emptyList())
+            val bodyString = client.newCall(request).execute().use { response ->
+                response.body?.string()
+            } ?: return@withContext Pair(null, emptyList())
             val root = JSONObject(bodyString)
             val data = root.optJSONObject("data") ?: return@withContext Pair(null, emptyList())
             val mediaObj = data.optJSONObject("Media") ?: return@withContext Pair(null, emptyList())
@@ -401,6 +406,8 @@ class AniListService {
             }
 
             Pair(anime, labelled)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Pair(null, emptyList())
         }
@@ -408,10 +415,13 @@ class AniListService {
 
     suspend fun getAnimeCharacters(animeId: String): List<CharacterVa> = withContext(Dispatchers.IO) {
         try {
-            val aniId = animeId.removePrefix("mal_").toIntOrNull() ?: return@withContext emptyList()
+            val isMalIdLookup = animeId.startsWith("mal_")
+            val aniId = if (isMalIdLookup) animeId.removePrefix("mal_").toIntOrNull() else animeId.toIntOrNull()
+            if (aniId == null) return@withContext emptyList()
+            val filterArg = if (isMalIdLookup) "idMal: ${'$'}id" else "id: ${'$'}id"
             val graphQL = """
                 query (${'$'}id: Int) {
-                  Media(id: ${'$'}id, type: ANIME) {
+                  Media($filterArg, type: ANIME) {
                     characters(page: 1, perPage: 16, sort: [ROLE, RELEVANCE]) {
                       edges {
                         role
@@ -453,8 +463,9 @@ class AniListService {
                 .header("Accept", "application/json")
                 .build()
 
-            val response = client.newCall(request).execute()
-            val body = response.body?.string() ?: return@withContext emptyList()
+            val body = client.newCall(request).execute().use { response ->
+                response.body?.string()
+            } ?: return@withContext emptyList()
             val root = JSONObject(body)
             val data = root.optJSONObject("data") ?: return@withContext emptyList()
             val media = data.optJSONObject("Media") ?: return@withContext emptyList()
@@ -489,6 +500,8 @@ class AniListService {
                 )
             }
             list
+        } catch (e: CancellationException) {
+            throw e
         } catch (_: Exception) {
             emptyList()
         }
@@ -683,9 +696,12 @@ class AniListService {
                 .header("Accept", "application/json")
                 .build()
 
-            val response = client.newCall(request).execute()
-            val bodyString = response.body?.string() ?: return emptyList()
+            val bodyString = client.newCall(request).execute().use { response ->
+                response.body?.string()
+            } ?: return emptyList()
             parseAniListResponse(bodyString)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emptyList()
         }

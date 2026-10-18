@@ -181,52 +181,64 @@ class AllAnimeResolver : AnimeStreamResolver {
 
     /** SEARCH_QUERY -> `data.shows.edges`, matched on the title the app already shows. */
     private fun findShowId(anime: Anime, translation: String): String? {
-        val root = post(
-            JSONObject().apply {
-                put(
-                    "variables",
-                    JSONObject().apply {
-                        put(
-                            "search",
-                            JSONObject().apply {
-                                put("allowAdult", true)
-                                put("allowUnknown", true)
-                                put("query", anime.title)
-                            }
-                        )
-                        put("limit", pageSize)
-                        put("page", 1)
-                        put("translationType", translation)
-                    }
-                )
-                put("query", AllAnimeQueries.SEARCH)
-            }
-        ) ?: return null
+        val searchQueries = listOf(anime.title, anime.englishTitle, anime.romajiTitle)
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .distinct()
 
-        val edges = root.optJSONObject("data")
-            ?.optJSONObject("shows")
-            ?.optJSONArray("edges")
-            ?: return null
-
-        val wanted = listOf(anime.title, anime.nativeTitle)
+        val wanted = listOf(anime.title, anime.englishTitle, anime.romajiTitle, anime.nativeTitle)
             .map { it.lowercase().trim() }
             .filter { it.isNotEmpty() }
 
-        for (i in 0 until edges.length()) {
-            val edge = edges.optJSONObject(i) ?: continue
-            val names = listOf(
-                edge.optString("englishName"),
-                edge.optString("name"),
-                edge.optString("nativeName")
-            ).map { it.lowercase().trim() }
+        var firstFallbackId: String? = null
+        for (queryTitle in searchQueries) {
+            val root = post(
+                JSONObject().apply {
+                    put(
+                        "variables",
+                        JSONObject().apply {
+                            put(
+                                "search",
+                                JSONObject().apply {
+                                    put("allowAdult", true)
+                                    put("allowUnknown", true)
+                                    put("query", queryTitle)
+                                }
+                            )
+                            put("limit", pageSize)
+                            put("page", 1)
+                            put("translationType", translation)
+                        }
+                    )
+                    put("query", AllAnimeQueries.SEARCH)
+                }
+            ) ?: continue
 
-            val showId = edge.optString("_id").trim()
-            if (showId.isEmpty()) continue
-            if (wanted.any { title -> names.any { it == title } }) return showId
+            val edges = root.optJSONObject("data")
+                ?.optJSONObject("shows")
+                ?.optJSONArray("edges")
+                ?: continue
+
+            for (i in 0 until edges.length()) {
+                val edge = edges.optJSONObject(i) ?: continue
+                val names = listOf(
+                    edge.optString("englishName"),
+                    edge.optString("name"),
+                    edge.optString("nativeName")
+                ).map { it.lowercase().trim() }
+
+                val showId = edge.optString("_id").trim()
+                if (showId.isEmpty()) continue
+                if (wanted.any { title -> names.any { it == title } }) return showId
+            }
+
+            if (firstFallbackId == null) {
+                firstFallbackId = edges.optJSONObject(0)?.optString("_id")?.trim()?.takeIf { it.isNotEmpty() }
+            }
         }
 
         // The extension takes the first result when nothing matches exactly.
-        return edges.optJSONObject(0)?.optString("_id")?.trim()?.takeIf { it.isNotEmpty() }
+        return firstFallbackId
     }
 
     private data class EpisodeLookup(
@@ -413,21 +425,38 @@ class AllAnimeResolver : AnimeStreamResolver {
      * XOR 0x38 and prefixing the payload with `-` or `--`; the original strips everything up to and
      * including the last dash, then decodes two hex digits at a time.
      */
-    private fun decodeIfNeeded(value: String): String {
+    internal fun decodeIfNeeded(value: String): String {
         val trimmed = value.trim()
-        if (!trimmed.startsWith("-")) return trimmed
-
-        val payload = trimmed.substringAfterLast('-')
-        if (payload.isEmpty() || payload.length % 2 != 0) return trimmed
-
-        val out = StringBuilder(payload.length / 2)
-        var index = 0
-        while (index < payload.length) {
-            val byte = payload.substring(index, index + 2).toIntOrNull(16) ?: return trimmed
-            out.append((byte xor 0x38).toChar())
-            index += 2
+        val decoded = if (trimmed.startsWith("-")) {
+            val payload = trimmed.substringAfterLast('-')
+            if (payload.isEmpty() || payload.length % 2 != 0) {
+                trimmed
+            } else {
+                val bytes = ByteArray(payload.length / 2)
+                var index = 0
+                var valid = true
+                while (index < payload.length) {
+                    val byte = payload.substring(index, index + 2).toIntOrNull(16)
+                    if (byte == null) {
+                        valid = false
+                        break
+                    }
+                    bytes[index / 2] = (byte xor 0x38).toByte()
+                    index += 2
+                }
+                if (valid) bytes.toString(Charsets.UTF_8) else trimmed
+            }
+        } else {
+            trimmed
         }
-        return out.toString()
+
+        return when {
+            decoded.startsWith("/apivtwo/clock?id=") ->
+                "https://api.allanime.day/apivtwo/clock.json?id=" + decoded.removePrefix("/apivtwo/clock?id=")
+            decoded.startsWith("https://api.allanime.day/apivtwo/clock?id=") ->
+                "https://api.allanime.day/apivtwo/clock.json?id=" + decoded.removePrefix("https://api.allanime.day/apivtwo/clock?id=")
+            else -> decoded
+        }
     }
 
     private data class RawLink(

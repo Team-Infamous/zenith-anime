@@ -20,23 +20,26 @@ object LibrarySort {
 
     val ALL = listOf(RECENTLY_ADDED, TITLE_ASC, TITLE_DESC, RATING, YEAR, EPISODES)
 
+    fun sort(list: List<Anime>, sortOrder: String, titlePreference: String = "English"): List<Anime> =
+        apply(list, sortOrder, titlePreference)
+
     fun apply(anime: List<Anime>, order: String, titlePreference: String = "English"): List<Anime> = when (order) {
         TITLE_ASC -> anime.sortedWith(byTitle(titlePreference))
         TITLE_DESC -> anime.sortedWith(byTitle(titlePreference).reversed())
         RATING -> anime.sortedWith(
-            compareByDescending<Anime> { it.rating }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.displayTitle(titlePreference) }
+            compareByDescending<Anime> { it.rating }.thenBy { it.displayTitle(titlePreference).lowercase() }
         )
         YEAR -> anime.sortedWith(
-            compareByDescending<Anime> { it.year }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.displayTitle(titlePreference) }
+            compareByDescending<Anime> { it.year }.thenBy { it.displayTitle(titlePreference).lowercase() }
         )
         EPISODES -> anime.sortedWith(
-            compareByDescending<Anime> { it.availableEpisodes }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.displayTitle(titlePreference) }
+            compareByDescending<Anime> { it.availableEpisodes }.thenBy { it.displayTitle(titlePreference).lowercase() }
         )
         else -> anime.sortedWith(
-            compareByDescending<Anime> { it.lastUpdated }.thenBy(String.CASE_INSENSITIVE_ORDER) { it.displayTitle(titlePreference) }
+            compareByDescending<Anime> { it.lastUpdated }.thenBy { it.displayTitle(titlePreference).lowercase() }
         )
     }
 
     private fun byTitle(titlePreference: String): Comparator<Anime> =
-        compareBy(String.CASE_INSENSITIVE_ORDER) { it.displayTitle(titlePreference) }
+        compareBy { it.displayTitle(titlePreference).lowercase() }
 }

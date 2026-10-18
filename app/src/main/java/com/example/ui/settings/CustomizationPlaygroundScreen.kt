@@ -341,7 +341,7 @@ fun CustomizationPlaygroundScreen(
         // Tabs
         TabRow(
             selectedTabIndex = selectedTab,
-            containerColor = DarkSurface,
+            containerColor = MaterialTheme.colorScheme.surface,
             contentColor = activeAccentColor,
             indicator = { tabPositions ->
                 TabRowDefaults.SecondaryIndicator(
@@ -416,7 +416,7 @@ fun CustomizationPlaygroundScreen(
                             .fillMaxWidth()
                             .padding(vertical = 3.dp)
                             .clip(RoundedCornerShape(10.dp))
-                            .background(if (isHidden) DarkSurfaceVariant.copy(alpha = 0.4f) else DarkSurfaceVariant)
+                            .background(if (isHidden) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f) else MaterialTheme.colorScheme.surfaceVariant)
                             .border(0.5.dp, if (!isHidden) activeAccentColor.copy(alpha = 0.4f) else DarkBorder, RoundedCornerShape(10.dp))
                             .padding(horizontal = 10.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -486,12 +486,12 @@ fun CustomizationPlaygroundScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSel) activeAccentColor else DarkSurfaceVariant)
+                                .background(if (isSel) activeAccentColor else MaterialTheme.colorScheme.surfaceVariant)
                                 .clickable { draftTransportPosition = pos }
                                 .padding(vertical = 8.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(pos, color = if (isSel) DarkBackground else TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text(pos, color = if (isSel) MaterialTheme.colorScheme.background else TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -506,12 +506,12 @@ fun CustomizationPlaygroundScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSel) activeAccentColor else DarkSurfaceVariant)
+                                .background(if (isSel) activeAccentColor else MaterialTheme.colorScheme.surfaceVariant)
                                 .clickable { draftControlSize = sizeOpt }
                                 .padding(vertical = 8.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(sizeOpt, color = if (isSel) DarkBackground else TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text(sizeOpt, color = if (isSel) MaterialTheme.colorScheme.background else TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -526,12 +526,12 @@ fun CustomizationPlaygroundScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSel) activeAccentColor else DarkSurfaceVariant)
+                                .background(if (isSel) activeAccentColor else MaterialTheme.colorScheme.surfaceVariant)
                                 .clickable { draftSeekbarStyle = styleOpt }
                                 .padding(vertical = 8.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(styleOpt, color = if (isSel) DarkBackground else TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text(styleOpt, color = if (isSel) MaterialTheme.colorScheme.background else TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -546,12 +546,12 @@ fun CustomizationPlaygroundScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSel) activeAccentColor else DarkSurfaceVariant)
+                                .background(if (isSel) activeAccentColor else MaterialTheme.colorScheme.surfaceVariant)
                                 .clickable { draftLockSide = sideOpt }
                                 .padding(vertical = 8.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(sideOpt, color = if (isSel) DarkBackground else TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text(sideOpt, color = if (isSel) MaterialTheme.colorScheme.background else TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -568,7 +568,7 @@ fun CustomizationPlaygroundScreen(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSel) activeAccentColor else DarkSurfaceVariant)
+                                .background(if (isSel) activeAccentColor else MaterialTheme.colorScheme.surfaceVariant)
                                 .clickable { draftAccentOverride = colName }
                                 .padding(horizontal = 12.dp, vertical = 7.dp),
                             contentAlignment = Alignment.Center
@@ -603,7 +603,7 @@ fun CustomizationPlaygroundScreen(
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSel) activeAccentColor else DarkSurfaceVariant)
+                                .background(if (isSel) activeAccentColor else MaterialTheme.colorScheme.surfaceVariant)
                                 .clickable { draftThemeAccent = colorName }
                                 .padding(horizontal = 14.dp, vertical = 8.dp),
                             contentAlignment = Alignment.Center
@@ -623,7 +623,7 @@ fun CustomizationPlaygroundScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSel) activeAccentColor else DarkSurfaceVariant)
+                                .background(if (isSel) activeAccentColor else MaterialTheme.colorScheme.surfaceVariant)
                                 .clickable { draftNavBarStyle = style }
                                 .padding(vertical = 8.dp),
                             contentAlignment = Alignment.Center
@@ -643,7 +643,7 @@ fun CustomizationPlaygroundScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSel) activeAccentColor else DarkSurfaceVariant)
+                                .background(if (isSel) activeAccentColor else MaterialTheme.colorScheme.surfaceVariant)
                                 .clickable { draftGridColumns = cols }
                                 .padding(vertical = 8.dp),
                             contentAlignment = Alignment.Center
@@ -687,7 +687,7 @@ fun CustomizationPlaygroundScreen(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(if (isSel) activeAccentColor else DarkSurfaceVariant)
+                                .background(if (isSel) activeAccentColor else MaterialTheme.colorScheme.surfaceVariant)
                                 .clickable { draftEpisodeLayout = epLayout }
                                 .padding(vertical = 8.dp),
                             contentAlignment = Alignment.Center
@@ -821,7 +821,7 @@ fun CustomizationPlaygroundScreen(
                 Button(
                     onClick = { applyChanges() },
                     shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = activeAccentColor, contentColor = DarkBackground),
+                    colors = ButtonDefaults.buttonColors(containerColor = activeAccentColor, contentColor = MaterialTheme.colorScheme.background),
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
                     modifier = Modifier.weight(1.2f).testTag("playground_apply_button")
                 ) {
@@ -1047,7 +1047,7 @@ private fun GeneralUiLivePreview(
                     .width(75.dp)
                     .height(105.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(DarkSurfaceVariant)
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
                     .border(1.dp, themeAccent.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
                     .padding(6.dp)
             ) {
@@ -1079,7 +1079,7 @@ private fun GeneralUiLivePreview(
                         .fillMaxWidth()
                         .height(55.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(DarkSurface)
+                        .background(MaterialTheme.colorScheme.surface)
                         .border(0.5.dp, DarkBorder, RoundedCornerShape(8.dp))
                         .padding(6.dp)
                 ) {

@@ -2,6 +2,7 @@ package com.example.data.sync
 
 import android.util.Log
 import com.example.data.model.AppSettings
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -64,8 +65,11 @@ class DiscordRpcService {
                 .post(payload.toString().toRequestBody(jsonMediaType))
                 .build()
 
-            val response = client.newCall(request).execute()
-            response.isSuccessful
+            client.newCall(request).execute().use { response ->
+                response.isSuccessful
+            }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.w(TAG, "Discord RPC dispatch failed: ${e.message}")
             false

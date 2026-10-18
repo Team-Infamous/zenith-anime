@@ -243,8 +243,7 @@ fun MainApp(repository: AnimeRepository, settings: com.example.data.model.AppSet
                             navController.navigate(Screen.Details.createRoute(animeId))
                         },
                         onPlayClick = { animeId, episodeNum ->
-                            val lang = settings.defaultLanguage.ifBlank { "sub" }
-                            navController.navigate(Screen.Player.createRoute(animeId, episodeNum, lang))
+                            navController.navigate(Screen.Player.createRoute(animeId, episodeNum, settings.defaultLanguage.ifBlank { "sub" }))
                         },
                         onSearchClick = {
                             navController.navigate(Screen.Search.route)
@@ -283,8 +282,7 @@ fun MainApp(repository: AnimeRepository, settings: com.example.data.model.AppSet
                     DownloadScreen(
                         repository = repository,
                         onPlayClick = { animeId, episodeNum ->
-                            val lang = settings.defaultLanguage.ifBlank { "sub" }
-                            navController.navigate(Screen.Player.createRoute(animeId, episodeNum, lang))
+                            navController.navigate(Screen.Player.createRoute(animeId, episodeNum, settings.defaultLanguage.ifBlank { "sub" }))
                         },
                         onSearchClick = {
                             navController.navigate(Screen.Search.route)
@@ -458,9 +456,9 @@ fun MainApp(repository: AnimeRepository, settings: com.example.data.model.AppSet
     }
 
     AnimatedVisibility(
-        visible = showSplash,
-        enter = fadeIn(tween(150)),
-        exit = fadeOut(tween(400)) + scaleOut(targetScale = 1.05f)
+        visible = showSplash && !settings.reduceAnimations,
+        enter = fadeIn(tween(if (settings.reduceAnimations) 0 else 150)),
+        exit = if (settings.reduceAnimations) fadeOut(tween(0)) else (fadeOut(tween(400)) + scaleOut(targetScale = 1.05f))
     ) {
         AnimatedSplashScreen(onFinish = { showSplash = false })
     }

@@ -571,7 +571,16 @@ fun ProfileScreen(
                 title = "Reset All Application Data",
                 titleColor = AccentRed,
                 iconColor = AccentRed,
-                onClick = { showResetConfirmationDialog = true }
+                onClick = {
+                    if (settings.confirmDestructiveActions) {
+                        showResetConfirmationDialog = true
+                    } else {
+                        scope.launch {
+                            repository.resetAllData()
+                            Toast.makeText(context, "All application data reset", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
             )
         }
 
@@ -778,11 +787,11 @@ fun ProfileScreen(
         }
         var validationError by remember { mutableStateOf<String?>(null) }
 
-        val effectiveCurrentAvatar = remember(settings.avatarPath, settings.avatarUrl) {
-            getEffectiveAvatarModel(settings.avatarPath, settings.avatarUrl)
+        val effectiveCurrentAvatar = remember(settings.avatarPath, settings.avatarUrl, settings.avatarSvgContent) {
+            getEffectiveAvatarModel(settings.avatarPath, settings.avatarUrl, settings.avatarSvgContent)
         }
 
-        val previewModel: Any = remember(pendingFileUri, pendingFilePath, pendingAvatarUrl, settings.avatarPath, settings.avatarUrl) {
+        val previewModel: Any = remember(pendingFileUri, pendingFilePath, pendingAvatarUrl, settings.avatarPath, settings.avatarUrl, settings.avatarSvgContent) {
             when {
                 pendingFileUri != null -> pendingFileUri!!
                 !pendingFilePath.isNullOrBlank() -> File(pendingFilePath!!)
@@ -841,7 +850,7 @@ fun ProfileScreen(
 
         AlertDialog(
             onDismissRequest = { showEditProfileDialog = false },
-            containerColor = DarkSurface,
+            containerColor = MaterialTheme.colorScheme.surface,
             title = {
                 Text("Customize Profile", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
             },
@@ -858,7 +867,7 @@ fun ProfileScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(DarkSurfaceVariant)
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
                             .padding(14.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -869,7 +878,7 @@ fun ProfileScreen(
                                     .border(2.5.dp, themeAccent, CircleShape)
                                     .padding(3.dp)
                                     .clip(CircleShape)
-                                    .background(DarkBackground),
+                                    .background(MaterialTheme.colorScheme.background),
                                 contentAlignment = Alignment.Center
                             ) {
                                 AsyncImage(
@@ -968,7 +977,7 @@ fun ProfileScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(8.dp))
-                            .background(DarkSurfaceVariant)
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
                             .padding(3.dp),
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
@@ -989,7 +998,7 @@ fun ProfileScreen(
                             ) {
                                 Text(
                                     text = title,
-                                    color = if (isSel) DarkBackground else TextPrimary,
+                                    color = if (isSel) MaterialTheme.colorScheme.background else TextPrimary,
                                     fontSize = 11.sp,
                                     fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal
                                 )
@@ -1036,7 +1045,7 @@ fun ProfileScreen(
                                                     )
                                                     .padding(2.dp)
                                                     .clip(CircleShape)
-                                                    .background(DarkBackground)
+                                                    .background(MaterialTheme.colorScheme.background)
                                             ) {
                                                 AsyncImage(
                                                     model = preset.url,
@@ -1101,7 +1110,7 @@ fun ProfileScreen(
                                 )
                                 Button(
                                     onClick = { filePicker.launch("image/*") },
-                                    colors = ButtonDefaults.buttonColors(containerColor = themeAccent, contentColor = DarkBackground),
+                                    colors = ButtonDefaults.buttonColors(containerColor = themeAccent, contentColor = MaterialTheme.colorScheme.background),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Icon(Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -1166,7 +1175,7 @@ fun ProfileScreen(
                         showEditProfileDialog = false
                         Toast.makeText(context, "Profile updated successfully", Toast.LENGTH_SHORT).show()
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = themeAccent, contentColor = DarkBackground)
+                    colors = ButtonDefaults.buttonColors(containerColor = themeAccent, contentColor = MaterialTheme.colorScheme.background)
                 ) {
                     Text("Save", fontWeight = FontWeight.Bold)
                 }
@@ -1182,7 +1191,7 @@ fun ProfileScreen(
     if (showDataManagementDialog) {
         AlertDialog(
             onDismissRequest = { showDataManagementDialog = false },
-            containerColor = DarkSurface,
+            containerColor = MaterialTheme.colorScheme.surface,
             title = { Text("Backup & Data Portability", color = TextPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
@@ -1213,7 +1222,7 @@ fun ProfileScreen(
                                     }
                                 }
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = themeAccent, contentColor = DarkBackground),
+                            colors = ButtonDefaults.buttonColors(containerColor = themeAccent, contentColor = MaterialTheme.colorScheme.background),
                             modifier = Modifier.weight(1f)
                         ) {
                             Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -1230,7 +1239,7 @@ fun ProfileScreen(
                                     Toast.makeText(context, "Backup copied to clipboard", Toast.LENGTH_LONG).show()
                                 }
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = DarkSurfaceVariant, contentColor = TextPrimary),
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant, contentColor = TextPrimary),
                             modifier = Modifier.weight(1f)
                         ) {
                             Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -1312,7 +1321,7 @@ fun ProfileScreen(
     if (showResetConfirmationDialog) {
         AlertDialog(
             onDismissRequest = { showResetConfirmationDialog = false },
-            containerColor = DarkSurface,
+            containerColor = MaterialTheme.colorScheme.surface,
             title = { Text("Reset Application Data?", color = AccentRed, fontWeight = FontWeight.Bold) },
             text = {
                 Text(
@@ -1345,7 +1354,7 @@ fun ProfileScreen(
     if (showClearHistoryConfirmation && settings.confirmDestructiveActions) {
         AlertDialog(
             onDismissRequest = { showClearHistoryConfirmation = false },
-            containerColor = DarkSurface,
+            containerColor = MaterialTheme.colorScheme.surface,
             title = { Text("Clear Watch History?", color = AccentRed, fontWeight = FontWeight.Bold) },
             text = {
                 Text(
@@ -1383,7 +1392,7 @@ fun ProfileScreen(
         }
         AlertDialog(
             onDismissRequest = { showAboutDialog = false },
-            containerColor = DarkSurface,
+            containerColor = MaterialTheme.colorScheme.surface,
             title = { Text("About Zenith Anime", color = TextPrimary, fontWeight = FontWeight.Bold) },
             text = {
                 Column {

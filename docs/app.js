@@ -6,6 +6,17 @@
 (function () {
   "use strict";
 
+  const ACCENT_MAP = {
+    emerald: "#06c149",
+    cyan: "#06b6d4",
+    sakura: "#f43f5e",
+    violet: "#8b5cf6",
+    amber: "#f59e0b",
+    crimson: "#ef4444",
+    indigo: "#536dfe",
+    gold: "#ffd54f"
+  };
+
   // State Management
   const state = {
     accent: localStorage.getItem("zenith_accent") || "emerald",
@@ -49,13 +60,14 @@
 
   /** Apply Theme Accent */
   function applyTheme(accentName) {
-    state.accent = accentName;
-    elements.html.setAttribute("data-accent", accentName);
-    localStorage.setItem("zenith_accent", accentName);
+    const normalized = ACCENT_MAP[accentName] ? accentName : "emerald";
+    state.accent = normalized;
+    elements.html.setAttribute("data-accent", normalized);
+    localStorage.setItem("zenith_accent", normalized);
 
     // Update active chip state
     elements.themeChips.forEach((chip) => {
-      const isTarget = chip.getAttribute("data-color") === accentName;
+      const isTarget = chip.getAttribute("data-color") === normalized;
       chip.classList.toggle("active", isTarget);
       chip.setAttribute("aria-selected", isTarget ? "true" : "false");
       chip.setAttribute("aria-pressed", isTarget ? "true" : "false");

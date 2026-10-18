@@ -150,6 +150,7 @@ fun HomeScreen(
     var showAllContinueWatchingSheet by remember { mutableStateOf(false) }
     var selectedQuickActionAnime by remember { mutableStateOf<Anime?>(null) }
     var selectedContinueProgress by remember { mutableStateOf<WatchProgress?>(null) }
+    var pendingRemoveContinueWatching by remember { mutableStateOf<WatchProgress?>(null) }
     var expandedCollectionSection by remember { mutableStateOf<HomeCollectionSection?>(null) }
     var isRefreshing by remember { mutableStateOf(false) }
     var featuredIndex by remember { mutableIntStateOf(0) }
@@ -198,11 +199,11 @@ fun HomeScreen(
     val heroPagerState = rememberPagerState(pageCount = { heroAnimeList.size })
 
     val reducedMotion = LocalReducedMotion.current
-    LaunchedEffect(heroAnimeList.size, reducedMotion) {
-        if (heroAnimeList.size > 1 && !reducedMotion) {
+    LaunchedEffect(heroAnimeList.size, reducedMotion, heroPagerState.isScrollInProgress) {
+        if (heroAnimeList.size > 1 && !reducedMotion && !heroPagerState.isScrollInProgress) {
             while (true) {
                 delay(6500L)
-                if (!heroPagerState.isScrollInProgress) {
+                if (!heroPagerState.isScrollInProgress && !reducedMotion) {
                     val next = (heroPagerState.currentPage + 1) % heroAnimeList.size
                     heroPagerState.animateScrollToPage(next)
                 }
@@ -294,7 +295,7 @@ fun HomeScreen(
                             Box(
                                 modifier = Modifier
                                     .size(72.dp)
-                                    .background(DarkSurfaceVariant, RoundedCornerShape(20.dp)),
+                                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(20.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
@@ -335,7 +336,7 @@ fun HomeScreen(
                                 },
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = themeAccent,
-                                    contentColor = DarkBackground
+                                    contentColor = MaterialTheme.colorScheme.background
                                 ),
                                 shape = RoundedCornerShape(24.dp),
                                 contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
@@ -383,7 +384,7 @@ fun HomeScreen(
                                                             Color(0xCC0B0E14),
                                                             Color(0x330B0E14),
                                                             themeAccent.copy(alpha = 0.20f),
-                                                            DarkBackground.copy(alpha = 0.8f),
+                                                            MaterialTheme.colorScheme.background.copy(alpha = 0.8f),
                                                             MaterialTheme.colorScheme.background
                                                         )
                                                     )
@@ -407,7 +408,7 @@ fun HomeScreen(
                                                 ) {
                                                     Text(
                                                         text = "SPOTLIGHT",
-                                                        color = DarkBackground,
+                                                        color = MaterialTheme.colorScheme.background,
                                                         fontSize = 10.sp,
                                                         fontWeight = FontWeight.Black
                                                     )
@@ -479,8 +480,8 @@ fun HomeScreen(
                                                         }
                                                     },
                                                     colors = ButtonDefaults.buttonColors(
-                                                        containerColor = if (hasAired) themeAccent else DarkSurfaceVariant,
-                                                        contentColor = if (hasAired) DarkBackground else TextSecondary
+                                                        containerColor = if (hasAired) themeAccent else MaterialTheme.colorScheme.surfaceVariant,
+                                                        contentColor = if (hasAired) MaterialTheme.colorScheme.background else TextSecondary
                                                     ),
                                                     shape = RoundedCornerShape(24.dp),
                                                     contentPadding = PaddingValues(horizontal = 22.dp, vertical = 10.dp),
@@ -606,9 +607,13 @@ fun HomeScreen(
                                         displayTitle = animeObj?.displayTitle(homeSettings.titleLanguagePreference) ?: item.animeTitle,
                                         onPlayClick = { onPlayClick(item.animeId, item.episodeNumber) },
                                         onDismissClick = {
-                                            scope.launch {
-                                                repository.deleteProgressByAnime(item.animeId)
-                                                Toast.makeText(context, "Removed from Continue Watching", Toast.LENGTH_SHORT).show()
+                                            if (homeSettings.confirmDestructiveActions) {
+                                                pendingRemoveContinueWatching = item
+                                            } else {
+                                                scope.launch {
+                                                    repository.deleteProgressByAnime(item.animeId)
+                                                    Toast.makeText(context, "Removed from Continue Watching", Toast.LENGTH_SHORT).show()
+                                                }
                                             }
                                         },
                                         onInfoClick = {
@@ -703,7 +708,7 @@ fun HomeScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.TopCenter)
-                        .background(Color(0xF00B0E14).copy(alpha = topBarAlpha))
+                        .background(MaterialTheme.colorScheme.background.copy(alpha = topBarAlpha))
                         .border(
                             width = 0.5.dp,
                             color = Color(0x1AFFFFFF).copy(alpha = topBarBorderAlpha),
@@ -845,12 +850,61 @@ fun HomeScreen(
                     onAnimeClick(prog.animeId)
                 },
                 onRemoveFromContinueWatching = {
-                    val animeId = prog.animeId
-                    val animeTitle = prog.animeTitle
+                    val targetProg = prog
                     selectedContinueProgress = null
-                    scope.launch {
-                        repository.deleteProgressByAnime(animeId)
-                        Toast.makeText(context, "Removed $animeTitle from Continue Watching", Toast.LENGTH_SHORT).show()
+                    if (homeSettings.confirmDestructiveActions) {
+                        pendingRemoveContinueWatching = targetProg
+                    } else {
+                        scope.launch {
+                            repository.deleteProgressByAnime(targetProg.animeId)
+                            Toast.makeText(context, "Removed ${targetProg.animeTitle} from Continue Watching", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            )
+        }
+
+        if (pendingRemoveContinueWatching != null) {
+            val pending = pendingRemoveContinueWatching!!
+            val pendingTitle = allAnime.firstOrNull { it.id == pending.animeId }
+                ?.displayTitle(homeSettings.titleLanguagePreference) ?: pending.animeTitle
+            AlertDialog(
+                onDismissRequest = { pendingRemoveContinueWatching = null },
+                containerColor = MaterialTheme.colorScheme.surface,
+                title = {
+                    Text(
+                        text = "Remove from Continue Watching?",
+                        color = TextPrimary,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                text = {
+                    Text(
+                        text = "Remove watch progress for \"$pendingTitle\" from Continue Watching?",
+                        color = TextSecondary,
+                        fontSize = 13.sp
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            val targetId = pending.animeId
+                            pendingRemoveContinueWatching = null
+                            scope.launch {
+                                repository.deleteProgressByAnime(targetId)
+                                Toast.makeText(context, "Removed $pendingTitle from Continue Watching", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = AccentRed, contentColor = Color.White),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("Remove", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingRemoveContinueWatching = null }) {
+                        Text("Cancel", color = TextSecondary, fontSize = 12.sp)
                     }
                 }
             )
@@ -910,17 +964,23 @@ fun HomeScreen(
         if (showAllContinueWatchingSheet) {
             ContinueWatchingAllSheet(
                 items = continueWatchingAll,
+                animeCatalog = allAnime,
                 onPlayClick = { animeId, episodeNum ->
                     showAllContinueWatchingSheet = false
                     onPlayClick(animeId, episodeNum)
                 },
                 onDismissItem = { progressId ->
-                    val animeId = continueWatchingAll.firstOrNull { it.id == progressId }?.animeId
-                    scope.launch {
-                        if (animeId != null) {
-                            repository.deleteProgressByAnime(animeId)
-                        } else {
-                            repository.deleteProgress(progressId)
+                    val targetProg = continueWatchingAll.firstOrNull { it.id == progressId }
+                    if (homeSettings.confirmDestructiveActions && targetProg != null) {
+                        pendingRemoveContinueWatching = targetProg
+                    } else {
+                        val animeId = targetProg?.animeId
+                        scope.launch {
+                            if (animeId != null) {
+                                repository.deleteProgressByAnime(animeId)
+                            } else {
+                                repository.deleteProgress(progressId)
+                            }
                         }
                     }
                 },
@@ -1034,8 +1094,8 @@ private fun HomeCollectionExpandedView(
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = DarkSurfaceVariant,
-                    unfocusedContainerColor = DarkSurfaceVariant,
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                     focusedBorderColor = themeAccent,
                     unfocusedBorderColor = Color.Transparent,
                     focusedTextColor = TextPrimary,
@@ -1058,7 +1118,7 @@ private fun HomeCollectionExpandedView(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(14.dp))
-                            .background(if (isSel) themeAccent else DarkSurfaceVariant)
+                            .background(if (isSel) themeAccent else MaterialTheme.colorScheme.surfaceVariant)
                             .border(
                                 width = 0.5.dp,
                                 color = if (isSel) themeAccent else DarkBorder,
@@ -1069,7 +1129,7 @@ private fun HomeCollectionExpandedView(
                     ) {
                         Text(
                             text = option,
-                            color = if (isSel) DarkBackground else TextPrimary,
+                            color = if (isSel) MaterialTheme.colorScheme.background else TextPrimary,
                             fontSize = 11.sp,
                             fontWeight = if (isSel) FontWeight.Bold else FontWeight.Medium
                         )
@@ -1118,7 +1178,7 @@ private fun ContinueWatchingContextMenuDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = DarkSurface,
+        containerColor = MaterialTheme.colorScheme.surface,
         title = {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
