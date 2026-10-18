@@ -185,7 +185,9 @@ fun SearchScreen(
         settings.titleLanguagePreference
     ) {
         val matched = combined.filter { anime ->
+            val isOnlineMatch = onlineResults.any { it.id == anime.id }
             val matchesQuery = searchQuery.isBlank() ||
+                    isOnlineMatch ||
                     anime.title.contains(searchQuery, ignoreCase = true) ||
                     anime.englishTitle.contains(searchQuery, ignoreCase = true) ||
                     anime.romajiTitle.contains(searchQuery, ignoreCase = true) ||

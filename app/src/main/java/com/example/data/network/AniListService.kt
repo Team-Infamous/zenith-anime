@@ -33,6 +33,7 @@ class AniListService {
               english
               native
             }
+            synonyms
             coverImage {
               large
               extraLarge
@@ -729,9 +730,28 @@ class AniListService {
             val malId = item.optInt("idMal", 0).toString()
 
             val titleObj = item.optJSONObject("title")
-            val english = titleObj?.optString("english")?.takeIf { it.isNotEmpty() && it != "null" }
+            val englishRaw = titleObj?.optString("english")?.takeIf { it.isNotEmpty() && it != "null" }
             val romaji = titleObj?.optString("romaji")?.takeIf { it.isNotEmpty() && it != "null" }
             val native = titleObj?.optString("native")?.takeIf { it.isNotEmpty() && it != "null" } ?: ""
+
+            val synonymsArray = item.optJSONArray("synonyms")
+            val synonymsList = mutableListOf<String>()
+            if (synonymsArray != null) {
+                for (s in 0 until synonymsArray.length()) {
+                    val syn = synonymsArray.optString(s, "").trim()
+                    if (syn.isNotEmpty()) synonymsList.add(syn)
+                }
+            }
+
+            // If english title is missing, or is identical/very close to romaji, prefer a distinct English synonym (e.g. "Heavenly Delusion")
+            val english = if (englishRaw == null || (romaji != null && isSimilarToRomaji(englishRaw, romaji))) {
+                val candidateSynonym = synonymsList.firstOrNull { syn ->
+                    syn.all { it.code < 128 } && !isSimilarToRomaji(syn, romaji ?: "")
+                }
+                candidateSynonym ?: englishRaw
+            } else {
+                englishRaw
+            }
             val mainTitle = english ?: romaji ?: "Anime Title"
 
             val coverObj = item.optJSONObject("coverImage")
@@ -810,5 +830,12 @@ class AniListService {
         } catch (_: Exception) {
             null
         }
+    }
+
+    private fun isSimilarToRomaji(a: String, b: String): Boolean {
+        if (a.isBlank() || b.isBlank()) return false
+        val normA = a.lowercase().filter { it.isLetterOrDigit() }.replace("ou", "o").replace("oo", "o").replace("uu", "u")
+        val normB = b.lowercase().filter { it.isLetterOrDigit() }.replace("ou", "o").replace("oo", "o").replace("uu", "u")
+        return normA == normB
     }
 }
