@@ -20,10 +20,6 @@
     titleLanguage: 'english', // 'english' | 'romaji'
     defaultServer: 'aniembed', // 'aniembed' | 'viduki' | 'megaplay' | 'vidsrc'
     defaultAudio: 'sub', // 'sub' | 'dub'
-    autoPlayNext: true,
-    autoSkipIntro: true,
-    transportPosition: 'center', // 'center' | 'bottom' | 'split'
-    seekbarStyle: 'modern', // 'modern' | 'minimal' | 'thick'
     reduceAnimations: false
   };
 

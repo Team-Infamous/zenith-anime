@@ -1360,22 +1360,6 @@
                   <button type="button" class="seg-btn ${settings.defaultAudio === 'dub' ? 'active' : ''}" data-audio="dub">Dubbed</button>
                 </div>
               </div>
-
-              <div class="settings-row">
-                <div>
-                  <strong>Auto-Skip Opening Theme</strong>
-                  <p class="settings-desc">Display 85s skip opening jump button in video player.</p>
-                </div>
-                <input type="checkbox" id="setting-skip-op" class="settings-toggle" ${settings.autoSkipIntro ? 'checked' : ''}>
-              </div>
-
-              <div class="settings-row">
-                <div>
-                  <strong>Auto-Play Next Episode</strong>
-                  <p class="settings-desc">Trigger 5s countdown at the end of each episode.</p>
-                </div>
-                <input type="checkbox" id="setting-auto-next" class="settings-toggle" ${settings.autoPlayNext ? 'checked' : ''}>
-              </div>
             </section>
 
             <!-- Data & Backups -->
@@ -1471,16 +1455,6 @@
           window.ZenithStorage.updateSettings({ defaultAudio: aud });
           this.showToast(`Default audio set to ${aud.toUpperCase()}`);
         });
-      });
-
-      // Skip intro checkbox
-      document.getElementById('setting-skip-op')?.addEventListener('change', (e) => {
-        window.ZenithStorage.updateSettings({ autoSkipIntro: e.target.checked });
-      });
-
-      // Auto next checkbox
-      document.getElementById('setting-auto-next')?.addEventListener('change', (e) => {
-        window.ZenithStorage.updateSettings({ autoPlayNext: e.target.checked });
       });
 
       // Export backup

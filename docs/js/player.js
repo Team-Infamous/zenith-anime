@@ -1,8 +1,7 @@
 /**
- * Zenith Anime Web — Full Video Player Suite
- * Responsive streaming engine supporting multi-server switching,
- * Sub/Dub audio toggle, double-tap seek ripples, quick episode drawer,
- * auto-skip intro, next episode countdown, keyboard shortcuts, and continuous watch progress.
+ * Zenith Anime Web — Clean Native Video Player & Watch Tracking Engine
+ * Direct un-hijacked iframe video stream embedding with instant multi-server switching,
+ * Sub/Dub audio toggle, episode navigation, and continuous watch history & progress tracking.
  */
 
 (function (window) {
@@ -13,19 +12,17 @@
     currentEpisode: 1,
     currentServer: 'aniembed',
     currentLanguage: 'sub',
-    aspectRatio: 'fit', // 'fit' | 'fill' | 'stretch' | '16-9' | '4-3'
-    isTheater: false,
-    isFullscreen: false,
     timer: null,
     playbackSeconds: 0,
-    estimatedDuration: 1440, // 24 minutes in seconds
-    nextEpisodeTimer: null,
-    controlsTimeout: null,
+    estimatedDuration: 1440, // Standard anime broadcast: ~24 minutes in seconds
 
     init() {
-      this.bindKeyboardShortcuts();
+      // 100% native interaction — zero global keyboard or click intercepting.
     },
 
+    /**
+     * Load and mount an anime episode
+     */
     load(anime, episodeNumber = 1, options = {}) {
       this.currentAnime = anime;
       this.currentEpisode = parseInt(episodeNumber, 10) || 1;
@@ -34,7 +31,7 @@
       this.currentServer = options.server || settings.defaultServer || 'aniembed';
       this.currentLanguage = options.language || settings.defaultAudio || 'sub';
 
-      // Restore saved progress
+      // Restore saved progress for this episode if previously watched
       const saved = window.ZenithStorage?.getProgress(anime.id, this.currentEpisode);
       this.playbackSeconds = saved ? (saved.currentTimeSec || 0) : 0;
       this.estimatedDuration = saved && saved.durationSec ? saved.durationSec : 1440;
@@ -43,6 +40,9 @@
       this.startProgressTracking();
     },
 
+    /**
+     * Render the clean native video viewport and stream control bar
+     */
     renderPlayer() {
       const container = document.getElementById('player-viewport-container');
       if (!container) return;
@@ -57,45 +57,11 @@
       const displayTitle = (titleLang === 'romaji' ? anime.romajiTitle : anime.englishTitle) || anime.title;
       const totalEpisodes = anime.totalEpisodes || 24;
 
-      container.className = `player-viewport-container aspect-${this.aspectRatio} ${this.isTheater ? 'theater-mode' : ''}`;
+      container.className = 'player-viewport-container';
       container.innerHTML = `
         <div class="player-wrapper" id="player-wrapper">
-          <!-- Discreet Top Header Bar -->
-          <div class="player-header-bar">
-            <div class="player-header-left">
-              <button type="button" class="player-btn-back" id="player-btn-back" title="Back to Details">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                  <line x1="19" y1="12" x2="5" y2="12"></line>
-                  <polyline points="12 19 5 12 12 5"></polyline>
-                </svg>
-                <span>Back</span>
-              </button>
-              <div class="player-title-info">
-                <span class="player-anime-name" title="${displayTitle}">${displayTitle}</span>
-                <span class="player-episode-badge">Ep ${ep} ${totalEpisodes > 0 ? `/ ${totalEpisodes}` : ''}</span>
-              </div>
-            </div>
-
-            <div class="player-header-right">
-              <!-- Theater Mode Toggle -->
-              <button type="button" class="player-icon-btn ${this.isTheater ? 'active' : ''}" id="ctrl-theater" title="Toggle Theater Mode (T)">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-                  <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
-                </svg>
-              </button>
-
-              <!-- Fullscreen Toggle -->
-              <button type="button" class="player-icon-btn" id="ctrl-fullscreen" title="Fullscreen (F)">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <!-- Main Iframe Video Embed - 100% UN-HIJACKED, DIRECT NATIVE INTERACTION -->
-          <div class="player-iframe-frame">
+          <!-- 100% Native Clean Iframe Embed (Zero Overlays, Direct Native Player Interaction) -->
+          <div class="player-embed-box">
             <iframe 
               id="zenith-video-iframe"
               class="player-iframe"
@@ -103,24 +69,24 @@
               allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
               allowfullscreen
               referrerpolicy="no-referrer"
-              title="${displayTitle} Episode ${ep}"
+              title="${displayTitle} - Episode ${ep}"
             ></iframe>
           </div>
 
-          <!-- Dedicated Zenith Server & Stream Control Bar (Directly Below Video) -->
-          <div class="player-server-panel" id="player-server-panel">
-            <div class="server-panel-section">
-              <div class="server-panel-label">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <!-- Non-Intrusive Server & Stream Control Bar (Directly Below Video) -->
+          <div class="player-stream-bar" id="player-stream-bar">
+            <!-- Server Switcher Pills -->
+            <div class="stream-bar-group stream-servers-group">
+              <span class="stream-bar-label">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
                   <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
                   <line x1="6" y1="6" x2="6.01" y2="6"></line>
                   <line x1="6" y1="18" x2="6.01" y2="18"></line>
                 </svg>
-                <span>Servers</span>
-              </div>
-
-              <div class="server-pills-row">
+                <span>Server</span>
+              </span>
+              <div class="stream-servers-list">
                 ${window.ZenithAPI.getAvailableServers().map(s => `
                   <button type="button" class="server-pill-btn ${s.id === server ? 'active' : ''}" data-server="${s.id}" title="${s.note}">
                     <span class="server-dot"></span>
@@ -130,17 +96,18 @@
               </div>
             </div>
 
-            <div class="server-panel-section stream-actions-section">
-              <!-- Sub / Dub Toggle -->
+            <!-- Audio & Transport Actions -->
+            <div class="stream-bar-group stream-controls-group">
+              <!-- Audio (Sub / Dub) Toggle -->
               <button type="button" class="stream-pill-btn audio-pill ${lang === 'dub' ? 'dub' : 'sub'}" id="player-btn-audio" title="Switch Audio Track (Sub / Dub)">
                 <span class="audio-badge">${lang.toUpperCase()}</span>
                 <span>Audio</span>
               </button>
 
-              <!-- Episode Navigation -->
+              <!-- Previous & Next Episode Navigation -->
               <div class="ep-nav-group">
                 <button type="button" class="stream-ctrl-btn" id="ctrl-prev" ${ep <= 1 ? 'disabled' : ''} title="Previous Episode">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/>
                   </svg>
                   <span>Prev</span>
@@ -148,7 +115,7 @@
 
                 <button type="button" class="stream-ctrl-btn" id="ctrl-next" ${ep >= (totalEpisodes > 0 ? totalEpisodes : 999) ? 'disabled' : ''} title="Next Episode">
                   <span>Next</span>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/>
                   </svg>
                 </button>
@@ -162,34 +129,6 @@
                 </svg>
                 <span>Reload</span>
               </button>
-
-              <!-- Episode Drawer Toggle -->
-              <button type="button" class="stream-ctrl-btn" id="player-btn-episodes" title="Episodes Drawer">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <line x1="8" y1="6" x2="21" y2="6"></line>
-                  <line x1="8" y1="12" x2="21" y2="12"></line>
-                  <line x1="8" y1="18" x2="21" y2="18"></line>
-                  <line x1="3" y1="6" x2="3.01" y2="6"></line>
-                  <line x1="3" y1="12" x2="3.01" y2="12"></line>
-                  <line x1="3" y1="18" x2="3.01" y2="18"></line>
-                </svg>
-                <span>List</span>
-              </button>
-            </div>
-          </div>
-
-          <div class="player-helper-hint">
-            <span>💡 <strong>Tip:</strong> Video playback, volume, and quality (1080p/720p) are operated directly on the player above. If a server is slow or buffering, click any server button above to switch immediately.</span>
-          </div>
-
-          <!-- Quick Slide-Out Episode Drawer -->
-          <div class="player-episodes-drawer" id="player-episodes-drawer">
-            <div class="drawer-header">
-              <h3>Episodes List (${totalEpisodes > 0 ? totalEpisodes : 'All'})</h3>
-              <button type="button" class="drawer-close" id="btn-close-drawer">&times;</button>
-            </div>
-            <div class="drawer-episodes-grid" id="drawer-episodes-grid">
-              ${this.renderDrawerEpisodes(totalEpisodes, ep)}
             </div>
           </div>
         </div>
@@ -203,56 +142,48 @@
       return match ? match.name.split(' ')[0] : 'Server';
     },
 
-    renderDrawerEpisodes(total, current) {
-      const count = total > 0 ? Math.min(total, 500) : 24;
-      const progressMap = window.ZenithStorage?.getAllProgress() || {};
-      let html = '';
-
-      for (let i = 1; i <= count; i++) {
-        const key = `${this.currentAnime.id}_ep_${i}`;
-        const isWatched = progressMap[key]?.completed;
-        const isActive = i === current;
-
-        html += `
-          <button type="button" class="drawer-ep-chip ${isActive ? 'active' : ''} ${isWatched ? 'watched' : ''}" data-ep="${i}">
-            <span>${i}</span>
-            ${isWatched ? '<span class="ep-check">✓</span>' : ''}
-          </button>
-        `;
-      }
-      return html;
-    },
-
+    /**
+     * Wire up server switching, audio toggle, and episode controls
+     */
     bindPlayerEvents() {
-      // Back button
-      document.getElementById('player-btn-back')?.addEventListener('click', () => {
-        this.stopProgressTracking();
-        window.location.hash = `#details/${this.currentAnime.id}`;
-      });
-
-      // Server pill buttons
+      // 1. Server switcher pills
       document.querySelectorAll('.server-pill-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           const s = btn.getAttribute('data-server');
           if (s && s !== this.currentServer) {
             this.currentServer = s;
             window.ZenithStorage?.updateSettings({ defaultServer: s });
-            this.renderPlayer();
+            const iframe = document.getElementById('zenith-video-iframe');
+            if (iframe) {
+              iframe.src = window.ZenithAPI.getStreamUrl(s, this.currentAnime, this.currentEpisode, this.currentLanguage);
+            }
+            document.querySelectorAll('.server-pill-btn').forEach(b => {
+              b.classList.toggle('active', b.getAttribute('data-server') === s);
+            });
             const displayName = this.getServerDisplayName(s);
             window.ZenithUI?.showToast(`Switched server to ${displayName}`);
           }
         });
       });
 
-      // Audio track toggle (Sub / Dub)
+      // 2. Sub / Dub audio toggle
       document.getElementById('player-btn-audio')?.addEventListener('click', () => {
         this.currentLanguage = this.currentLanguage === 'sub' ? 'dub' : 'sub';
         window.ZenithStorage?.updateSettings({ defaultAudio: this.currentLanguage });
-        this.renderPlayer();
+        const iframe = document.getElementById('zenith-video-iframe');
+        if (iframe) {
+          iframe.src = window.ZenithAPI.getStreamUrl(this.currentServer, this.currentAnime, this.currentEpisode, this.currentLanguage);
+        }
+        const btn = document.getElementById('player-btn-audio');
+        if (btn) {
+          btn.className = `stream-pill-btn audio-pill ${this.currentLanguage === 'dub' ? 'dub' : 'sub'}`;
+          const badge = btn.querySelector('.audio-badge');
+          if (badge) badge.textContent = this.currentLanguage.toUpperCase();
+        }
         window.ZenithUI?.showToast(`Switched audio to ${this.currentLanguage.toUpperCase()}`);
       });
 
-      // Reload video stream button
+      // 3. Reload stream button
       document.getElementById('player-btn-reload')?.addEventListener('click', () => {
         const iframe = document.getElementById('zenith-video-iframe');
         if (iframe) {
@@ -265,87 +196,64 @@
         }
       });
 
-      // Quick Episode Drawer
-      const drawer = document.getElementById('player-episodes-drawer');
-      document.getElementById('player-btn-episodes')?.addEventListener('click', () => {
-        drawer?.classList.toggle('open');
-      });
-
-      document.getElementById('btn-close-drawer')?.addEventListener('click', () => {
-        drawer?.classList.remove('open');
-      });
-
-      drawer?.querySelectorAll('.drawer-ep-chip').forEach(chip => {
-        chip.addEventListener('click', () => {
-          const ep = parseInt(chip.getAttribute('data-ep'), 10);
-          if (ep && ep !== this.currentEpisode) {
-            drawer.classList.remove('open');
-            this.load(this.currentAnime, ep);
-          }
-        });
-      });
-
-      // Transport: Previous / Next
+      // 4. Previous / Next episode navigation via hash change
       document.getElementById('ctrl-prev')?.addEventListener('click', () => {
         if (this.currentEpisode > 1) {
-          this.load(this.currentAnime, this.currentEpisode - 1);
+          window.location.hash = `#watch/${this.currentAnime.id}/${this.currentEpisode - 1}`;
         }
       });
 
       document.getElementById('ctrl-next')?.addEventListener('click', () => {
-        const total = this.currentAnime.totalEpisodes || 999;
+        const total = this.currentAnime?.totalEpisodes || 999;
         if (this.currentEpisode < total) {
-          this.load(this.currentAnime, this.currentEpisode + 1);
+          window.location.hash = `#watch/${this.currentAnime.id}/${this.currentEpisode + 1}`;
         }
-      });
-
-      // Theater mode
-      document.getElementById('ctrl-theater')?.addEventListener('click', () => {
-        this.isTheater = !this.isTheater;
-        const container = document.getElementById('player-viewport-container');
-        container?.classList.toggle('theater-mode', this.isTheater);
-        document.getElementById('ctrl-theater')?.classList.toggle('active', this.isTheater);
-      });
-
-      // Fullscreen
-      document.getElementById('ctrl-fullscreen')?.addEventListener('click', () => {
-        this.toggleFullscreen();
       });
     },
 
+    // =========================================================================
+    // CONTINUOUS WATCH TIME, HISTORY & PROGRESS TRACKING
+    // =========================================================================
+
+    /**
+     * Start background progress tracking for watch history and elapsed time
+     */
     startProgressTracking() {
       this.stopProgressTracking();
-      // Tick every second to record continuous watch progress
+      // Record initial visit immediately into storage (History & Continue Watching)
+      this.saveCurrentProgress();
+
+      // Silent background ticker: increments watch time and persists progress
       this.timer = setInterval(() => {
         this.playbackSeconds += 1;
-        this.updateSeekbarUI();
 
-        // Save progress every 5 seconds or upon nearing completion
+        // Auto-persist every 5 seconds
         if (this.playbackSeconds % 5 === 0) {
           this.saveCurrentProgress();
-        }
-
-        // Check for next episode countdown during final 35 seconds
-        if (this.estimatedDuration - this.playbackSeconds <= 35 && !this.nextEpisodeTimer) {
-          this.triggerNextEpisodeCountdown();
         }
       }, 1000);
     },
 
+    /**
+     * Stop tracking interval and persist final watch progress
+     */
     stopProgressTracking() {
       if (this.timer) {
         clearInterval(this.timer);
         this.timer = null;
       }
-      if (this.nextEpisodeTimer) {
-        clearInterval(this.nextEpisodeTimer);
-        this.nextEpisodeTimer = null;
-      }
       this.saveCurrentProgress();
     },
 
+    /**
+     * Persist current watch progress to ZenithStorage
+     */
     saveCurrentProgress() {
       if (!this.currentAnime || !this.currentEpisode) return;
+
+      const duration = this.estimatedDuration || 1440;
+      const isCompleted = duration > 0 && (this.playbackSeconds / duration) >= 0.88;
+
       window.ZenithStorage?.saveProgress({
         animeId: this.currentAnime.id,
         animeTitle: this.currentAnime.title,
@@ -353,125 +261,10 @@
         coverImage: this.currentAnime.coverImage,
         bannerImage: this.currentAnime.bannerImage,
         currentTimeSec: this.playbackSeconds,
-        durationSec: this.estimatedDuration,
+        durationSec: duration,
+        completed: isCompleted,
         language: this.currentLanguage
       });
-    },
-
-    triggerNextEpisodeCountdown() {
-      const countdownBox = document.getElementById('player-next-countdown');
-      const secondsSpan = document.getElementById('countdown-seconds');
-      if (!countdownBox || !secondsSpan) return;
-
-      const total = this.currentAnime.totalEpisodes || 999;
-      if (this.currentEpisode >= total) return; // Last episode
-
-      countdownBox.style.display = 'flex';
-      let remaining = 5;
-      secondsSpan.textContent = remaining;
-
-      document.getElementById('btn-cancel-countdown')?.addEventListener('click', () => {
-        countdownBox.style.display = 'none';
-        clearInterval(this.nextEpisodeTimer);
-        this.nextEpisodeTimer = null;
-      }, { once: true });
-
-      document.getElementById('btn-play-countdown')?.addEventListener('click', () => {
-        countdownBox.style.display = 'none';
-        clearInterval(this.nextEpisodeTimer);
-        this.nextEpisodeTimer = null;
-        this.load(this.currentAnime, this.currentEpisode + 1);
-      }, { once: true });
-
-      this.nextEpisodeTimer = setInterval(() => {
-        remaining -= 1;
-        if (remaining <= 0) {
-          clearInterval(this.nextEpisodeTimer);
-          this.nextEpisodeTimer = null;
-          countdownBox.style.display = 'none';
-          this.load(this.currentAnime, this.currentEpisode + 1);
-        } else {
-          secondsSpan.textContent = remaining;
-        }
-      }, 1000);
-    },
-
-    toggleFullscreen() {
-      const wrapper = document.getElementById('player-wrapper');
-      if (!wrapper) return;
-
-      if (!document.fullscreenElement) {
-        wrapper.requestFullscreen().then(() => {
-          this.isFullscreen = true;
-        }).catch(err => console.warn('Fullscreen denied', err));
-      } else {
-        document.exitFullscreen().then(() => {
-          this.isFullscreen = false;
-        }).catch(err => console.warn('Exit fullscreen error', err));
-      }
-    },
-
-    bindKeyboardShortcuts() {
-      window.addEventListener('keydown', (e) => {
-        // Ignore typing in inputs or textareas
-        if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) return;
-        // Only active if player is mounted
-        if (!document.getElementById('player-wrapper')) return;
-
-        switch (e.key) {
-          case ' ':
-          case 'k':
-          case 'K':
-            e.preventDefault();
-            this.showControlsTemporarily();
-            break;
-          case 'f':
-          case 'F':
-            e.preventDefault();
-            this.toggleFullscreen();
-            break;
-          case 't':
-          case 'T':
-            e.preventDefault();
-            this.isTheater = !this.isTheater;
-            document.getElementById('player-viewport-container')?.classList.toggle('theater-mode', this.isTheater);
-            break;
-          case 'ArrowLeft':
-          case 'j':
-          case 'J':
-            e.preventDefault();
-            this.seekRelative(-10);
-            this.triggerRipple('left');
-            break;
-          case 'ArrowRight':
-          case 'l':
-          case 'L':
-            e.preventDefault();
-            this.seekRelative(10);
-            this.triggerRipple('right');
-            break;
-          case 'n':
-          case 'N':
-            e.preventDefault();
-            if (this.currentEpisode < (this.currentAnime?.totalEpisodes || 999)) {
-              this.load(this.currentAnime, this.currentEpisode + 1);
-            }
-            break;
-          case 'p':
-          case 'P':
-            e.preventDefault();
-            if (this.currentEpisode > 1) {
-              this.load(this.currentAnime, this.currentEpisode - 1);
-            }
-            break;
-        }
-      });
-    },
-
-    formatTime(sec) {
-      const m = Math.floor(sec / 60);
-      const s = Math.floor(sec % 60);
-      return `${m}:${s < 10 ? '0' : ''}${s}`;
     }
   };
 

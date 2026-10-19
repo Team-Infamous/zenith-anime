@@ -21,8 +21,11 @@
       // 3. Bind Global Navigation Events
       this.bindGlobalNavigation();
 
-      // 4. Listen for URL Hash Changes
+      // 4. Listen for URL Hash Changes and window unload
       window.addEventListener('hashchange', () => this.handleRoute());
+      window.addEventListener('beforeunload', () => {
+        window.ZenithPlayer?.stopProgressTracking();
+      });
 
       // 5. Initial Route Dispatch
       this.handleRoute();
@@ -91,6 +94,11 @@
       const [routePart, queryPart] = cleanHash.split('?');
       const segments = routePart.split('/').filter(Boolean);
       const rootRoute = segments[0] || 'home';
+
+      // Persist & stop tracking if transitioning away from watch
+      if (this.currentRoute === 'watch' && rootRoute !== 'watch') {
+        window.ZenithPlayer?.stopProgressTracking();
+      }
       this.currentRoute = rootRoute;
 
       // Parse query params
