@@ -2,15 +2,14 @@
 
 <div align="center">
 
-**A modern, local-first, highly customizable anime streaming and organization client for Android.**
+**A modern, local-first, highly customizable anime streaming and organization client for Android & Web (PC, Laptops, Tablets, Phones).**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/Platform-Android%208.0+-green.svg)](https://developer.android.com)
-[![Jetpack Compose](https://img.shields.io/badge/UI-Jetpack%20Compose-4285F4.svg)](https://developer.android.com/jetpack/compose)
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.0+-7F52FF.svg)](https://kotlinlang.org)
+[![Platform](https://img.shields.io/badge/Platform-Web%20%7C%20Android-green.svg)](https://gokuthug1.github.io/zenith-anime/)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fgokuthug1%2Fzenith-anime)
+[![GitHub Pages](https://img.shields.io/badge/GitHub%20Pages-Live%20Stream-10b981.svg)](https://gokuthug1.github.io/zenith-anime/)
 [![Build APK](https://github.com/gokuthug1/zenith-anime/actions/workflows/build-apk.yml/badge.svg)](https://github.com/gokuthug1/zenith-anime/actions/workflows/build-apk.yml)
 [![Discord](https://img.shields.io/badge/Discord-Join%20Community-5865F2?logo=discord&logoColor=white)](https://discord.gg/G9vh5kVcvC)
-[![Website](https://img.shields.io/badge/Website-zenith--anime-10b981.svg)](https://gokuthug1.github.io/zenith-anime/)
 
 </div>
 
@@ -124,14 +123,38 @@ Join our official community Discord for announcements, feedback, feature voting,
 
 ---
 
-## 📥 Download & Installation
+## 🌐 Web Streaming Edition (Browser, PC, Mac, Tablet, Phone)
 
-Pre-built APKs and distribution portals:
+Zenith Anime Web brings the complete Zenith streaming experience to all web browsers with zero installation:
+
+- **Live Web Stream**: [https://gokuthug1.github.io/zenith-anime/](https://gokuthug1.github.io/zenith-anime/)
+- **Android Showcase & Landing**: [`landing.html`](https://gokuthug1.github.io/zenith-anime/landing.html)
+
+### 🚀 Deploying Your Own Instance (Vercel or GitHub Pages)
+
+#### Option 1: Deploy with Vercel (1-Click)
+1. Fork or clone this repository.
+2. Go to [Vercel](https://vercel.com/new) and click **Import Project**.
+3. Select your repository. Vercel automatically detects `vercel.json` (configured for `docs/` with clean URLs and SPA routing).
+4. Click **Deploy**. Your Zenith Anime web streaming app is live in seconds!
+
+#### Option 2: Deploy with GitHub Pages
+1. Go to your repository on GitHub.
+2. Navigate to **Settings** &rarr; **Pages**.
+3. Under **Build and deployment** &rarr; **Source**, select:
+   - **Deploy from a branch** &rarr; Branch: `master` (or `main`) &rarr; Folder: `/docs` &rarr; **Save**, OR
+   - **GitHub Actions** (the included `.github/workflows/deploy-pages.yml` workflow will automatically deploy on every push).
+4. Visit your GitHub Pages URL (e.g. `https://<username>.github.io/<repo>/`).
+
+---
+
+## 📥 Android Native APK (Android 8.0+)
+
+Pre-built native APKs with ExoPlayer & local Room database:
 
 - **Latest Release APK**: [`APK/zenith-anime-latest.apk`](APK/zenith-anime-latest.apk)
 - **Debug APK**: [`APK/app-debug.apk`](APK/app-debug.apk)
 - **GitHub Releases**: [Latest Release (v1.7.0)](https://github.com/gokuthug1/zenith-anime/releases/latest)
-- **Web App / Showcase**: [https://gokuthug1.github.io/zenith-anime/](https://gokuthug1.github.io/zenith-anime/)
 
 ### Requirements
 - Android 8.0 (API level 26) or higher.
