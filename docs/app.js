@@ -65,6 +65,9 @@
     elements.html.setAttribute("data-accent", normalized);
     localStorage.setItem("zenith_accent", normalized);
 
+    const dot = document.getElementById("theme-current-dot");
+    if (dot) dot.style.backgroundColor = ACCENT_MAP[normalized] || '#10b981';
+
     // Update active chip state
     elements.themeChips.forEach((chip) => {
       const isTarget = chip.getAttribute("data-color") === normalized;
@@ -76,11 +79,26 @@
 
   /** Bind Theme Switcher Events */
   function bindThemeEvents() {
+    const toggleBtn = document.getElementById("theme-dropdown-toggle");
+    const dropdown = document.getElementById("theme-palette-dropdown");
+
+    toggleBtn?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      dropdown?.classList.toggle("show");
+    });
+
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest("#theme-dropdown-wrap")) {
+        dropdown?.classList.remove("show");
+      }
+    });
+
     elements.themeChips.forEach((chip) => {
       chip.addEventListener("click", () => {
         const color = chip.getAttribute("data-color");
         if (color) {
           applyTheme(color);
+          dropdown?.classList.remove("show");
         }
       });
     });

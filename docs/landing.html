@@ -6,7 +6,7 @@
   <meta name="description" content="Zenith Anime — A modern, local-first, highly customizable anime streaming and organization client for Android. Built with Jetpack Compose & ExoPlayer.">
   <title>Zenith Anime — Modern Native Anime Client for Android</title>
   <link rel="stylesheet" href="styles.css">
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2310b981'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z'/></svg>">
+  <link rel="icon" type="image/svg+xml" href="assets/ic_zenith_logo.svg">
 </head>
 <body>
   <!-- Accessibility Skip Link -->
@@ -27,30 +27,43 @@
 
       <nav aria-label="Primary Navigation">
         <ul class="nav-links" id="nav-links">
-          <li><a href="index.html" class="nav-link" style="color:var(--color-accent); font-weight:800;">✨ Launch Web Stream &rarr;</a></li>
           <li><a href="#features" class="nav-link">Features</a></li>
           <li><a href="#playground" class="nav-link">Playground</a></li>
           <li><a href="#downloads" class="nav-link">Download</a></li>
-          <li><a href="#disclaimers" class="nav-link">Legal / DMCA</a></li>
+          <li><a href="#disclaimers" class="nav-link">Legal</a></li>
           <li><a href="#community" class="nav-link">Community</a></li>
         </ul>
       </nav>
 
       <div class="nav-actions">
-        <!-- Theme Accent Palette Picker -->
-        <div class="color-palette" role="group" aria-label="Select Theme Accent Color">
-          <button type="button" class="color-chip active" data-color="emerald" style="background:#10b981;" aria-label="Emerald theme" aria-selected="true" aria-pressed="true"></button>
-          <button type="button" class="color-chip" data-color="cyan" style="background:#06b6d4;" aria-label="Cyan theme" aria-selected="false" aria-pressed="false"></button>
-          <button type="button" class="color-chip" data-color="sakura" style="background:#f43f5e;" aria-label="Sakura theme" aria-selected="false" aria-pressed="false"></button>
-          <button type="button" class="color-chip" data-color="violet" style="background:#8b5cf6;" aria-label="Violet theme" aria-selected="false" aria-pressed="false"></button>
-          <button type="button" class="color-chip" data-color="amber" style="background:#f59e0b;" aria-label="Amber theme" aria-selected="false" aria-pressed="false"></button>
-          <button type="button" class="color-chip" data-color="crimson" style="background:#ef4444;" aria-label="Crimson theme" aria-selected="false" aria-pressed="false"></button>
-          <button type="button" class="color-chip" data-color="indigo" style="background:#536dfe;" aria-label="Indigo theme" aria-selected="false" aria-pressed="false"></button>
-          <button type="button" class="color-chip" data-color="gold" style="background:#ffd54f;" aria-label="Gold theme" aria-selected="false" aria-pressed="false"></button>
+        <!-- Launch Web Stream Primary CTA Button -->
+        <a href="index.html" class="btn btn-primary btn-sm btn-nav-cta" title="Launch Web Streaming Edition">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          <span>Web Stream</span>
+        </a>
+
+        <!-- Theme Accent Palette Dropdown -->
+        <div class="theme-dropdown-wrap" id="theme-dropdown-wrap">
+          <button type="button" class="btn btn-secondary btn-sm btn-theme-toggle" id="theme-dropdown-toggle" aria-label="Select Theme Color" title="Theme Accent Palette">
+            <span class="theme-dot-indicator" id="theme-current-dot" style="background-color: var(--color-accent, #10b981);"></span>
+            <span>Theme</span>
+          </button>
+          <div class="theme-palette-dropdown" id="theme-palette-dropdown">
+            <button type="button" class="color-chip active" data-color="emerald" style="background:#10b981;" title="Emerald theme"></button>
+            <button type="button" class="color-chip" data-color="cyan" style="background:#06b6d4;" title="Cyan theme"></button>
+            <button type="button" class="color-chip" data-color="sakura" style="background:#f43f5e;" title="Sakura theme"></button>
+            <button type="button" class="color-chip" data-color="violet" style="background:#8b5cf6;" title="Violet theme"></button>
+            <button type="button" class="color-chip" data-color="amber" style="background:#f59e0b;" title="Amber theme"></button>
+            <button type="button" class="color-chip" data-color="crimson" style="background:#ef4444;" title="Crimson theme"></button>
+            <button type="button" class="color-chip" data-color="indigo" style="background:#536dfe;" title="Indigo theme"></button>
+            <button type="button" class="color-chip" data-color="gold" style="background:#ffd54f;" title="Gold theme"></button>
+          </div>
         </div>
 
-        <a href="https://github.com/gokuthug1/zenith-anime" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm" aria-label="GitHub Repository">
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <a href="https://github.com/gokuthug1/zenith-anime" target="_blank" rel="noopener noreferrer" class="btn btn-secondary btn-sm btn-github" aria-label="GitHub Repository">
+          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
           </svg>
           <span>GitHub</span>
@@ -66,6 +79,7 @@
       </div>
     </div>
   </header>
+
 
   <main id="main-content">
     <!-- Hero Section -->
