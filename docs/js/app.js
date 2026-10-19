@@ -51,19 +51,6 @@
         }
       });
 
-      // Header accent chips
-      document.querySelectorAll('.header-accent-chip').forEach(chip => {
-        chip.addEventListener('click', () => {
-          const color = chip.getAttribute('data-color');
-          if (color) {
-            window.ZenithStorage.updateSettings({ accent: color });
-            document.documentElement.setAttribute('data-accent', color);
-            document.querySelectorAll('.header-accent-chip').forEach(c => c.classList.toggle('active', c === chip));
-            window.ZenithUI?.showToast(`Accent set to ${color.charAt(0).toUpperCase() + color.slice(1)}`);
-          }
-        });
-      });
-
       // Mobile Menu Drawer Toggle
       const mobileToggle = document.getElementById('mobile-menu-toggle');
       const mobileNav = document.getElementById('nav-links');
@@ -91,6 +78,11 @@
       const cleanHash = hash.replace(/^#\/?/, '');
       const mainContainer = document.getElementById('app-main-content');
       if (!mainContainer) return;
+
+      // Smooth view enter animation
+      mainContainer.classList.remove('route-view-enter');
+      void mainContainer.offsetWidth; // trigger reflow for smooth re-trigger
+      mainContainer.classList.add('route-view-enter');
 
       // Scroll to top
       window.scrollTo({ top: 0, behavior: 'instant' });
