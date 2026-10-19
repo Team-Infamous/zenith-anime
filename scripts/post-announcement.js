@@ -50,7 +50,7 @@ async function postAnnouncement() {
       body: JSON.stringify({
         content: announcementText,
         username: 'Zenith Bot',
-        avatar_url: 'https://raw.githubusercontent.com/gokuthug1/zenith-anime/master/docs/assets/ic_zenith_logo.svg',
+        avatar_url: 'https://raw.githubusercontent.com/gokuthug1/zenith-anime/master/docs/assets/ic_zenith_logo.png',
         allowed_mentions: {
           roles: ['1560147127416651856']
         }
