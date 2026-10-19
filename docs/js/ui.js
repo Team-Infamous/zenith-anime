@@ -399,7 +399,7 @@
                 <circle cx="11" cy="11" r="8"></circle>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
               </svg>
-              <input type="text" id="main-search-input" class="main-search-input" placeholder="Search anime by English, Japanese, or synonyms..." value="${q}" autofocus>
+              <input type="text" id="main-search-input" class="main-search-input" placeholder="Search anime by English, Japanese, or synonyms..." value="${q}">
               <button type="button" class="search-clear-btn" id="search-clear-btn" style="display:${q ? 'block' : 'none'}">&times;</button>
             </div>
             <!-- Random Anime Roulette Button -->
@@ -534,6 +534,11 @@
 
       // Initial execution
       performSearch();
+
+      // Gently focus input only if navigated directly to empty search screen and nothing is active
+      if (!q && document.activeElement === document.body) {
+        setTimeout(() => input?.focus(), 100);
+      }
     },
 
     bindCardEvents(container) {

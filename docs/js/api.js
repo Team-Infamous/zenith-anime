@@ -436,54 +436,138 @@
       }
     },
 
-    // ---- MAL REVIEWS (VIA JIKAN API) ----
+    // ---- ANIME REVIEWS (ANILIST PRIMARY + SILENT JIKAN FALLBACK) ----
     async getMalReviews(malId, animeId) {
       if (!malId && !animeId) return [];
-      const cacheKey = `mal_reviews_${malId || animeId}`;
+      const cacheKey = `anime_reviews_${animeId || malId}`;
       const cached = getCached(cacheKey);
       if (cached) return cached;
 
-      const targetMalId = malId && malId !== '0' ? malId : null;
-      if (!targetMalId) return [];
+      const targetAnimeId = animeId && animeId !== '0' ? parseInt(animeId, 10) : null;
+      const targetMalId = malId && malId !== '0' ? parseInt(malId, 10) : null;
 
-      try {
-        const response = await fetch(`${JIKAN_URL}/anime/${targetMalId}/reviews?preliminary=true&spoilers=true`);
-        if (!response.ok) return [];
-        const json = await response.json();
-        const data = json.data || [];
+      // 1. Primary: Fetch from AniList GraphQL (Fast, reliable, zero timeouts)
+      if (targetAnimeId || targetMalId) {
+        const query = `
+          query ($id: Int, $idMal: Int) {
+            Media(id: $id, idMal: $idMal, type: ANIME) {
+              id
+              reviews(page: 1, perPage: 8, sort: [RATING_DESC, ID_DESC]) {
+                nodes {
+                  id
+                  summary
+                  score
+                  rating
+                  ratingAmount
+                  body
+                  createdAt
+                  user {
+                    name
+                    avatar {
+                      medium
+                    }
+                  }
+                }
+              }
+            }
+          }
+        `;
 
-        const reviews = data.slice(0, 8).map((item, i) => {
-          const user = item.user || {};
-          const author = user.username || 'MAL Reviewer';
-          const avatar = user.images?.jpg?.image_url || '';
-          const score = item.score || 8;
-          const body = (item.review || '').trim();
-          const firstLine = body.split('\n').filter(Boolean)[0] || '';
-          const summary = firstLine.length > 120 ? firstLine.slice(0, 120) + '...' : firstLine;
-          const rawDate = item.date || '';
-          const date = rawDate.length >= 10 ? rawDate.slice(0, 10) : rawDate;
-          const helpful = item.reactions?.overall || item.reactions?.nice || 0;
+        try {
+          const res = await this.queryAniList(query, {
+            id: targetAnimeId || undefined,
+            idMal: !targetAnimeId && targetMalId ? targetMalId : undefined
+          });
 
-          return {
-            id: String(item.mal_id || i),
-            author,
-            avatarUrl: avatar,
-            score,
-            summary,
-            body,
-            date,
-            isSpoiler: Boolean(item.is_spoiler),
-            episodesWatched: item.episodes_watched || 0,
-            helpfulCount: helpful
-          };
-        });
+          const nodes = res?.Media?.reviews?.nodes || [];
+          if (nodes.length > 0) {
+            const reviews = nodes.map((item, i) => {
+              const user = item.user || {};
+              const author = user.name || 'Anime Reviewer';
+              const avatar = user.avatar?.medium || '';
+              const score = item.score ? Math.round(item.score / 10) : 8;
+              const body = (item.body || item.summary || '').trim();
+              const firstLine = body.split('\n').filter(Boolean)[0] || '';
+              const summary = item.summary || (firstLine.length > 120 ? firstLine.slice(0, 120) + '...' : firstLine);
+              const rawDate = item.createdAt ? new Date(item.createdAt * 1000).toLocaleDateString() : '';
+              const helpful = item.rating || item.ratingAmount || 0;
 
-        setCached(cacheKey, reviews);
-        return reviews;
-      } catch (err) {
-        console.warn('Jikan reviews error:', err);
-        return [];
+              return {
+                id: String(item.id || i),
+                author,
+                avatarUrl: avatar,
+                score,
+                summary,
+                body,
+                date: rawDate,
+                isSpoiler: false,
+                episodesWatched: 0,
+                helpfulCount: helpful
+              };
+            });
+
+            setCached(cacheKey, reviews);
+            return reviews;
+          }
+        } catch {
+          // Proceed to secondary fallback if AniList query fails
+        }
       }
+
+      // 2. Secondary Fallback: Jikan (with strict 2000ms timeout & silent catch to prevent console ERR_CONNECTION_TIMED_OUT)
+      if (targetMalId) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 2000);
+
+        try {
+          const response = await fetch(`${JIKAN_URL}/anime/${targetMalId}/reviews?preliminary=true&spoilers=true`, {
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+          if (response.ok) {
+            const json = await response.json();
+            const data = json.data || [];
+
+            if (data.length > 0) {
+              const reviews = data.slice(0, 8).map((item, i) => {
+                const user = item.user || {};
+                const author = user.username || 'MAL Reviewer';
+                const avatar = user.images?.jpg?.image_url || '';
+                const score = item.score || 8;
+                const body = (item.review || '').trim();
+                const firstLine = body.split('\n').filter(Boolean)[0] || '';
+                const summary = firstLine.length > 120 ? firstLine.slice(0, 120) + '...' : firstLine;
+                const rawDate = item.date || '';
+                const date = rawDate.length >= 10 ? rawDate.slice(0, 10) : rawDate;
+                const helpful = item.reactions?.overall || item.reactions?.nice || 0;
+
+                return {
+                  id: String(item.mal_id || i),
+                  author,
+                  avatarUrl: avatar,
+                  score,
+                  summary,
+                  body,
+                  date,
+                  isSpoiler: Boolean(item.is_spoiler),
+                  episodesWatched: item.episodes_watched || 0,
+                  helpfulCount: helpful
+                };
+              });
+
+              setCached(cacheKey, reviews);
+              return reviews;
+            }
+          }
+        } catch {
+          // Silently ignore Jikan timeouts or CORS network failures without console warnings
+        } finally {
+          clearTimeout(timeoutId);
+        }
+      }
+
+      setCached(cacheKey, []);
+      return [];
     },
 
     // ---- ANIMETHEMES.MOE OPENINGS & ENDINGS ----
