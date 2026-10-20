@@ -66,7 +66,8 @@
               id="zenith-video-iframe"
               class="player-iframe"
               src="${embedUrl}"
-              allow="autoplay; fullscreen; encrypted-media; picture-in-picture; screen-wake-lock"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
+              allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
               referrerpolicy="no-referrer"
               title="${displayTitle} - Episode ${ep}"
             ></iframe>
